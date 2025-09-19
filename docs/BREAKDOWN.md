@@ -1,5 +1,5 @@
-# `ngen-datastream` Breakdown
-This document serves as a guide to run `ngen-datastream` step-by-step, which essentially walks the user through an example execution of `ngen-datastream/scripts/ngen-datastream`
+# `datastreamcli` Breakdown
+This document serves as a guide to run `datastreamcli` step-by-step, which essentially walks the user through an example execution of `scripts/datastream`
 
 ## Use Case
 Imagine we want to study the variation in NextGen configurations of retrospective streamflow forecasts for the Colorado River for the day of June 10th, 2019. We will use the steps below to prepare an input data package for NextGen, execute NextGen through NextGen in a Box, and then plot the results.
@@ -14,12 +14,12 @@ Imagine we want to study the variation in NextGen configurations of retrospectiv
 * [NextGen Execution](#nextgen-execution)
 * [Equivalent Command](#equivalent-command)
 
-Before proceeding, please review the [usage](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/USAGE.md) document and the [standard directions](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/STANDARD_DIRECTORIES.md) with special attention to the [ngen-run](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/STANDARD_DIRECTORIES.md#ngen-run) standard run directory portion.
+Before proceeding, please review the [usage](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/USAGE.md) document and the [standard directions](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md) with special attention to the [ngen-run](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md#ngen-run) standard run directory portion.
 
 ## Prepare Directories
 As you've now read, NextGen in a Box requires a standard directory structure. In this step we prepare that directory and will write data to it in the following steps.
 
-This guide will assume the user's current working directory is the `ngen-datastream` root folder.
+This guide will assume the user's current working directory is the `datastreamcli` root folder.
 
 To build `ngen-run/`
 ```
@@ -58,13 +58,13 @@ See [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) for more options.
 
 Use the [Lynker Spatial Hydrolocation Viewer](https://www.lynker-spatial.com/hydrolocations.html) to find the point of interest (`poi`) you want to use to subset. See hfsubset documentation to see how to subset with Gage Id and other options.  
 
-![ngen-datastream](images/lynker-spatial-hyview.png)
+![datastreamcli](images/lynker-spatial-hyview.png)
 
 Use the [NGIA geopackage viewer](https://ngageoint.github.io/geopackage-viewer-js/) to make sure you've got the spatial domain set properly.
 
-![ngen-datastream](images/geopackage-viewer.jpg)
+![datastreamcli](images/geopackage-viewer.jpg)
 
-[hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) is integrated into `ngen-datastream`, which means the user can simply provide these three cli args to `ngen-datastream` to offload the [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) call to `ngen-datastream`
+[hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) is integrated into `datastreamcli`, which means the user can simply provide these three cli args to `datastreamcli` to offload the [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) call to `datastreamcli`
 ```
   -I, --SUBSET_ID           <Hydrofabric id to subset>  
   -i, --SUBSET_ID_TYPE      <Hydrofabric id type>  
@@ -72,9 +72,9 @@ Use the [NGIA geopackage viewer](https://ngageoint.github.io/geopackage-viewer-j
   ```
 
 ## Forcings / Time Domain
-Defining the time over which the simulation will run is essentially captured in the forcings (precipitation, wind speed, etc.). There are many sources of forcings that can be used in NextGen. While it is certainly possible to use forcings from a variety of sources (NWM, AORC, etc.) `ngen-datastream` integrates [nwmurl](https://github.com/CIROH-UA/nwmurl), which will provide National Water Model forcings filenames based on the time period the user provides. To generate these forcings independently, follow the steps below:
+Defining the time over which the simulation will run is essentially captured in the forcings (precipitation, wind speed, etc.). There are many sources of forcings that can be used in NextGen. While it is certainly possible to use forcings from a variety of sources (NWM, AORC, etc.) `datastreamcli` integrates [nwmurl](https://github.com/CIROH-UA/nwmurl), which will provide National Water Model forcings filenames based on the time period the user provides. To generate these forcings independently, follow the steps below:
 
-First, we use [nwmurl](https://github.com/CIROH-UA/nwmurl) to generate a list of nwm forcing filenames that [forcingprocessor](https://github.com/CIROH-UA/ngen-datastream/tree/main/forcingprocessor) reads from. We define exactly which forcings files we want with the options in conf_nwmurl.json. 
+First, we use [nwmurl](https://github.com/CIROH-UA/nwmurl) to generate a list of nwm forcing filenames that [forcingprocessor](https://github.com/CIROH-UA/datastreamcli/tree/main/forcingprocessor) reads from. We define exactly which forcings files we want with the options in conf_nwmurl.json. 
 
 There are two types of this conf_nwmurl.json. One for operational forcings which looks like this:
 ```
@@ -133,7 +133,7 @@ tail -n 20 ./retro_filenamelist.txt
 
 Save this file as `./palisade_2019/datastream-metadata/retro_filenamelist.txt`
 
-Now that we have the forcing filenames in a text file, we can set up `forcingprocessor` by creating our own `conf_fp.json`. See [here](https://github.com/CIROH-UA/ngen-datastream/tree/main/forcingprocessor#confjson-options) for a deeper explanation of the options.
+Now that we have the forcing filenames in a text file, we can set up `forcingprocessor` by creating our own `conf_fp.json`. See [here](https://github.com/CIROH-UA/datastreamcli/tree/main/forcingprocessor#confjson-options) for a deeper explanation of the options.
 ```
 {
     "forcing"  : {
@@ -164,6 +164,7 @@ Save this file as `./palisade_2019/datastream-metadata/conf_fp.json`. Note the `
 
 ![forcing_gif](gifs/T2D_2_TMP_2maboveground_palisade.gif)
 
+> TODO: Update to reflect the splitting off of CIROH-UA/forcingprocessor
 Execute `forcingprocessor` with the following command
 ```
 python ./forcingprocessor/src/forcingprocessor/processor.py ./palisade_2019/datastream-metadata/conf_fp.json
@@ -171,10 +172,10 @@ python ./forcingprocessor/src/forcingprocessor/processor.py ./palisade_2019/data
 This should write out NextGen forcings csv files to `./palisade_2019/ngen-run/forcings`
 
 ## NextGen Configuration
-NextGen configuration is determined by the realization file. See the [NextGen repo](https://github.com/NOAA-OWP/ngen/wiki/Realization-Config) for documentation on building this file. Create and save it to `./palisade_2019/ngen-run/config/realization.json`. There are template realizations located in `ngen-datastream` at  `./configs/ngen`.
+NextGen configuration is determined by the realization file. See the [NextGen repo](https://github.com/NOAA-OWP/ngen/wiki/Realization-Config) for documentation on building this file. Create and save it to `./palisade_2019/ngen-run/config/realization.json`. There are template realizations located in `datastreamcli` at  `./configs/ngen`.
 
 ## NextGen BMI Configuration File Generation
-Each model defined in the realization file will require the creation of configuration files, often for each catchment defined in the geopackage. `ngen_configs_gen.py` will generate all of the required BMI configuration files based on which models are found in the realization file. See [this document](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/NGEN_MODULES.md) for which models are currently integrated into `ngen-datastream`. If you define a model in the realization file that is not integrated, you will need to manually create the necessary BMI configuration files.
+Each model defined in the realization file will require the creation of configuration files, often for each catchment defined in the geopackage. `ngen_configs_gen.py` will generate all of the required BMI configuration files based on which models are found in the realization file. See [this document](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/NGEN_MODULES.md) for which models are currently integrated into `datastreamcli`. If you define a model in the realization file that is not integrated, you will need to manually create the necessary BMI configuration files.
 
 If Noah-OWP-Modular is defined in the realization file, compute the noah-owp pickle file. This is admittedly hacky and will be depreciated soon.
 ```
@@ -196,7 +197,7 @@ python ./python/src/datastream/ngen_configs_gen.py \
 Inspect `./palisade_2019/ngen-run/config` to see what BMI model configuration files were created.
 
 ## Validation
-We have now completed the required steps to generate the input data package for a NextGen simulation. As you can tell by now, there are many steps and thus many places to make a mistake. The `run-validator.py` script provides a quick way to check that the input data package contains the required files and that they are consistent to one another. See [here](https://github.com/CIROH-UA/ngen-datastream/tree/main/python_tools#run_validatorpy) for an explanation of the validation. 
+We have now completed the required steps to generate the input data package for a NextGen simulation. As you can tell by now, there are many steps and thus many places to make a mistake. The `run-validator.py` script provides a quick way to check that the input data package contains the required files and that they are consistent to one another. See [here](https://github.com/CIROH-UA/datastreamcli/tree/main/python_tools#run_validatorpy) for an explanation of the validation. 
 
 Execute the validator on the `ngen-run` package we have created.
 ```
@@ -218,7 +219,7 @@ In this command we mount the `./palisade_2019/ngen-run` directory to the docker 
 ## Equivalent Command
 Now that we have performed each component of the datastream individually, let's take a look at the single command that would have accomplished all of the steps we just went through.
 ```
-./scripts/ngen-datastream \
+./scripts/datastreamcli \
     -s 201901010000 \
     -e 201912312300 \
     -i hl \
