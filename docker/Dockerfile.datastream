@@ -1,8 +1,10 @@
 ARG TAG_NAME="latest"
 FROM awiciroh/datastream-deps:${TAG_NAME} AS datastream_base
 # Copy files directly from the parent context
-COPY . /datastreamcli/
-COPY configs/ /ngen-datastreamcli/configs/
+COPY configs/ /datastreamcli/configs/
+COPY src/ /datastreamcli/src/
+COPY setup.cfg /datastreamcli/setup.cfg
+COPY pyproject.toml /datastreamcli/pyproject.toml
 RUN pip3 install -e datastreamcli/ && \
     groupadd -r mygroup && \
     useradd -r -g mygroup myuser
