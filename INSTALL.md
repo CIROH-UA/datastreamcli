@@ -1,4 +1,4 @@
-To run ngen-datastream, clone this repository onto a linux machine and make sure the packages below are installed.
+To run datastreamcli, clone this repository onto a linux host and make sure the packages below are installed.
 
 ## Required Packages
 * docker 

@@ -69,7 +69,7 @@ def multiprocess_noahowp():
 
 def generate_troute_conf(out_dir,start,max_loop_size,geo_file_path):
 
-    template = Path(__file__).parent.parent.parent.parent/"configs/ngen/troute.yaml"
+    template = Path(__file__).parent.parent.parent/"configs/ngen/troute.yaml"
 
     with open(template,'r') as fp:
         conf_template = fp.readlines()

@@ -1,0 +1,8 @@
+data/
+venv39/
+.vscode/
+src/datastreamcli/__pycache__/
+src/datastreamcli/datastreamcli.egg-info/
+src/datastreamcli.egg-info/
+tests/__pycache__/
+tests/data/
