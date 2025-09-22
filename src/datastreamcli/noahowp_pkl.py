@@ -5,7 +5,7 @@ gpd.options.io_engine = "pyogrio"
 import concurrent.futures as cf
 
 def gen_noah_owp_pkl(gdf):    
-    template = Path(__file__).parent.parent.parent.parent/"configs/ngen/noah-owp-modular-init.namelist.input"
+    template = Path(__file__).parent.parent.parent/"configs/ngen/noah-owp-modular-init.namelist.input"
     with open(template,'r') as fp:
         conf_template = fp.readlines()
 

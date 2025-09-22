@@ -1,21 +1,30 @@
 import pytest, os
-from python_tools.run_validator import validate_data_dir
+from datastreamcli.run_validator import validate_data_dir
+import shutil
+import subprocess
+from pathlib import Path
 
-SCRIPT_DIR   = os.path.dirname(os.path.realpath(__file__))
-DATA_DIR     = os.path.join(SCRIPT_DIR,'data')
+SCRIPT_DIR   = Path(__file__).resolve().parent
+DATA_DIR     = SCRIPT_DIR / 'data'
 DATA_PACKAGE = "https://datastream-resources.s3.us-east-1.amazonaws.com/validator.tar.gz"
 ORIGINAL_TAR = "validator_test_original.tar.gz"
-ORIGINAL_TAR_PATH = os.path.join(DATA_DIR,ORIGINAL_TAR)
-TEST_DIR = os.path.join(DATA_DIR,"test_dir")
-TEST_DATA_DIR = os.path.join(TEST_DIR,"ngen-run")
-os.system(f"curl -o {ORIGINAL_TAR_PATH} -L -O {DATA_PACKAGE}")
+ORIGINAL_TAR_PATH = DATA_DIR / ORIGINAL_TAR
+TEST_DIR = DATA_DIR / "test_dir"
+TEST_DATA_DIR = TEST_DIR / "ngen-run"
 
 @pytest.fixture(autouse=True)
 def ready_test_folder():   
-    if os.path.exists(TEST_DIR):
-        os.system(f"rm -rf {TEST_DIR}")
-    os.system(f'mkdir {TEST_DIR}')
-    os.system(f"tar xfz {ORIGINAL_TAR_PATH} -C {TEST_DIR}")
+    if TEST_DIR.exists():
+        shutil.rmtree(TEST_DIR)
+    TEST_DIR.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["curl", "-L", "-o", str(ORIGINAL_TAR_PATH), DATA_PACKAGE],
+        check=True
+    )
+    subprocess.run(
+        ["tar", "xfz", str(ORIGINAL_TAR_PATH), "-C", str(TEST_DIR)],
+        check=True
+    )
 
 def test_missing_geopackage():
     del_file = str(TEST_DATA_DIR) + '/config/*.gpkg'

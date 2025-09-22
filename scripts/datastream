@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 # NextGen DataStream CLI: A batteries-included style workflow for running NextGen
 #
@@ -265,8 +265,8 @@ DOCKER_DIR="$(dirname "${SCRIPT_DIR%/}")/docker"
 DOCKER_MOUNT="/mounted_dir"
 DOCKER_RESOURCES="${DOCKER_MOUNT%/}/datastream-resources"
 DOCKER_META="${DOCKER_MOUNT%/}/datastream-metadata"
-DOCKER_FP="/ngen-datastream/forcingprocessor/src/forcingprocessor/"
-DOCKER_PY="/ngen-datastream/python_tools/src/python_tools/"
+DOCKER_FP="/forcingprocessor/src/forcingprocessor/"
+DOCKER_PY="/datastreamcli/src/datastreamcli/"
 
 # Time shift back 1 day for when init > hour
 if [[ "$START_DATE" == *"DAILY"* ]]; then

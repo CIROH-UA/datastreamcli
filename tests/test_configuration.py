@@ -1,20 +1,22 @@
-import os, pytest, json
+import pytest, json
 from datetime import datetime, timezone, timedelta
-from python_tools.configure_datastream import create_confs
+from datastreamcli.configure_datastream import create_confs
+from pathlib import Path
+import shutil
 
-SCRIPT_DIR        = os.path.dirname(os.path.realpath(__file__))
-DATA_DIR          = os.path.join(SCRIPT_DIR,'data')
-METADATA_DIR      = os.path.join(DATA_DIR,"datastream-metadata")
-DATASTREAM_DIR    = os.path.dirname(os.path.dirname(SCRIPT_DIR))
-REALIZATION_FILE  = "realization_sloth_nom_cfe_pet.json"
-REALIZATION_ORIG  = os.path.join(DATASTREAM_DIR,"configs/ngen/",REALIZATION_FILE)
-NGEN_RUN_CONF_DIR = os.path.join(DATA_DIR,"ngen-run/config")
-REALIZATION_RUN   = os.path.join(NGEN_RUN_CONF_DIR,"realization.json")
-REALIZATION_META_USER  = os.path.join(METADATA_DIR,"realization_user.json")
-REALIZATION_META_DS    = os.path.join(METADATA_DIR,"realization_datastream.json")
-CONF_NWM          = os.path.join(METADATA_DIR,'conf_nwmurl.json')
-CONF_FP           = os.path.join(METADATA_DIR,'conf_fp.json')
-CONF_DATASTREAM   = os.path.join(METADATA_DIR,'conf_datastream.json')
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR / "data"
+METADATA_DIR = DATA_DIR / "datastream-metadata"
+DATASTREAM_DIR = SCRIPT_DIR.parent
+REALIZATION_FILE = "realization_sloth_nom_cfe_pet.json"
+REALIZATION_ORIG = DATASTREAM_DIR / "configs/ngen" / REALIZATION_FILE
+NGEN_RUN_CONF_DIR = DATA_DIR / "ngen-run" / "config"
+REALIZATION_RUN = NGEN_RUN_CONF_DIR / "realization.json"
+REALIZATION_META_USER = METADATA_DIR / "realization_user.json"
+REALIZATION_META_DS = METADATA_DIR / "realization_datastream.json"
+CONF_NWM = METADATA_DIR / "conf_nwmurl.json"
+CONF_FP = METADATA_DIR / "conf_fp.json"
+CONF_DATASTREAM = METADATA_DIR / "conf_datastream.json"
 
 class Inputs:
     def __init__(self,
@@ -68,8 +70,8 @@ inputs = Inputs(
     start_date = "202406100000",
     end_date = "202406102300",
     data_dir = str(DATA_DIR),
-    geopackage = str(os.path.join(DATA_DIR,"palisade.gpkg")),
-    geopackage_provided = str(os.path.join(DATA_DIR,"palisade.gpkg")),
+    geopackage = str(DATA_DIR / "palisade.gpkg"),
+    geopackage_provided = str(DATA_DIR / "palisade.gpkg"),
     resource_path = "",
     forcings = "",
     forcing_source = "NWM_RETRO_V3",
@@ -88,19 +90,22 @@ inputs = Inputs(
     ngen_bmi_confs=""
 )
 
-@pytest.fixture
-def clean_dir(autouse=True):
-    if os.path.exists(DATA_DIR):
-        os.system(f'rm -rf {str(DATA_DIR)}')
-    os.system(f'mkdir {str(DATA_DIR)}')
+@pytest.fixture(autouse=True)
+def clean_dir():
+    if DATA_DIR.exists():
+        shutil.rmtree(DATA_DIR)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def check_paths():
-    assert os.path.exists(CONF_NWM)
-    assert os.path.exists(CONF_FP)
-    assert os.path.exists(CONF_DATASTREAM)
-    assert os.path.exists(REALIZATION_META_USER)   
-    assert os.path.exists(REALIZATION_META_DS)   
-    assert os.path.exists(REALIZATION_RUN) 
+    for path in [
+        CONF_NWM,
+        CONF_FP,
+        CONF_DATASTREAM,
+        REALIZATION_META_USER,
+        REALIZATION_META_DS,
+        REALIZATION_RUN,
+    ]:
+        assert path.exists(), f"Path does not exist: {path}"
 
 def test_conf_basic():
     create_confs(inputs)
