@@ -19,9 +19,3 @@ services:
       args:
         TAG_NAME: ${TAG:-latest}
     image: awiciroh/datastream:${TAG:-latest}
-
-  forcingprocessor:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.forcingprocessor
-    image: awiciroh/forcingprocessor:${TAG:-latest}
