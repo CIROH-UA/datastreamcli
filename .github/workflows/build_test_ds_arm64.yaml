@@ -163,7 +163,7 @@ jobs:
       - name: Download build logs from S3
         if: always()
         run: |
-          aws s3 cp s3://ciroh-community-ngen-datastream/forcingprocessor/test/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
           if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
             cat $GITHUB_WORKSPACE/docker_build_log.txt >> $GITHUB_STEP_SUMMARY
           fi
