@@ -1,4 +1,5 @@
-name: Build, Test Datastream Docker Containers on ARM
+name: Datastream X Forcingprocessor Integration Test on X86
+
 on:
   workflow_dispatch:
     inputs:
@@ -75,7 +76,6 @@ jobs:
         fi
 
     - name: Test docker containers
-      working-directory: datastreamcli
       env:
         DS_TAG: ${{ inputs.ds_tag || 'latest' }}
         FP_TAG: ${{ inputs.fp_tag || 'latest' }}
