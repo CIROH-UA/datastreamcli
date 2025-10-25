@@ -46,13 +46,11 @@ phases:
   build:
     commands:
       - echo "Building Docker images with layer caching..."
-      - cd docker
       - echo "Building datastream-deps (cached)..."
-      - DOCKER_BUILDKIT=1 ARCH=aarch64 TAG=$IMAGE_TAG docker compose -f docker-compose.yml build --build-arg BUILDKIT_INLINE_CACHE=1 datastream-deps
+      - DOCKER_BUILDKIT=1 ARCH=aarch64 TAG=$IMAGE_TAG docker compose -f docker/docker-compose.yml build --build-arg BUILDKIT_INLINE_CACHE=1 datastream-deps
       - echo "Building datastream (cached)..."
-      - DOCKER_BUILDKIT=1 ARCH=aarch64 TAG=$IMAGE_TAG docker compose -f docker-compose.yml build --build-arg BUILDKIT_INLINE_CACHE=1 datastream
+      - DOCKER_BUILDKIT=1 ARCH=aarch64 TAG=$IMAGE_TAG docker compose -f docker/docker-compose.yml build --build-arg BUILDKIT_INLINE_CACHE=1 datastream
       - echo "Images built!"
-      - cd ..
       
   post_build:
     commands:
