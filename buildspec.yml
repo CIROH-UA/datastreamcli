@@ -1,0 +1,111 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKER_BUILDKIT: "1"
+    COMPOSE_DOCKER_CLI_BUILD: "1"
+    IMAGE_TAG: "latest-arm64"
+    IMAGE_NAME: "awiciroh/datastream"
+  parameter-store:
+    DOCKER_USERNAME: /codebuild/docker/username
+    DOCKER_PASSWORD: /codebuild/docker/password
+
+# Batch configuration - runs tests in parallel across multiple builds
+batch:
+  fast-fail: false
+  build-matrix:
+    static:
+      ignore-failure: false
+    dynamic:
+      env:
+        variables:
+          TEST_SUITE:
+            - "python-bmi-config-generation"
+            - "python-configuration"
+            - "python-validation"
+            - "ngiab-integration"
+            - "datastream-options"
+            - "teehr-integration"
+
+phases:
+  pre_build:
+    commands:
+      - echo "Build started on $(date)"
+      - echo "TEST_SUITE = $TEST_SUITE"
+      - echo "Logging into Docker Hub..."
+      - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      - echo "Docker login successful!"
+      - echo "Downloading test data files..."
+      - mkdir -p tests/data
+      - echo "Downloading vpu-09_subset.gpkg..."
+      - curl -fL --retry 3 --retry-delay 2 -o tests/data/vpu-09_subset.gpkg "https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/VPU/vpu-09_subset.gpkg" || curl -fL --retry 3 --retry-delay 2 -o tests/data/vpu-09_subset.gpkg "https://datastream-resources.s3.us-east-1.amazonaws.com/VPU_09/config/nextgen_VPU_09.gpkg"
+      - echo "Downloading palisade.gpkg..."
+      - curl -fL --retry 3 --retry-delay 2 -o tests/data/palisade.gpkg "https://ngen-datastream.s3.us-east-2.amazonaws.com/palisade.gpkg" || echo "Palisade download failed"
+      - echo "Test data ready"
+      
+  build:
+    commands:
+      - echo "Building Docker images with layer caching..."
+      - cd docker
+      - echo "Building datastream-deps (cached)..."
+      - DOCKER_BUILDKIT=1 ARCH=aarch64 TAG=$IMAGE_TAG docker compose -f docker-compose.yml build --build-arg BUILDKIT_INLINE_CACHE=1 datastream-deps
+      - echo "Building datastream (cached)..."
+      - DOCKER_BUILDKIT=1 ARCH=aarch64 TAG=$IMAGE_TAG docker compose -f docker-compose.yml build --build-arg BUILDKIT_INLINE_CACHE=1 datastream
+      - echo "Images built!"
+      - cd ..
+      
+  post_build:
+    commands:
+      - echo "========================================="
+      - echo "Running Test Suite - $TEST_SUITE"
+      - echo "========================================="
+      
+      # Run different test based on TEST_SUITE environment variable
+      - |
+        case "$TEST_SUITE" in
+          "python-bmi-config-generation")
+            docker run --rm -v $(pwd):/datastream -w /datastream -e AWS_REGION=us-east-1 $IMAGE_NAME:$IMAGE_TAG bash -c "pip install -e . && pip install pytest && python -m pytest tests/test_bmi_config_generation.py -vv"
+            ;;
+          "python-configuration")
+            docker run --rm -v $(pwd):/datastream -w /datastream -e AWS_REGION=us-east-1 $IMAGE_NAME:$IMAGE_TAG bash -c "pip install -e . && pip install pytest && python -m pytest tests/test_configuration.py -vv"
+            ;;
+          "python-validation")
+            docker run --rm -v $(pwd):/datastream -w /datastream -e AWS_REGION=us-east-1 $IMAGE_NAME:$IMAGE_TAG bash -c "pip install -e . && pip install pytest && python -m pytest tests/test_validation.py -vv"
+            ;;
+          "ngiab-integration")
+            docker run --rm -v $(pwd):/datastream -w /datastream -e AWS_REGION=us-east-1 $IMAGE_NAME:$IMAGE_TAG bash -c "./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d /datastream/data/datastream_test -g https://ngen-datastream.s3.us-east-2.amazonaws.com/palisade.gpkg -R /datastream/configs/ngen/realization_sloth_nom_cfe_pet.json"
+            ;;
+          "datastream-options")
+            docker run --rm -v $(pwd):/datastream -w /datastream -e AWS_REGION=us-east-1 $IMAGE_NAME:$IMAGE_TAG bash -c "
+              # Base test with NWM_RETRO_V3
+              ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d /datastream/data/datastream_test -g tests/data/palisade.gpkg -R /datastream/configs/ngen/realization_sloth_nom_cfe_pet.json &&
+              # Cache resource directory
+              mkdir -p /datastream/data/cache &&
+              cp /datastream/data/datastream_test/datastream-metadata/datastream.env /datastream/data/cache &&
+              cp -r /datastream/data/datastream_test/datastream-resources /datastream/data/cache &&
+              # Test CONF_FILE option
+              rm -rf /datastream/data/datastream_test &&
+              ./scripts/datastream -c /datastream/data/cache/datastream.env &&
+              # Test resource directory
+              rm -rf /datastream/data/datastream_test &&
+              ./scripts/datastream -r /datastream/data/cache/datastream-resources -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d /datastream/data/datastream_test
+            "
+            ;;
+          "teehr-integration")
+            docker run --rm -v $(pwd):/datastream -w /datastream -e AWS_REGION=us-east-1 $IMAGE_NAME:$IMAGE_TAG bash -c "./scripts/datastream -s 202008080100 -e 202008080200 -C NWM_V3_RETRO -d /datastream/data/outputs -E True -r s3://ciroh-community-ngen-datastream/v2.2_resources/VPU_09 -R https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/realizations/realization_VPU_09.json"
+            ;;
+          *)
+            echo "Unknown test suite: $TEST_SUITE"
+            exit 1
+            ;;
+        esac
+      
+      - echo "========================================="
+      - echo "✅ Test Suite $TEST_SUITE Completed!"
+      - echo "========================================="
+
+# Enable Docker layer caching for faster rebuilds
+cache:
+  paths:
+    - '/var/lib/docker/**/*'
+    - '/root/.cache/pip/**/*'
