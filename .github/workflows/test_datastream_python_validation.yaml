@@ -4,18 +4,26 @@
 name: Test Datastream Python Validation
 on:
   workflow_dispatch:
+
   push:
     branches:
       - main
     paths:
-      - 'python_tools/**'
-      - '!python_tools/README.md'
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+      - '!.github/workflows/**'
+      - '.github/workflows/test_datastream_python_validation.yaml'
+
   pull_request:
     branches:
-      - main    
-    paths:      
-      - 'python_tools/**'
-      - '!python_tools/README.md'
+      - main
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+      - '!.github/workflows/**'
+      - '.github/workflows/test_datastream_python_validation.yaml'
       
 permissions:
   contents: read
