@@ -46,7 +46,7 @@ or run with cli args
 | S3_BUCKET           | `-S` | AWS S3 Bucket to write output to |  |
 | S3_PREFIX           | `-o` | Path within S3 bucket to write to |
 | DRYRUN             | `-y` | Set to "True" to skip all compute steps. |
-| NPROCS              | `-n` | Maximum number of processes to use in any step of  `ngen-datastream`. Defaults to `nprocs - 2` |  |
+| NPROCS              | `-n` | Maximum number of processes to use in any step of  `datastreamcli`. Defaults to `nprocs - 2` |  |
 | CONF_FILE            | `-c` | Store CLI args as env variables in a file. |  |
 | EVAL | `-E` | Set to "True" to run the TEEHR automated evaluation service on NextGen outputs. |  |
 | VERBOSE | `-V` | Set to "True" to output all of forcingprocessor and NGIAB outputs |  |

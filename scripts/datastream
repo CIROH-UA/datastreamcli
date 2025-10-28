@@ -63,7 +63,7 @@ get_file() {
     elif is_file "$IN_STRING"; then
         log_n_run_steps cp $IN_STRING $OUT_STRING
     else
-        echo "ngen-datastream doesn't know how to deal with $IN_STRING"
+        echo "datastreamcli doesn't know how to deal with $IN_STRING"
     fi
 }
 
