@@ -1,0 +1,154 @@
+name: Build and Test DataStream CLI on X86
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
+  pull_request:
+    paths:
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  build-x86:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pre-cleanup workspace
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+          
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS (if needed)
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+          
+      - name: Build datastreamcli-deps
+        run: |
+          cd docker
+          TAG=latest-x86 docker compose -f docker-compose.yml build datastreamcli-deps
+            
+      - name: Build datastreamcli
+        run: |
+          cd docker
+          TAG=latest-x86 docker compose -f docker-compose.yml build datastreamcli
+            
+      - name: List built images
+        run: docker images | grep datastreamcli
+
+      - name: Save Docker images
+        run: |
+          docker save awiciroh/datastreamcli:latest-x86 | gzip > /tmp/datastreamcli-x86.tar.gz
+          
+      - name: Upload datastreamcli image
+        uses: actions/upload-artifact@v4
+        with:
+          name: datastreamcli-x86
+          path: /tmp/datastreamcli-x86.tar.gz
+          retention-days: 1
+
+      - name: Clean up local tar files
+        if: always()
+        run: rm -f /tmp/datastreamcli-x86.tar.gz
+
+  test-x86:
+    needs: build-x86
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        test-suite:
+          - name: "All Tests"
+            image: "datastreamcli"
+            command: "pytest -vv tests/"
+          
+          # Or split by test files/categories if you have many tests:
+          # - name: "Core Functionality"
+          #   image: "datastreamcli"
+          #   command: "pytest -vv tests/test_core.py"
+          # 
+          # - name: "Data Processing"
+          #   image: "datastreamcli"
+          #   command: "pytest -vv tests/test_processing.py"
+          #
+          # - name: "CLI Commands"
+          #   image: "datastreamcli"
+          #   command: "pytest -vv tests/test_cli.py"
+
+    name: "${{ matrix.test-suite.name }}"
+    
+    steps:
+      - name: Pre-cleanup workspace
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+          
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: datastreamcli-x86  
+          path: /tmp/artifacts
+
+      - name: Verify artifact and load
+        run: |
+          set -euo pipefail
+          ls -lh /tmp/artifacts
+          
+          for i in 1 2 3; do
+            if gunzip -c /tmp/artifacts/datastreamcli-x86.tar.gz | docker load; then
+              echo "Successfully loaded image on attempt $i"
+              docker images | grep datastreamcli
+              break
+            else
+              echo "Failed to load image on attempt $i"
+              if [ $i -lt 3 ]; then
+                echo "Retrying in 10 seconds..."
+                sleep 10
+              else
+                exit 1
+              fi
+            fi
+          done
+          
+      - name: Run ${{ matrix.test-suite.name }}
+        run: |
+          docker run --rm \
+            -v $(pwd):/workspace \
+            -w /workspace \
+            -e AWS_REGION=us-east-1 \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            awiciroh/${{ matrix.test-suite.image }}:latest-x86 \
+            ${{ matrix.test-suite.command }}
+          
+  cleanup-artifacts:
+    needs: test-x86
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Delete artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: datastreamcli-x86
