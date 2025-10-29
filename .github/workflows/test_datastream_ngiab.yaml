@@ -1,66 +1,197 @@
-name: Test Datastream NGIAB Integration
-
+name: Datastream X ForcingProcessor Integration on ARM
 on:
   workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch name to build from (leave empty to use current branch)'
+        required: false
+        default: ''
+        type: string
+      ds_tag:
+        description: 'DS Docker version tag which you want to test FP with'
+        required: false
+        default: ''
+        type: string
+      fp_tag:
+        description: 'FP Docker version tag which you want to test FP with'
+        required: false
+        default: ''
+        type: string
+
   push:
     branches:
       - main
+      - dev
     paths:
-      - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'
-     
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
   pull_request:
-    branches:
-      - main  
     paths:
-      - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'         
-
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
+  
 permissions:
-  contents: read      
+  contents: read
+  security-events: write 
 
-jobs:
-  test-ngiab-integration:
+jobs:    
+  build-test-docker-arm:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2  
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Configure AWS
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1        
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      # Dynamically configures the test execution JSON by setting the branch name and conditionally removing Docker build commands for containers whose Dockerfiles haven't changed (optimization only applies to push events, not manual triggers)
+      - name: Prepare execution config
+        env:
+          DS_TAG: ${{ inputs.ds_tag || 'latest-arm64' }}
+          FP_TAG: ${{ inputs.fp_tag || 'latest-arm64' }}
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.branch_name }}" ]; then
+            BRANCH_NAME="${{ inputs.branch_name }}"
+          else
+            BRANCH_NAME="${{ github.ref_name }}"
+          fi
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3      
+          sed -i "s|\${BRANCH_NAME}|$BRANCH_NAME|g" .github/executions/fp_ds_test_execution_arm.json
+          sed -i "s|\${DS_TAG}|$DS_TAG|g" .github/executions/fp_ds_test_execution_arm.json
+          sed -i "s|\${FP_TAG}|$FP_TAG|g" .github/executions/fp_ds_test_execution_arm.json
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! git diff --name-only HEAD~1 HEAD | grep -q '^docker/Dockerfile\.datastream-deps$'; then
+            sed -i "/docker-compose\.yml build datastream-deps/d" .github/executions/fp_ds_test_execution_arm.json
+          fi
+          
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! git diff --name-only HEAD~1 HEAD | grep -q '^docker/Dockerfile\.datastream$'; then
+            sed -i "/docker-compose\.yml build datastream/d" .github/executions/fp_ds_test_execution_arm.json
+          fi
 
-    - name: Configure AWS
-      run: |
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws configure set region us-east-1    
-        export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-        export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        
-    - name: Build docker containers
-      run : |        
-        docker compose -f docker/docker-compose.yml build datastream
- 
-    - name: Base test and NWM_RETRO_V3
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test        
-        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g https://ngen-datastream.s3.us-east-2.amazonaws.com/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+          cat .github/executions/fp_ds_test_execution_arm.json
+
+      - name: clone ngen
+        run: |
+          git clone --single-branch --branch main --depth 1 https://github.com/CIROH-UA/ngen-datastream.git
+
+      - name: Build AWS Infra
+        working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
+        run: |
+          terraform init
+          terraform validate
+          ../../../shell/import_resources.sh variables.tfvars
+          terraform apply -var-file=variables.tfvars -auto-approve
+          sleep 60
+
+      - name: Set permissions
+        working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
+        run : |
+          aws secretsmanager put-resource-policy --secret-id docker_awiciroh_creds --resource-policy file://$GITHUB_WORKSPACE/.github/executions/secret-policy.json --block-public-policy --region us-east-1
+          if ! aws ec2 describe-key-pairs --key-names "actions_key_arm" --query 'KeyPairs[0].KeyName' --output text 2>/dev/null; then aws ec2 create-key-pair --key-name "actions_key_arm" --query 'KeyName' --output text && echo "Key pair 'actions_key_arm' created in AWS"; else echo "Key pair 'actions_key_arm' already exists"; fi
+          sleep 60
+
+
+      - name: Build and Test arm docker containers with AWS infra
+        id: stepfunction_execution
+        run : |
+          cd ngen-datastream/infra/aws/terraform/modules/orchestration
+          execution_arn=$(aws stepfunctions start-execution --state-machine-arn $(cat ./sm_ARN.txt) --name docker_builder_$(env TZ=US/Eastern date +'%Y%m%d%H%M%S') --input "file://$GITHUB_WORKSPACE/.github/executions/fp_ds_test_execution_arm.json" --region us-east-1 --query 'executionArn' --output text)
+          echo "Execution ARN: $execution_arn"
+          echo "execution_arn=$execution_arn" >> $GITHUB_OUTPUT
+          echo "$execution_arn" > $GITHUB_WORKSPACE/execution_arn.txt
+          
+          status="RUNNING"
+          while [ "$status" != "SUCCEEDED" ]; do 
+            status=$(aws stepfunctions describe-execution --execution-arn "$execution_arn" --region us-east-1 --query 'status' --output text)
+            echo "Current status: $status"
+            if [ "$status" == "FAILED" ]; then 
+              echo "State machine execution failed!"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "State machine execution succeeded!"
+
+      - name: Download Step Function execution logs
+        if: always()  # Run even if previous step fails
+        run: |
+          # Try to get execution_arn from output first, then fallback to file
+          execution_arn="${{ steps.stepfunction_execution.outputs.execution_arn }}"
+          if [ -z "$execution_arn" ] && [ -f "$GITHUB_WORKSPACE/execution_arn.txt" ]; then
+            execution_arn=$(cat $GITHUB_WORKSPACE/execution_arn.txt)
+          fi
+          
+          if [ -z "$execution_arn" ]; then
+            echo "No execution ARN found, skipping log download"
+            exit 0
+          fi
+          
+          echo "Downloading logs for execution: $execution_arn"
+          
+          # Get execution history
+          aws stepfunctions get-execution-history \
+            --execution-arn "$execution_arn" \
+            --region us-east-1 \
+            --output json > $GITHUB_WORKSPACE/stepfunction-execution-history.json
+          
+          # Get execution details
+          aws stepfunctions describe-execution \
+            --execution-arn "$execution_arn" \
+            --region us-east-1 \
+            --output json > $GITHUB_WORKSPACE/stepfunction-execution-details.json
+          
+          echo "Logs downloaded successfully"
+
+      - name: Upload Step Function logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stepfunction-logs-${{ github.run_number }}
+          path: |
+            stepfunction-execution-history.json
+            stepfunction-execution-details.json
+          retention-days: 30
+          
+      - name: Download build logs from S3
+        if: always()
+        run: |
+          # Download general build log
+          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          
+          # Download datastream test output
+          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
+          
+          if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
+            echo "## Docker Build Log" >> $GITHUB_STEP_SUMMARY
+            cat $GITHUB_WORKSPACE/docker_build_log.txt >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f $GITHUB_WORKSPACE/datastream_test_output.txt ]; then
+            echo "## Datastream Test Output" >> $GITHUB_STEP_SUMMARY
+            cat $GITHUB_WORKSPACE/datastream_test_output.txt >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload build logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-build-logs-${{ github.run_number }}
+          path: |
+            docker_build_log.txt
+            datastream_test_output.txt
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Tear down infra
+        if: always()
+        working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
+        run : |
+          terraform destroy -var-file=variables.tfvars -auto-approve
+          sleep 60
