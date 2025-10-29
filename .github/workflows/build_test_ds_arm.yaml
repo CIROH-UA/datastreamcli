@@ -1,13 +1,23 @@
 name: CodeBuild ARM64 Tests
-
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
+  pull_request:
+    paths:
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -18,9 +28,9 @@ jobs:
 
       - name: Configure AWS
         run: |
-            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws configure set region us-east-1
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
         
       - name: Start CodeBuild
         id: build
@@ -31,7 +41,7 @@ jobs:
             --query 'build.id' \
             --output text)
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo " Started CodeBuild: $BUILD_ID"
+          echo "Started CodeBuild: $BUILD_ID"
 
       - name: Monitor and Wait for Build
         id: monitor
@@ -47,13 +57,13 @@ jobs:
             
             # Only print when phase changes
             if [ "$PHASE" != "$LAST_PHASE" ]; then
-              echo " $(date '+%H:%M:%S') | Phase: $PHASE | Status: $STATUS"
+              echo "$(date '+%H:%M:%S') | Phase: $PHASE | Status: $STATUS"
               LAST_PHASE="$PHASE"
             fi
             
             case $STATUS in
               SUCCEEDED)
-                echo " Build succeeded!"
+                echo "Build succeeded!"
                 
                 # Get duration from phases
                 DURATION=$(echo "$RESULT" | jq '[.builds[0].phases[]?.durationInSeconds // 0] | add')
@@ -65,7 +75,7 @@ jobs:
                 exit 0
                 ;;
               FAILED|FAULT|TIMED_OUT|STOPPED)
-                echo " Build failed with status: $STATUS"
+                echo "Build failed with status: $STATUS"
                 
                 DURATION=$(echo "$RESULT" | jq '[.builds[0].phases[]?.durationInSeconds // 0] | add')
                 LOG_URL=$(echo "$RESULT" | jq -r '.builds[0].logs.deepLink')
@@ -80,20 +90,23 @@ jobs:
                 ;;
             esac
           done
-
+          
       - name: Show Results
         if: always()
         run: |
           STATUS="${{ steps.monitor.outputs.status }}"
           DURATION="${{ steps.monitor.outputs.duration }}"
           LOG_URL="${{ steps.monitor.outputs.log_url }}"
+          BUILD_ID="${{ steps.build.outputs.build_id }}"
           
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          # 🏗️ CodeBuild ARM64 Test Results
+          ## CodeBuild ARM64 Test Results
           
-          $([ "$STATUS" = "success" ] && echo "##  All Tests Passed" || echo "##  Tests Failed")
+          **Status:** $([ "$STATUS" = "success" ] && echo "PASSED" || echo "FAILED")
           
-          **Build ID:** \`${{ steps.build.outputs.build_id }}\`  
-          **Duration:** ${DURATION}s  
-          **Logs:** [View in CloudWatch]($LOG_URL)
+          **Build ID:** \`$BUILD_ID\`
+          
+          **Duration:** ${DURATION} seconds
+          
+          **Logs:** [Click here to view CloudWatch Logs]($LOG_URL)
           EOF
