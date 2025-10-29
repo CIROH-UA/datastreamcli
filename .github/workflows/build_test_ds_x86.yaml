@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'docker/**' 
       - 'src/datastreamcli/**'
@@ -33,7 +34,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS (if needed)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -42,20 +46,22 @@ jobs:
       - name: Build datastream-deps
         run: |
           cd docker
-          TAG=latest-x86 docker compose -f docker-compose.yml build datastream-deps
+          export TAG=latest-x86
+          docker compose -f docker-compose.yml build datastream-deps
             
       - name: Build datastream
         run: |
           cd docker
-          TAG=latest-x86 docker compose -f docker-compose.yml build datastream
-
+          export TAG=latest-x86
+          docker compose -f docker-compose.yml build datastream
+            
       - name: List built images
         run: docker images | grep datastream
 
       - name: Save Docker images
         run: |
           docker save awiciroh/datastream:latest-x86 | gzip > /tmp/datastream-x86.tar.gz
-         
+          
       - name: Upload datastream image
         uses: actions/upload-artifact@v4
         with:
@@ -76,21 +82,72 @@ jobs:
       max-parallel: 10
       matrix:
         test-suite:
-          - name: "All Tests"
+          # Validation Tests
+          - name: "Validation - Missing Geopackage"
             image: "datastream"
-            command: "pytest -vv tests/"
+            command: "pytest -vv tests/test_validation.py::test_missing_geopackage"
           
-          # - name: "Core Functionality"
-          #   image: "datastream"
-          #   command: "pytest -vv tests/test_core.py"
-          # 
-          # - name: "Data Processing"
-          #   image: "datastream"
-          #   command: "pytest -vv tests/test_processing.py"
-          #
-          # - name: "CLI Commands"
-          #   image: "datastream"
-          #   command: "pytest -vv tests/test_cli.py"
+          - name: "Validation - Duplicate Geopackage"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_duplicate_geopackage"
+          
+          - name: "Validation - Missing Realization"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_realization"
+          
+          - name: "Validation - Duplicate Realization"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_duplicate_realization"
+          
+          - name: "Validation - Missing BMI Config"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_bmi_config"
+          
+          - name: "Validation - Missing Forcings"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_forcings"
+          
+          - name: "Validation - Forcings Time Axis"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_forcings_time_axis"
+          
+          - name: "Validation - Missing T-Route Config"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_troute_config"
+          
+          # BMI Config Generation Tests
+          - name: "BMI Config - PKL v2.1"
+            image: "datastream"
+            command: "pytest -vv tests/test_bmi_config_generation.py::test_pkl_v21"
+          
+          - name: "BMI Config - NOAH-OWP-M v2.1"
+            image: "datastream"
+            command: "pytest -vv tests/test_bmi_config_generation.py::test_noah_owp_m_v21"
+          
+          - name: "BMI Config - CFE v2.1"
+            image: "datastream"
+            command: "pytest -vv tests/test_bmi_config_generation.py::test_cfe_v21"
+          
+          - name: "BMI Config - PET v2.1"
+            image: "datastream"
+            command: "pytest -vv tests/test_bmi_config_generation.py::test_pet_v21"
+          
+          - name: "BMI Config - Routing v2.1"
+            image: "datastream"
+            command: "pytest -vv tests/test_bmi_config_generation.py::test_routing_v21"
+          
+          # Configuration Tests
+          - name: "Configuration - Basic"
+            image: "datastream"
+            command: "pytest -vv tests/test_configuration.py::test_conf_basic"
+          
+          - name: "Configuration - Daily"
+            image: "datastream"
+            command: "pytest -vv tests/test_configuration.py::test_conf_daily"
+          
+          - name: "Configuration - Daily Pick"
+            image: "datastream"
+            command: "pytest -vv tests/test_configuration.py::test_conf_daily_pick"
 
     name: "${{ matrix.test-suite.name }}"
     
@@ -134,8 +191,8 @@ jobs:
       - name: Run ${{ matrix.test-suite.name }}
         run: |
           docker run --rm \
-            -v $(pwd):/workspace \
-            -w /workspace \
+            -v ${{ github.workspace }}:/datastreamcli \
+            -w /datastreamcli \
             -e AWS_REGION=us-east-1 \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
