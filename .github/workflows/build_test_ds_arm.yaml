@@ -1,0 +1,109 @@
+name: CodeBuild ARM64 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
+  pull_request:
+    paths:
+      - 'docker/**' 
+      - 'src/datastreamcli/**'
+      - 'tests/**'
+      - '!src/datastreamcli/README.md'
+  
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  codebuild-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_CODEBUILD_ROLE }}
+          aws-region: us-east-1
+
+      - name: Start CodeBuild
+        id: build
+        run: |
+          BUILD_ID=$(aws codebuild start-build \
+            --project-name test-code-build \
+            --source-version ${{ github.sha }} \
+            --query 'build.id' \
+            --output text)
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "Started: $BUILD_ID"
+
+      - name: Wait for CodeBuild
+        run: |
+          BUILD_ID="${{ steps.build.outputs.build_id }}"
+          
+          while true; do
+            STATUS=$(aws codebuild batch-get-builds \
+              --ids "$BUILD_ID" \
+              --query 'builds[0].buildStatus' \
+              --output text)
+            
+            PHASE=$(aws codebuild batch-get-builds \
+              --ids "$BUILD_ID" \
+              --query 'builds[0].currentPhase' \
+              --output text)
+            
+            echo "$(date '+%H:%M:%S') - Phase: $PHASE | Status: $STATUS"
+            
+            case $STATUS in
+              SUCCEEDED)
+                echo "✅ Tests passed!"
+                exit 0
+                ;;
+              FAILED|FAULT|TIMED_OUT|STOPPED)
+                LOG_URL=$(aws codebuild batch-get-builds \
+                  --ids "$BUILD_ID" \
+                  --query 'builds[0].logs.deepLink' \
+                  --output text)
+                echo "❌ Tests failed!"
+                echo "Logs: $LOG_URL"
+                exit 1
+                ;;
+              IN_PROGRESS)
+                sleep 30
+                ;;
+            esac
+          done
+
+      - name: Show Results
+        if: always()
+        run: |
+          BUILD_ID="${{ steps.build.outputs.build_id }}"
+          BUILD_INFO=$(aws codebuild batch-get-builds --ids "$BUILD_ID")
+          
+          echo "## CodeBuild ARM64 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          STATUS=$(echo "$BUILD_INFO" | jq -r '.builds[0].buildStatus')
+          LOG_URL=$(echo "$BUILD_INFO" | jq -r '.builds[0].logs.deepLink')
+          DURATION=$(echo "$BUILD_INFO" | jq -r '(.builds[0].endTime - .builds[0].startTime) // 0')
+          
+          if [ "$STATUS" = "SUCCEEDED" ]; then
+            echo " **Status:** PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo " **Status:** FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "**Duration:** ${DURATION}s" >> $GITHUB_STEP_SUMMARY
+          echo "**Logs:** [View Logs]($LOG_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Suites" >> $GITHUB_STEP_SUMMARY
+          echo "- Validation Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- BMI Config Generation Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- Configuration Tests" >> $GITHUB_STEP_SUMMARY

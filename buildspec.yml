@@ -32,6 +32,7 @@ phases:
     commands:
       - echo "Running all tests..."
       - echo "Test execution started at $(date)"
+      - mkdir -p test-results
       - |
         docker run --rm \
           -v $(pwd):/datastream \
@@ -46,37 +47,61 @@ phases:
             echo '================================================'
             echo 'Running Validation Tests'
             echo '================================================'
-            pytest -vv tests/test_validation.py
+            pytest -vv tests/test_validation.py --junit-xml=/datastream/test-results/validation.xml
             
             echo ''
             echo '================================================'
             echo 'Running BMI Config Generation Tests'
             echo '================================================'
-            pytest -vv tests/test_bmi_config_generation.py
+            pytest -vv tests/test_bmi_config_generation.py --junit-xml=/datastream/test-results/bmi_config.xml
             
             echo ''
             echo '================================================'
             echo 'Running Configuration Tests'
             echo '================================================'
-            pytest -vv tests/test_configuration.py
+            pytest -vv tests/test_configuration.py --junit-xml=/datastream/test-results/configuration.xml
             
             echo ''
             echo '================================================'
             echo 'All Tests Completed!'
             echo '================================================'
-          "
+          " 2>&1 | tee test-output.log
       - echo "Test execution completed at $(date)"
+      
+      # Display summary
+      - |
+        echo ""
+        echo "================================================"
+        echo "Test Results Summary"
+        echo "================================================"
+        if [ -f test-results/validation.xml ]; then
+          PASSED=$(grep -o 'tests="[0-9]*"' test-results/validation.xml | grep -o '[0-9]*' || echo "0")
+          FAILED=$(grep -o 'failures="[0-9]*"' test-results/validation.xml | grep -o '[0-9]*' || echo "0")
+          echo "Validation Tests: $PASSED passed, $FAILED failed"
+        fi
+        if [ -f test-results/bmi_config.xml ]; then
+          PASSED=$(grep -o 'tests="[0-9]*"' test-results/bmi_config.xml | grep -o '[0-9]*' || echo "0")
+          FAILED=$(grep -o 'failures="[0-9]*"' test-results/bmi_config.xml | grep -o '[0-9]*' || echo "0")
+          echo "BMI Config Tests: $PASSED passed, $FAILED failed"
+        fi
+        if [ -f test-results/configuration.xml ]; then
+          PASSED=$(grep -o 'tests="[0-9]*"' test-results/configuration.xml | grep -o '[0-9]*' || echo "0")
+          FAILED=$(grep -o 'failures="[0-9]*"' test-results/configuration.xml | grep -o '[0-9]*' || echo "0")
+          echo "Configuration Tests: $PASSED passed, $FAILED failed"
+        fi
+        echo "================================================"
 
 reports:
   pytest_reports:
     files:
-      - 'test-results.xml'
+      - 'test-results/*.xml'
     file-format: JUNITXML
 
 artifacts:
   files:
-    - 'test-results.xml'
-  name: test-results
+    - 'test-results/*.xml'
+    - 'test-output.log'
+  name: test-results-$CODEBUILD_BUILD_NUMBER
 
 cache:
   paths:
