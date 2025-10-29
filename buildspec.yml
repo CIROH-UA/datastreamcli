@@ -19,16 +19,11 @@ phases:
     commands:
       - echo "Building Docker images..."
       - cd docker
-      
-      # Build deps first
       - echo "Building datastream-deps..."
       - export TAG=latest-arm64
       - docker compose -f docker-compose.yml build datastream-deps
-      
-      # Build main image
       - echo "Building datastream..."
       - docker compose -f docker-compose.yml build datastream
-      
       - cd ..
       - echo "Build completed at $(date)"
       - docker images | grep datastream
@@ -38,24 +33,37 @@ phases:
       - echo "Running all tests..."
       - echo "Test execution started at $(date)"
       - |
-        # Run all tests in the Docker container
         docker run --rm \
           -v $(pwd):/datastream \
           -w /datastream \
           -e AWS_REGION=${AWS_REGION:-us-east-1} \
+          -e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1} \
           -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
           -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+          -e AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN} \
           awiciroh/datastream:latest-arm64 \
           bash -c "
+            echo '================================================'
             echo 'Running Validation Tests'
+            echo '================================================'
             pytest -vv tests/test_validation.py
             
+            echo ''
+            echo '================================================'
             echo 'Running BMI Config Generation Tests'
+            echo '================================================'
             pytest -vv tests/test_bmi_config_generation.py
             
+            echo ''
+            echo '================================================'
             echo 'Running Configuration Tests'
+            echo '================================================'
             pytest -vv tests/test_configuration.py
+            
+            echo ''
+            echo '================================================'
             echo 'All Tests Completed!'
+            echo '================================================'
           "
       - echo "Test execution completed at $(date)"
 
@@ -68,7 +76,6 @@ reports:
 artifacts:
   files:
     - 'test-results.xml'
-    - 'tests/data/**/*'
   name: test-results
 
 cache:
