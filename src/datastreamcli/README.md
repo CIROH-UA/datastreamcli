@@ -1,4 +1,4 @@
-# datastreamclipython
+# datastreamcli python
 Scripts to create ngen bmi module configuration files and validate ngen-run packages.
 
 ## `ngen_configs_gen.py`

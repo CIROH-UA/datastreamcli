@@ -236,7 +236,7 @@ DataStreamCLI is a standalone tool that automates the preprocessing input data f
 
 ![datastream](../images/datastreamcli.jpg)
 
-This one tool (available as a scripts script [here](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream)) will compute every necessary step in the workflow. If this is your first time interacting with DataStreamCLI, the [guide](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream_guide) is a great place to start. In addition, a [breakdown document](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/BREAKDOWN.md) is available which walks through manually performing each of the steps that DataStreamCLI automates. The [AGU 2024 Poster](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/AGU2024.jpg) is available for a compact reference on both the Research DataStream and DataStreamCLI.
+This one tool (available as a shell script [here](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream)) will compute every necessary step in the workflow. If this is your first time interacting with DataStreamCLI, the [guide](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream_guide) is a great place to start. In addition, a [breakdown document](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/BREAKDOWN.md) is available which walks through manually performing each of the steps that DataStreamCLI automates. The [AGU 2024 Poster](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/AGU2024.jpg) is available for a compact reference on both the Research DataStream and DataStreamCLI.
 
 ---
 
