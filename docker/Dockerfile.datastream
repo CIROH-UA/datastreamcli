@@ -6,6 +6,7 @@ COPY src/ /datastreamcli/src/
 COPY setup.cfg /datastreamcli/setup.cfg
 COPY pyproject.toml /datastreamcli/pyproject.toml
 RUN pip3 install -e datastreamcli/ && \
+    pip3 install pytest && \
     groupadd -r mygroup && \
     useradd -r -g mygroup myuser
 COPY --chown=myuser:mygroup . /datastreamcli
