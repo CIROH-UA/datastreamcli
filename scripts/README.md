@@ -6,7 +6,7 @@ Run the guide script with
 and an interactive program will run that will guide the user step-by-step to build a DataStreamCLI command. Each option is explained and there is an optional tour of the repository.
 
 # scripts/datastream
-This script is what is referred to as by DataStreamCLI. There are numerous ways to execute this script. See the [DataStreamCLI options docs](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/DATASTREAM_OPTIONS.md) for explainations of each cli arg. Some examples are provided below.
+This script is what is referred to as by DataStreamCLI. There are numerous ways to execute this script. See the [DataStreamCLI options docs](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/DATASTREAM_OPTIONS.md) for explainations of each cli arg. Some examples are provided below.
 
 ### One-off execution examples
 1.
@@ -43,11 +43,11 @@ This script is what is referred to as by DataStreamCLI. There are numerous ways 
     ```    
 
 ### NextGen Research DataStream releated examples:
-The backend software of the NextGen Research DataStream is DataStreamCLI. Several examples are given below to help illustrate the different ways DataStreamCLI can be executed. While the NextGen Research DataStream executions occur within AWS cloud, these commands will execute in a local environment. See the [NextGen Research DataStream docs](https://github.com/CIROH-UA/ngen-datastream/tree/main/research_datastream) for more information on the design.
+The backend software of the NextGen Research DataStream is DataStreamCLI. Several examples are given below to help illustrate the different ways DataStreamCLI can be executed. While the NextGen Research DataStream executions occur within AWS cloud, these commands will execute in a local environment. See the [NextGen Research DataStream docs](https://github.com/CIROH-UA/ngen-datastream/tree/main/docs/nrds) for more information on the design.
 
 Daily short range for VPU 16 forecast cycle 12 on 20250730. 
 ```
-/ngen-datastream/scripts/datastream \
+/datastreamcli/scripts/datastream \
     -s DAILY \
     -e 202507300000 \
     -n 3 \

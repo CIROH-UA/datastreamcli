@@ -80,10 +80,10 @@ tar -xzvf hfsubset-v1.1.0-linux_arm64.tar.gz
 mv ./hfsubset /usr/bin/hfsubset
 chmod +x /usr/bin/hfsubset
 
-echo "Cloning ngen-datastream repository..."
+echo "Cloning datastreamcli repository..."
 cd /home/ec2-user
-sudo -u ec2-user git clone https://github.com/CIROH-UA/ngen-datastream.git
-chown -R ec2-user:ec2-user /home/ec2-user/ngen-datastream
+sudo -u ec2-user git clone https://github.com/CIROH-UA/datastreamcli.git
+chown -R ec2-user:ec2-user /home/ec2-user/datastreamcli
 
 echo "Pulling Docker images..."
 docker pull awiciroh/datastream:$DS_TAG

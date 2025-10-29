@@ -19,7 +19,7 @@ set_realization_file() {
       set_realization_file
     ;;
     2)
-      echo "EXAMPLE : /path/to/ngen-datastream/config/ngen/realization_sloth_nom_cfe_pet.json"
+      echo "EXAMPLE : /path/to/datastreamcli/config/ngen/realization_sloth_nom_cfe_pet.json"
       read -p "Enter the path to your realization file: " REALIZATION 
       echo ""
       echo ""     
@@ -125,7 +125,7 @@ set_hydrofabric() {
       echo "You will need to either obtain a geopackage or provide DataStreamCLI enough information to query hfsubset for you."
       echo ""
       echo "If you would like to obtain the geopackage manually, see the workflow here on how to do that."
-      echo "https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/BREAKDOWN.md#spatial-domain"
+      echo "https://github.com/CIROH-UA/datastreamcli/blob/main/docs/BREAKDOWN.md#spatial-domain"
       echo ""
       echo "Or you can go to this link to find the location you want to run over and collect the following information from the tooltip"
       echo "https://www.lynker-spatial.com/hyview.html"
@@ -211,7 +211,7 @@ pause() {
 echo ""
 echo "Welcome to the DataStreamCLI guide!"
 echo ""
-read -p  "Would you like a quick look around the ngen-datastream repository before we get started? Type y for a tour, n to proceed to setting CLI options. " TOUR
+read -p  "Would you like a quick look around the datastreamcli repository before we get started? Type y for a tour, n to proceed to setting CLI options. " TOUR
 echo ""
 if [ "$TOUR" == "y" ]; then
   echo "" 

@@ -1,4 +1,4 @@
-# ngen-datastream python
+# datastreamcli python
 Scripts to create ngen bmi module configuration files and validate ngen-run packages.
 
 ## `ngen_configs_gen.py`
@@ -52,7 +52,7 @@ options:
 ## `run_validator.py`
 Validates a ngen-run package. More specifically the following criteria must be met:
 
-1) Standard ngen-run directory formatting. See [here](https://github.com/CIROH-UA/ngen-datastream/blob/main/README.md#ngen-run) for more on the ngen-run folder.
+1) Standard ngen-run directory formatting. See [here](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md#ngen-run) for more on the ngen-run folder.
 2) A single geopackage exists
 3) A single realization file exists
 4) A forcing file is found at the path supplied in the realization for each catchment found in the geopackage.

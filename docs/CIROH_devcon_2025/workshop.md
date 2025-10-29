@@ -1,5 +1,7 @@
 # Welcome to the NextGen Research DataStream: How to Contribute to Improving NextGen Forecasts Workshop!
 
+* Updated 10/2025 in splitting datastreamcli from ngen-datastream
+
 In this workshop, we will gain an understanding of
 1) Research DataStream 
 2) DataStreamCLI workflows
@@ -64,13 +66,13 @@ The `realizations` folder holds the current "official" NextGen configuration fil
 ```
 ├── state/	
 ```
-The `state` folder holds the current build of the AWS infrastructure. Unless you are interested in the design of the Research DataStream infrastructure itself, the contents of this folder are not of interest. If you are interested, see [these docs](https://github.com/CIROH-UA/ngen-datastream/blob/main/research_datastream/terraform/ARCHITECTURE.md) to clarify the build.
+The `state` folder holds the current build of the AWS infrastructure. Unless you are interested in the design of the Research DataStream infrastructure itself, the contents of this folder are not of interest. If you are interested, see [these docs](https://github.com/CIROH-UA/ngen-datastream/blob/main/infra/aws/terraform/docs/ARCHITECTURE.md) to clarify the build.
 <br/><br/>
 ```
 ├── v2.1/			
 ├── v2.2/	
 ```
-These folders contain the NextGen inputs and outputs that make up the Research DataStream. The version numbers correspond to hydrofabric versions. At the time of DevCon2025, the Research DataStream is running on v2.2 hydrofabric, but will stay current as new hydrofabric versions are released. Stay up to date on the [status of the Research DataStream](https://github.com/CIROH-UA/ngen-datastream/blob/main/research_datastream/STATUS_AND_METADATA.md).
+These folders contain the NextGen inputs and outputs that make up the Research DataStream. The version numbers correspond to hydrofabric versions. At the time of DevCon2025, the Research DataStream is running on v2.2 hydrofabric, but will stay current as new hydrofabric versions are released. Stay up to date on the [status of the Research DataStream](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/nrds/STATUS_AND_METADATA.md).
 <br/><br/>
 
 Let's take a look at example data generated using the v2.2 hydrofabric.
@@ -101,7 +103,7 @@ This forcings URL takes the form of
 `DATASTREAM_HOME_URL` / `HF_VERSION` / ngen.`DATE_YYYYMMDD` /forcing_`RUN_TYPE` / `INIT_CYCLE` / ngen.t`INIT_CYCLE`z.`RUN_TYPE`.forcing.f001_f018.VPU_`VPU`.nc
 
 
-Each netcdf holds 18 hours of catchment-averaged (non-gridded) National Water Model forcings created by [forcingprocessor](https://github.com/CIROH-UA/ngen-datastream/blob/main/forcingprocessor/README.md). This data is ingested in the NextGen executions.
+Each netcdf holds 18 hours of catchment-averaged (non-gridded) National Water Model forcings created by [forcingprocessor](https://github.com/CIROH-UA/forcingprocessor/blob/main/README.md). This data is ingested in the NextGen executions.
 
 ---
 ### iii) NextGen Outputs
@@ -130,11 +132,11 @@ This NextGen output file URL takes the form of
 
 `DATASTREAM_HOME_URL` / `HF_VERSION` / ngen.`DATE_YYYYMMDD` /`RUN_TYPE` / `INIT_CYCLE` / `VPU` / ngen-run.tar.gz
 
-The directory structure follows the standard [here](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/STANDARD_DIRECTORIES.md), with the only differences being 
+The directory structure follows the standard [here](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md), with the only differences being 
 
 1) the `ngen-run` folder is available as a tarball
 2) `datastream-resources` is missing, but available in the datastream resources bucket https://datastream-resources.s3.us-east-1.amazonaws.com/VPU_09/config/nextgen_VPU_09.gpkg
-3) The AWS execution json is available, which provides the DataStreamCLI command and other execution details https://ciroh-community-ngen-datastream.s3.amazonaws.com/v2.2/ngen.20250513/short_range/04/VPU_09/datastream-metadata/execution.json . For more on the execution file, see the [Research DataStream docs](https://github.com/CIROH-UA/ngen-datastream/blob/main/research_datastream/terraform/GETTING_STARTED.md#3-configure-execution-file).
+3) The AWS execution json is available, which provides the DataStreamCLI command and other execution details https://ciroh-community-ngen-datastream.s3.amazonaws.com/v2.2/ngen.20250513/short_range/04/VPU_09/datastream-metadata/execution.json . For more on the execution file, see the [Research DataStream docs](https://github.com/CIROH-UA/ngen-datastream/blob/main/infra/aws/terraform/docs/GETTING_STARTED.md#3-configure-execution-file).
 
 ### iv) [Tethys Visualizer](https://github.com/CIROH-UA/ngiab-client)
 
@@ -166,7 +168,7 @@ The `.datastream_ngiab.json` appends the different downloads with metadata that 
 
 > **_NOTE:_** assuming only the first ensemble. If we are specific it will look like this: `ngen.<date>_<forecast_type>_<cycle>_<ensemble>_<VPU>`
 
-This functionality allows the user to be able to quickly search the data they want from the [S3 bucket](https://datastream.ciroh.org/index.html) containing the output of the [NextGen DataStream](https://github.com/CIROH-UA/ngen-datastream). They can explore and download as needed.
+This functionality allows the user to be able to quickly search the data they want from the [S3 bucket](https://datastream.ciroh.org/index.html) containing the output of the [NextGen Research DataStream](https://github.com/CIROH-UA/ngen-datastream). They can explore and download as needed.
 
 
 If the user wants more control 🎮 and just define the env variables and run the container.
@@ -230,11 +232,11 @@ If you would like to propose your parameters before this workflow is made public
 ## 2. DataStreamCLI Workflow Tutorial
 The software that manages the workflow and compute to generate these output data are publicly available in the repository and is referred to collectively as `DataStreamCLI`. In this section, we will walk through this on-server workflow behind the Research DataStream to gain an understanding of the use case for the underlying tooling and how it may apply to your own research tasks.
 
-DataStreamCLI is a standalone tool that automates the preprocessing input data for NextGen, executing the run through NextGen In a Box (NGIAB), and handling outputs. This software implements [standard directories](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/STANDARD_DIRECTORIES.md) that allow users to run NextGen in an efficient, relatively painless, and reproducible fashion while providing flexibility and integrations like hfsubset, NextGen In A Box, TEEHR, and the Tethys Visualizer.
+DataStreamCLI is a standalone tool that automates the preprocessing input data for NextGen, executing the run through NextGen In a Box (NGIAB), and handling outputs. This software implements [standard directories](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md) that allow users to run NextGen in an efficient, relatively painless, and reproducible fashion while providing flexibility and integrations like hfsubset, NextGen In A Box, TEEHR, and the Tethys Visualizer.
 
 ![datastream](../images/datastreamcli.jpg)
 
-This one tool (available as a shell script [here](https://github.com/CIROH-UA/ngen-datastream/blob/main/scripts/datastream)) will compute every necessary step in the workflow. If this is your first time interacting with DataStreamCLI, the [guide](https://github.com/CIROH-UA/ngen-datastream/blob/main/scripts/datastream_guide) is a great place to start. In addition, a [breakdown document](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/BREAKDOWN.md) is available which walks through manually performing each of the steps that DataStreamCLI automates. The [AGU 2024 Poster](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/AGU2024.jpg) is available for a compact reference on both the Research DataStream and DataStreamCLI.
+This one tool (available as a shell script [here](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream)) will compute every necessary step in the workflow. If this is your first time interacting with DataStreamCLI, the [guide](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream_guide) is a great place to start. In addition, a [breakdown document](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/BREAKDOWN.md) is available which walks through manually performing each of the steps that DataStreamCLI automates. The [AGU 2024 Poster](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/AGU2024.jpg) is available for a compact reference on both the Research DataStream and DataStreamCLI.
 
 ---
 
@@ -242,11 +244,11 @@ This one tool (available as a shell script [here](https://github.com/CIROH-UA/ng
 If you haven't cloned the repository already
 
 ```
-git clone https://github.com/CIROH-UA/ngen-datastream.git
+git clone https://github.com/CIROH-UA/datastreamcli.git
 ```
 
 ```
-cd ngen-datastream
+cd datastreamcli
 ```
 
 If you are executing on ARM architecture, set the following environment variables
@@ -277,7 +279,7 @@ This command is equivalent to the daily short range execution for the Research D
 ---
 
 ### ii) DataStreamCLI With Resources
-Considering the Research DataStream must execute hundreds of simulations every day, DataStreamCLI can read from a cache directory referred to as a resource directory. This avoids wasteful repetitive calculations. These files are stored in `datastream-resources`, which is documented [here](https://github.com/CIROH-UA/ngen-datastream/blob/main/docs/STANDARD_DIRECTORIES.md#resource_dir-datastream-resources). 
+Considering the Research DataStream must execute hundreds of simulations every day, DataStreamCLI can read from a cache directory referred to as a resource directory. This avoids wasteful repetitive calculations. These files are stored in `datastream-resources`, which is documented [here](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md#resource_dir-datastream-resources). 
 
 Use the resources generated in the previous DataStreamCLI execution in another.
 
@@ -305,15 +307,15 @@ The DataStreamCLI workflow is modular such that the Docker containers responsibl
 
 ![forcing_gif](../gifs/T2D_2_TMP_2maboveground_cali.gif)
 
-`ForcingProcessor` converts hourly National Water Model gridded NetCDF forcings files into a NextGen compatible catchment-averaged NetCDF file. For more information on this tool, see the [README](https://github.com/CIROH-UA/ngen-datastream/blob/main/forcingprocessor/README.md) and [forcing source documentation](https://github.com/CIROH-UA/ngen-datastream/blob/main/forcingprocessor/FORCING_SOURCES.md).
+`ForcingProcessor` converts hourly National Water Model gridded NetCDF forcings files into a NextGen compatible catchment-averaged NetCDF file. For more information on this tool, see the [README](https://github.com/CIROH-UA/forcingprocessor/blob/main/README.md) and [forcing source documentation](https://github.com/CIROH-UA/forcingprocessor/blob/main/docs/FORCING_SOURCES.md).
 
 DataStreamCLI generates the two configuration files necessary to drive ForcingProcessor. 
 
-Using the `datastream-metadata` folder generated previously at `ngen-datastream/outputs/datastream-metadata`,
+Using the `datastream-metadata` folder generated previously at `datastreamcli/outputs/datastream-metadata`,
 
 1) `conf_fp.json`
 
-The primary configuration file. See the [README](https://github.com/CIROH-UA/ngen-datastream/blob/main/forcingprocessor/README.md) for an explanation of this file. Note that the paths are relative to `/mounted_dir` which is associated with `/home/exouser/ngen-datastream/outputs` in the Docker command.
+The primary configuration file. See the [README](https://github.com/CIROH-UA/forcingprocessor/blob/main/README.md) for an explanation of this file. Note that the paths are relative to `/mounted_dir` which is associated with `/home/exouser/datastreamcli/outputs` in the Docker command.
 ```
 {
   "forcing": {
@@ -352,13 +354,13 @@ The command to execute `ForcingProcessor` is
 docker run --rm -v ./outputs:/mounted_dir \
             -u $(id -u):$(id -g) \
             -w /mounted_dir/datastream-resources awiciroh/forcingprocessor:latest-x86 \
-            python3 /ngen-datastream/forcingprocessor/src/forcingprocessor/processor.py \
+            python3 /forcingprocessor/src/forcingprocessor/processor.py \
             /mounted_dir/datastream-metadata/conf_fp.json
 ```
 
 To run ForcingProcessor in your current environment (without Docker). 
 ```
-python3 /ngen-datastream/forcingprocessor/src/forcingprocessor/processor.py \
+python3 /forcingprocessor/src/forcingprocessor/processor.py \
 ./datastream-metadata/conf_fp.json
 ```
 >Make sure the paths in the configuration file are relative to your current environment.
@@ -392,7 +394,7 @@ time ./scripts/datastream \
 
 Examine the error you see. It should explain the nature of the problem.
 
-See the [documentation](https://github.com/CIROH-UA/ngen-datastream/blob/main/python_tools/README.md#run_validatorpy) here to see what all in the input package is validated.
+See the [documentation](https://github.com/CIROH-UA/datastreamcli/blob/main/src/datastreamcli/README.md#run_validatorpy) here to see what all in the input package is validated.
 
 ### iii) NextGen BMI Configuration Files
 When DataStreamCLI is provided a NextGen realization file, the necessary BMI configuration files are created. This functionality is provided by the datastream Docker container (`awiciroh/datastream:latest-x86`).
@@ -402,7 +404,7 @@ The command below parallels the command DataStreamCLI issued internally to gener
 ```
 docker run --rm -v ./outputs/ngen-run:/mounted_dir \
         -u $(id -u):$(id -g) \
-        awiciroh/datastream:latest-x86 python3 /ngen-datastream/python_tools/src/python_tools/ngen_configs_gen.py \
+        awiciroh/datastream:latest-x86 python3 datastreamcli/src/datastreamcli/ngen_configs_gen.py \
         --hf_file /mounted_dir/config/nextgen_VPU_09.gpkg --outdir /mounted_dir/config --pkl_file /mounted_dir/config/noah-owp-modular-init.namelist.input.pkl --realization /mounted_dir/config/realization.json
 ```
 
