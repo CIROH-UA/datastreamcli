@@ -17,11 +17,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_CODEBUILD_ROLE }}
-          aws-region: us-east-1
-
+        run: |
+            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws configure set region us-east-1
+        
       - name: Start CodeBuild
         id: build
         run: |
@@ -31,7 +31,7 @@ jobs:
             --query 'build.id' \
             --output text)
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo "🚀 Started CodeBuild: $BUILD_ID"
+          echo " Started CodeBuild: $BUILD_ID"
 
       - name: Monitor and Wait for Build
         id: monitor
@@ -54,8 +54,11 @@ jobs:
             case $STATUS in
               SUCCEEDED)
                 echo " Build succeeded!"
+                
+                # Get duration from phases
                 DURATION=$(echo "$RESULT" | jq '[.builds[0].phases[]?.durationInSeconds // 0] | add')
                 LOG_URL=$(echo "$RESULT" | jq -r '.builds[0].logs.deepLink')
+                
                 echo "duration=$DURATION" >> $GITHUB_OUTPUT
                 echo "log_url=$LOG_URL" >> $GITHUB_OUTPUT
                 echo "status=success" >> $GITHUB_OUTPUT
@@ -84,9 +87,12 @@ jobs:
           STATUS="${{ steps.monitor.outputs.status }}"
           DURATION="${{ steps.monitor.outputs.duration }}"
           LOG_URL="${{ steps.monitor.outputs.log_url }}"
+          
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          #  CodeBuild ARM64 Test Results
+          # 🏗️ CodeBuild ARM64 Test Results
+          
           $([ "$STATUS" = "success" ] && echo "##  All Tests Passed" || echo "##  Tests Failed")
+          
           **Build ID:** \`${{ steps.build.outputs.build_id }}\`  
           **Duration:** ${DURATION}s  
           **Logs:** [View in CloudWatch]($LOG_URL)
