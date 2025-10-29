@@ -38,4 +38,3 @@ TAG=latest-x86 docker compose -f docker/docker-compose.yml push datastream-deps
 TAG=latest-x86 docker compose -f docker/docker-compose.yml push datastream
 ```
 
-
