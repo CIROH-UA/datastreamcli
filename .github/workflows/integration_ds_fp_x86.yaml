@@ -60,16 +60,16 @@ jobs:
       run : |        
         if [ -z "${{ inputs.fp_tag }}" ]; then
           echo "FP_TAG input not provided, building datastream containers..."
-          TAG=latest-x86 docker compose -f docker/docker-compose.yml build datastream-deps
-          TAG=latest-x86 docker compose -f docker/docker-compose.yml build datastream
+          TAG=test-x86 docker compose -f docker/docker-compose.yml build datastream-deps
+          TAG=test-x86 docker compose -f docker/docker-compose.yml build datastream
         else
           echo "FP_TAG input provided (${{ inputs.fp_tag }}), skipping datastream build and using existing images..."
         fi
 
     - name: Test docker containers
       env:
-        DS_TAG: ${{ inputs.ds_tag || 'latest-x86' }}
-        FP_TAG: ${{ inputs.fp_tag || 'latest-x86' }}
+        DS_TAG: ${{ inputs.ds_tag || 'test-x86' }}
+        FP_TAG: ${{ inputs.fp_tag || 'test-x86' }}
       run : |
         docker images
         curl -L -O https://ngen-datastream.s3.us-east-2.amazonaws.com/palisade.gpkg
