@@ -82,7 +82,7 @@ jobs:
       max-parallel: 10
       matrix:
         test-suite:
-          # Validation Tests
+          # Validation Tests - All independent
           - name: "Validation - Missing Geopackage"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_geopackage"
@@ -115,39 +115,15 @@ jobs:
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_troute_config"
           
-          # BMI Config Generation Tests
-          - name: "BMI Config - PKL v2.1"
+          # BMI Config Generation Tests - Run entire file since tests depend on each other
+          - name: "BMI Config Generation - All Tests"
             image: "datastream"
-            command: "pytest -vv tests/test_bmi_config_generation.py::test_pkl_v21"
+            command: "pytest -vv tests/test_bmi_config_generation.py"
           
-          - name: "BMI Config - NOAH-OWP-M v2.1"
+          # Configuration Tests - Run entire file since tests may share setup
+          - name: "Configuration - All Tests"
             image: "datastream"
-            command: "pytest -vv tests/test_bmi_config_generation.py::test_noah_owp_m_v21"
-          
-          - name: "BMI Config - CFE v2.1"
-            image: "datastream"
-            command: "pytest -vv tests/test_bmi_config_generation.py::test_cfe_v21"
-          
-          - name: "BMI Config - PET v2.1"
-            image: "datastream"
-            command: "pytest -vv tests/test_bmi_config_generation.py::test_pet_v21"
-          
-          - name: "BMI Config - Routing v2.1"
-            image: "datastream"
-            command: "pytest -vv tests/test_bmi_config_generation.py::test_routing_v21"
-          
-          # Configuration Tests
-          - name: "Configuration - Basic"
-            image: "datastream"
-            command: "pytest -vv tests/test_configuration.py::test_conf_basic"
-          
-          - name: "Configuration - Daily"
-            image: "datastream"
-            command: "pytest -vv tests/test_configuration.py::test_conf_daily"
-          
-          - name: "Configuration - Daily Pick"
-            image: "datastream"
-            command: "pytest -vv tests/test_configuration.py::test_conf_daily_pick"
+            command: "pytest -vv tests/test_configuration.py"
 
     name: "${{ matrix.test-suite.name }}"
     
