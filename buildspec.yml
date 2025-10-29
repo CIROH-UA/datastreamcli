@@ -1,0 +1,77 @@
+version: 0.2
+
+env:
+  variables:
+    DOCKER_BUILDKIT: "1"
+    COMPOSE_DOCKER_CLI_BUILD: "1"
+  parameter-store:
+    DOCKER_USERNAME: /codebuild/docker/username
+    DOCKER_PASSWORD: /codebuild/docker/password
+
+phases:
+  pre_build:
+    commands:
+      - echo "Running on $(uname -m) architecture"
+      - echo "Build started at $(date)"
+      - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      
+  build:
+    commands:
+      - echo "Building Docker images..."
+      - cd docker
+      
+      # Build deps first
+      - echo "Building datastream-deps..."
+      - export TAG=latest-arm64
+      - docker compose -f docker-compose.yml build datastream-deps
+      
+      # Build main image
+      - echo "Building datastream..."
+      - docker compose -f docker-compose.yml build datastream
+      
+      - cd ..
+      - echo "Build completed at $(date)"
+      - docker images | grep datastream
+
+  post_build:
+    commands:
+      - echo "Running all tests..."
+      - echo "Test execution started at $(date)"
+      - |
+        # Run all tests in the Docker container
+        docker run --rm \
+          -v $(pwd):/datastream \
+          -w /datastream \
+          -e AWS_REGION=${AWS_REGION:-us-east-1} \
+          -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+          -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+          awiciroh/datastream:latest-arm64 \
+          bash -c "
+            echo 'Running Validation Tests'
+            pytest -vv tests/test_validation.py
+            
+            echo 'Running BMI Config Generation Tests'
+            pytest -vv tests/test_bmi_config_generation.py
+            
+            echo 'Running Configuration Tests'
+            pytest -vv tests/test_configuration.py
+            echo 'All Tests Completed!'
+          "
+      - echo "Test execution completed at $(date)"
+
+reports:
+  pytest_reports:
+    files:
+      - 'test-results.xml'
+    file-format: JUNITXML
+
+artifacts:
+  files:
+    - 'test-results.xml'
+    - 'tests/data/**/*'
+  name: test-results
+
+cache:
+  paths:
+    - '/var/lib/docker/**/*'
+    - '/root/.cache/pip/**/*'
