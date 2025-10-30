@@ -1,4 +1,4 @@
-name: Build, Test Forcing Processor Docker Containers on ARM
+name: Build and Test DataStream CLI on X86
 on:
   workflow_dispatch:
   push:
@@ -16,70 +16,73 @@ on:
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+
 permissions:
   contents: read
   security-events: write
 
 jobs:
-  build-arm64:
-    runs-on: ubuntu-22.04-arm-aws
+  build-x86:
+    runs-on: ubuntu-latest
     steps:
       - name: Pre-cleanup workspace
         continue-on-error: true
         run: |
           sudo rm -rf ${{ github.workspace }}/* || true
           sudo rm -rf ${{ github.workspace }}/.* || true
-          sudo find ${{ github.workspace }} -maxdepth 1 -name ".*" -not -name "." -not -name ".." -delete || true
           
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
-
-      # - name: Build datastream-deps
-      #   run: |
-      #     cd docker
-      #     ARCH=aarch64 TAG=latest-arm64 \
-      #       docker compose -f docker-compose.yml build datastream-deps
+          
+      - name: Build datastream-deps
+        run: |
+          cd docker
+          export TAG=latest-x86
+          docker compose -f docker-compose.yml build datastream-deps
             
       - name: Build datastream
         run: |
           cd docker
-          ARCH=aarch64 TAG=latest-arm64 \
-            docker compose -f docker-compose.yml build datastream
+          export TAG=latest-x86
+          docker compose -f docker-compose.yml build datastream
             
       - name: List built images
         run: docker images | grep datastream
 
-
       - name: Save Docker images
         run: |
-          docker save awiciroh/datastream:latest-arm64 | gzip > /tmp/datastream-arm64.tar.gz
+          docker save awiciroh/datastream:latest-x86 | gzip > /tmp/datastream-x86.tar.gz
+          
       - name: Upload datastream image
         uses: actions/upload-artifact@v4
         with:
-          name: datastream-arm64
-          path: /tmp/datastream-arm64.tar.gz
+          name: datastream-x86
+          path: /tmp/datastream-x86.tar.gz
           retention-days: 1
 
       - name: Clean up local tar files
         if: always()
-        run: rm -f /tmp/datastream-arm64.tar.gz
+        run: rm -f /tmp/datastream-x86.tar.gz
 
-
-  test-arm64:
-    needs: build-arm64
-    runs-on: ubuntu-22.04-arm-aws
+  test-x86:
+    needs: build-x86
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 10
       matrix:
         test-suite:
+          # Validation Tests - All independent
           - name: "Validation - Missing Geopackage"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_geopackage"
@@ -112,14 +115,15 @@ jobs:
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_troute_config"
           
+          # BMI Config Generation Tests - Run entire file since tests depend on each other
           - name: "BMI Config Generation - All Tests"
             image: "datastream"
             command: "pytest -vv tests/test_bmi_config_generation.py"
           
+          # Configuration Tests - Run entire file since tests may share setup
           - name: "Configuration - All Tests"
             image: "datastream"
             command: "pytest -vv tests/test_configuration.py"
-
 
     name: "${{ matrix.test-suite.name }}"
     
@@ -129,32 +133,23 @@ jobs:
         run: |
           sudo rm -rf ${{ github.workspace }}/* || true
           sudo rm -rf ${{ github.workspace }}/.* || true
-
+          
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Configure AWS
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1
-          
         
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
-          name: datastream-arm64
+          name: datastream-x86  
           path: /tmp/artifacts
-
 
       - name: Verify artifact and load
         run: |
           set -euo pipefail
           ls -lh /tmp/artifacts
           
-          # Load gzipped image
           for i in 1 2 3; do
-            if gunzip -c /tmp/artifacts/datastream-arm64.tar.gz | docker load; then
+            if gunzip -c /tmp/artifacts/datastream-x86.tar.gz | docker load; then
               echo "Successfully loaded image on attempt $i"
               docker images | grep datastream
               break
@@ -168,32 +163,24 @@ jobs:
               fi
             fi
           done
-
-
+          
       - name: Run ${{ matrix.test-suite.name }}
         run: |
           docker run --rm \
-            -v $(pwd):/datastream \
-            -w /datastream \
+            -v ${{ github.workspace }}:/datastreamcli \
+            -w /datastreamcli \
             -e AWS_REGION=us-east-1 \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            awiciroh/${{ matrix.test-suite.image }}:latest-arm64 \
+            awiciroh/${{ matrix.test-suite.image }}:latest-x86 \
             ${{ matrix.test-suite.command }}
-            
           
   cleanup-artifacts:
-    needs: test-arm64
-    runs-on: ubuntu-22.04-arm-aws
+    needs: test-x86
+    runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Clean up Docker images
-        continue-on-error: true
-        run: |
-          docker rmi awiciroh/datastream:latest-arm64 || true
-          docker system prune -af --volumes
-          
       - name: Delete artifacts
         uses: geekyeggo/delete-artifact@v5
         with:
-          name: datastream-arm64
+          name: datastream-x86
