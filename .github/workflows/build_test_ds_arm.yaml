@@ -1,4 +1,4 @@
-name: CodeBuild ARM64 Tests
+name: Build, Test Forcing Processor Docker Containers on ARM
 on:
   workflow_dispatch:
   push:
@@ -16,98 +16,183 @@ on:
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
-
 permissions:
   contents: read
+  security-events: write
 
 jobs:
-  codebuild-tests:
-    runs-on: ubuntu-latest
+  build-arm64:
+    runs-on: ubuntu-22.04-arm-aws
     steps:
-      - uses: actions/checkout@v4
+      - name: Pre-cleanup workspace
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+          sudo find ${{ github.workspace }} -maxdepth 1 -name ".*" -not -name "." -not -name ".." -delete || true
+          
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
+
+      - name: Build datastream-deps
+        run: |
+          cd docker
+          ARCH=aarch64 TAG=latest-arm64 \
+            docker compose -f docker-compose.yml build datastream-deps
+            
+      - name: Build datastream
+        run: |
+          cd docker
+          ARCH=aarch64 TAG=latest-arm64 \
+            docker compose -f docker-compose.yml build datastream
+            
+      - name: List built images
+        run: docker images | grep datastream
+
+
+      - name: Save Docker images
+        run: |
+          docker save awiciroh/datastream:latest-arm64 | gzip > /tmp/datastream-arm64.tar.gz
+      - name: Upload datastream image
+        uses: actions/upload-artifact@v4
+        with:
+          name: datastream-arm64
+          path: /tmp/datastream-arm64.tar.gz
+          retention-days: 1
+
+      - name: Clean up local tar files
+        if: always()
+        run: rm -f /tmp/datastream-arm64.tar.gz
+
+
+  test-arm64:
+    needs: build-arm64
+    runs-on: ubuntu-22.04-arm-aws
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        test-suite:
+          - name: "Validation - Missing Geopackage"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_geopackage"
+          
+          - name: "Validation - Duplicate Geopackage"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_duplicate_geopackage"
+          
+          - name: "Validation - Missing Realization"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_realization"
+          
+          - name: "Validation - Duplicate Realization"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_duplicate_realization"
+          
+          - name: "Validation - Missing BMI Config"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_bmi_config"
+          
+          - name: "Validation - Missing Forcings"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_forcings"
+          
+          - name: "Validation - Forcings Time Axis"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_forcings_time_axis"
+          
+          - name: "Validation - Missing T-Route Config"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_troute_config"
+          
+          - name: "BMI Config Generation - All Tests"
+            image: "datastream"
+            command: "pytest -vv tests/test_bmi_config_generation.py"
+          
+          - name: "Configuration - All Tests"
+            image: "datastream"
+            command: "pytest -vv tests/test_configuration.py"
+
+
+    name: "${{ matrix.test-suite.name }}"
+    
+    steps:
+      - name: Pre-cleanup workspace
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+          
         
-      - name: Start CodeBuild
-        id: build
-        run: |
-          BUILD_ID=$(aws codebuild start-build \
-            --project-name test-code-build \
-            --source-version ${{ github.head_ref || github.ref_name }} \
-            --query 'build.id' \
-            --output text)
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo "Started CodeBuild: $BUILD_ID (branch: ${{ github.head_ref || github.ref_name }})"
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: datastream-arm64
+          path: /tmp/artifacts
 
 
-      - name: Monitor and Wait for Build
-        id: monitor
+      - name: Verify artifact and load
         run: |
-          BUILD_ID="${{ steps.build.outputs.build_id }}"
-          LAST_PHASE=""
+          set -euo pipefail
+          ls -lh /tmp/artifacts
           
-          while true; do
-            RESULT=$(aws codebuild batch-get-builds --ids "$BUILD_ID" --output json)
-            
-            STATUS=$(echo "$RESULT" | jq -r '.builds[0].buildStatus')
-            PHASE=$(echo "$RESULT" | jq -r '.builds[0].currentPhase // "UNKNOWN"')
-            
-            # Only print when phase changes
-            if [ "$PHASE" != "$LAST_PHASE" ]; then
-              echo "$(date '+%H:%M:%S') | Phase: $PHASE | Status: $STATUS"
-              LAST_PHASE="$PHASE"
-            fi
-            
-            case $STATUS in
-              SUCCEEDED)
-                echo "Build succeeded!"
-                
-                # Get duration from phases
-                DURATION=$(echo "$RESULT" | jq '[.builds[0].phases[]?.durationInSeconds // 0] | add')
-                LOG_URL=$(echo "$RESULT" | jq -r '.builds[0].logs.deepLink')
-                
-                echo "duration=$DURATION" >> $GITHUB_OUTPUT
-                echo "log_url=$LOG_URL" >> $GITHUB_OUTPUT
-                echo "status=success" >> $GITHUB_OUTPUT
-                exit 0
-                ;;
-              FAILED|FAULT|TIMED_OUT|STOPPED)
-                echo "Build failed with status: $STATUS"
-                
-                DURATION=$(echo "$RESULT" | jq '[.builds[0].phases[]?.durationInSeconds // 0] | add')
-                LOG_URL=$(echo "$RESULT" | jq -r '.builds[0].logs.deepLink')
-                
-                echo "duration=$DURATION" >> $GITHUB_OUTPUT
-                echo "log_url=$LOG_URL" >> $GITHUB_OUTPUT
-                echo "status=failed" >> $GITHUB_OUTPUT
+          # Load gzipped image
+          for i in 1 2 3; do
+            if gunzip -c /tmp/artifacts/datastream-arm64.tar.gz | docker load; then
+              echo "Successfully loaded image on attempt $i"
+              docker images | grep datastream
+              break
+            else
+              echo "Failed to load image on attempt $i"
+              if [ $i -lt 3 ]; then
+                echo "Retrying in 10 seconds..."
+                sleep 10
+              else
                 exit 1
-                ;;
-              IN_PROGRESS)
-                sleep 30
-                ;;
-            esac
+              fi
+            fi
           done
-          
-      - name: Show Results
+
+
+      - name: Run ${{ matrix.test-suite.name }}
+        run: |
+          docker run --rm \
+            -v $(pwd):/datastream \
+            -w /datastream \
+            -e AWS_REGION=us-east-1 \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            awiciroh/${{ matrix.test-suite.image }}:latest-arm64 \
+            ${{ matrix.test-suite.command }}
+            
+      - name: Clean up Docker image
         if: always()
         run: |
-          STATUS="${{ steps.monitor.outputs.status }}"
-          DURATION="${{ steps.monitor.outputs.duration }}"
-          LOG_URL="${{ steps.monitor.outputs.log_url }}"
-          BUILD_ID="${{ steps.build.outputs.build_id }}"
+          docker rmi awiciroh/${{ matrix.test-suite.image }}:latest-arm64 || true
+          docker system prune -f
           
-          cat >> $GITHUB_STEP_SUMMARY << EOF
-          ## CodeBuild ARM64 Test Results
-          
-          **Status:** $([ "$STATUS" = "success" ] && echo "PASSED" || echo "FAILED")
-          
-          **Build ID:** \`$BUILD_ID\`
-          
-          **Duration:** ${DURATION} seconds
-          
-          **Logs:** [Click here to view CloudWatch Logs]($LOG_URL)
-          EOF
+  cleanup-artifacts:
+    needs: test-arm64
+    runs-on: ubuntu-22.04-arm-aws
+    if: always()
+    steps:
+      - name: Delete artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: datastream-arm64

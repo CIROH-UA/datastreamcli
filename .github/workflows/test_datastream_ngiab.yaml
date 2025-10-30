@@ -1,23 +1,6 @@
-name: Datastream X ForcingProcessor Integration on ARM
+name: Build, Test Forcing Processor Docker Containers on ARM
 on:
   workflow_dispatch:
-    inputs:
-      branch_name:
-        description: 'Branch name to build from (leave empty to use current branch)'
-        required: false
-        default: ''
-        type: string
-      ds_tag:
-        description: 'DS Docker version tag which you want to test FP with'
-        required: false
-        default: ''
-        type: string
-      fp_tag:
-        description: 'FP Docker version tag which you want to test FP with'
-        required: false
-        default: ''
-        type: string
-
   push:
     branches:
       - main
@@ -33,165 +16,183 @@ on:
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
-  
 permissions:
   contents: read
-  security-events: write 
+  security-events: write
 
-jobs:    
-  build-test-docker-arm:
-    runs-on: ubuntu-latest
+jobs:
+  build-arm64:
+    runs-on: ubuntu-22.04-arm-aws
     steps:
+      - name: Pre-cleanup workspace
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+          sudo find ${{ github.workspace }} -maxdepth 1 -name ".*" -not -name "." -not -name ".." -delete || true
+          
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+
       - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1        
+          aws configure set region us-east-1
 
-      # Dynamically configures the test execution JSON by setting the branch name and conditionally removing Docker build commands for containers whose Dockerfiles haven't changed (optimization only applies to push events, not manual triggers)
-      - name: Prepare execution config
-        env:
-          DS_TAG: ${{ inputs.ds_tag || 'latest-arm64' }}
-          FP_TAG: ${{ inputs.fp_tag || 'latest-arm64' }}
+      - name: Build datastream-deps
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.branch_name }}" ]; then
-            BRANCH_NAME="${{ inputs.branch_name }}"
-          else
-            BRANCH_NAME="${{ github.ref_name }}"
-          fi
+          cd docker
+          ARCH=aarch64 TAG=latest-arm64 \
+            docker compose -f docker-compose.yml build datastream-deps
+            
+      - name: Build datastream
+        run: |
+          cd docker
+          ARCH=aarch64 TAG=latest-arm64 \
+            docker compose -f docker-compose.yml build datastream
+            
+      - name: List built images
+        run: docker images | grep datastream
 
-          sed -i "s|\${BRANCH_NAME}|$BRANCH_NAME|g" .github/executions/fp_ds_test_execution_arm.json
-          sed -i "s|\${DS_TAG}|$DS_TAG|g" .github/executions/fp_ds_test_execution_arm.json
-          sed -i "s|\${FP_TAG}|$FP_TAG|g" .github/executions/fp_ds_test_execution_arm.json
-          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! git diff --name-only HEAD~1 HEAD | grep -q '^docker/Dockerfile\.datastream-deps$'; then
-            sed -i "/docker-compose\.yml build datastream-deps/d" .github/executions/fp_ds_test_execution_arm.json
-          fi
+
+      - name: Save Docker images
+        run: |
+          docker save awiciroh/datastream:latest-arm64 | gzip > /tmp/datastream-arm64.tar.gz
+      - name: Upload datastream image
+        uses: actions/upload-artifact@v4
+        with:
+          name: datastream-arm64
+          path: /tmp/datastream-arm64.tar.gz
+          retention-days: 1
+
+      - name: Clean up local tar files
+        if: always()
+        run: rm -f /tmp/datastream-arm64.tar.gz
+
+
+  test-arm64:
+    needs: build-arm64
+    runs-on: ubuntu-22.04-arm-aws
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        test-suite:
+          - name: "Validation - Missing Geopackage"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_geopackage"
           
-          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! git diff --name-only HEAD~1 HEAD | grep -q '^docker/Dockerfile\.datastream$'; then
-            sed -i "/docker-compose\.yml build datastream/d" .github/executions/fp_ds_test_execution_arm.json
-          fi
-
-          cat .github/executions/fp_ds_test_execution_arm.json
-
-      - name: clone ngen
-        run: |
-          git clone --single-branch --branch main --depth 1 https://github.com/CIROH-UA/ngen-datastream.git
-
-      - name: Build AWS Infra
-        working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
-        run: |
-          terraform init
-          terraform validate
-          ../../../shell/import_resources.sh variables.tfvars
-          terraform apply -var-file=variables.tfvars -auto-approve
-          sleep 60
-
-      - name: Set permissions
-        working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
-        run : |
-          aws secretsmanager put-resource-policy --secret-id docker_awiciroh_creds --resource-policy file://$GITHUB_WORKSPACE/.github/executions/secret-policy.json --block-public-policy --region us-east-1
-          if ! aws ec2 describe-key-pairs --key-names "actions_key_arm" --query 'KeyPairs[0].KeyName' --output text 2>/dev/null; then aws ec2 create-key-pair --key-name "actions_key_arm" --query 'KeyName' --output text && echo "Key pair 'actions_key_arm' created in AWS"; else echo "Key pair 'actions_key_arm' already exists"; fi
-          sleep 60
-
-
-      - name: Build and Test arm docker containers with AWS infra
-        id: stepfunction_execution
-        run : |
-          cd ngen-datastream/infra/aws/terraform/modules/orchestration
-          execution_arn=$(aws stepfunctions start-execution --state-machine-arn $(cat ./sm_ARN.txt) --name docker_builder_$(env TZ=US/Eastern date +'%Y%m%d%H%M%S') --input "file://$GITHUB_WORKSPACE/.github/executions/fp_ds_test_execution_arm.json" --region us-east-1 --query 'executionArn' --output text)
-          echo "Execution ARN: $execution_arn"
-          echo "execution_arn=$execution_arn" >> $GITHUB_OUTPUT
-          echo "$execution_arn" > $GITHUB_WORKSPACE/execution_arn.txt
+          - name: "Validation - Duplicate Geopackage"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_duplicate_geopackage"
           
-          status="RUNNING"
-          while [ "$status" != "SUCCEEDED" ]; do 
-            status=$(aws stepfunctions describe-execution --execution-arn "$execution_arn" --region us-east-1 --query 'status' --output text)
-            echo "Current status: $status"
-            if [ "$status" == "FAILED" ]; then 
-              echo "State machine execution failed!"
-              exit 1
+          - name: "Validation - Missing Realization"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_realization"
+          
+          - name: "Validation - Duplicate Realization"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_duplicate_realization"
+          
+          - name: "Validation - Missing BMI Config"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_bmi_config"
+          
+          - name: "Validation - Missing Forcings"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_forcings"
+          
+          - name: "Validation - Forcings Time Axis"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_forcings_time_axis"
+          
+          - name: "Validation - Missing T-Route Config"
+            image: "datastream"
+            command: "pytest -vv tests/test_validation.py::test_missing_troute_config"
+          
+          - name: "BMI Config Generation - All Tests"
+            image: "datastream"
+            command: "pytest -vv tests/test_bmi_config_generation.py"
+          
+          - name: "Configuration - All Tests"
+            image: "datastream"
+            command: "pytest -vv tests/test_configuration.py"
+
+
+    name: "${{ matrix.test-suite.name }}"
+    
+    steps:
+      - name: Pre-cleanup workspace
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+          
+        
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: datastream-arm64
+          path: /tmp/artifacts
+
+
+      - name: Verify artifact and load
+        run: |
+          set -euo pipefail
+          ls -lh /tmp/artifacts
+          
+          # Load gzipped image
+          for i in 1 2 3; do
+            if gunzip -c /tmp/artifacts/datastream-arm64.tar.gz | docker load; then
+              echo "Successfully loaded image on attempt $i"
+              docker images | grep datastream
+              break
+            else
+              echo "Failed to load image on attempt $i"
+              if [ $i -lt 3 ]; then
+                echo "Retrying in 10 seconds..."
+                sleep 10
+              else
+                exit 1
+              fi
             fi
-            sleep 5
           done
-          echo "State machine execution succeeded!"
 
-      - name: Download Step Function execution logs
-        if: always()  # Run even if previous step fails
+
+      - name: Run ${{ matrix.test-suite.name }}
         run: |
-          # Try to get execution_arn from output first, then fallback to file
-          execution_arn="${{ steps.stepfunction_execution.outputs.execution_arn }}"
-          if [ -z "$execution_arn" ] && [ -f "$GITHUB_WORKSPACE/execution_arn.txt" ]; then
-            execution_arn=$(cat $GITHUB_WORKSPACE/execution_arn.txt)
-          fi
-          
-          if [ -z "$execution_arn" ]; then
-            echo "No execution ARN found, skipping log download"
-            exit 0
-          fi
-          
-          echo "Downloading logs for execution: $execution_arn"
-          
-          # Get execution history
-          aws stepfunctions get-execution-history \
-            --execution-arn "$execution_arn" \
-            --region us-east-1 \
-            --output json > $GITHUB_WORKSPACE/stepfunction-execution-history.json
-          
-          # Get execution details
-          aws stepfunctions describe-execution \
-            --execution-arn "$execution_arn" \
-            --region us-east-1 \
-            --output json > $GITHUB_WORKSPACE/stepfunction-execution-details.json
-          
-          echo "Logs downloaded successfully"
-
-      - name: Upload Step Function logs as artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: stepfunction-logs-${{ github.run_number }}
-          path: |
-            stepfunction-execution-history.json
-            stepfunction-execution-details.json
-          retention-days: 30
-          
-      - name: Download build logs from S3
+          docker run --rm \
+            -v $(pwd):/datastream \
+            -w /datastream \
+            -e AWS_REGION=us-east-1 \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            awiciroh/${{ matrix.test-suite.image }}:latest-arm64 \
+            ${{ matrix.test-suite.command }}
+            
+      - name: Clean up Docker image
         if: always()
         run: |
-          # Download general build log
-          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          docker rmi awiciroh/${{ matrix.test-suite.image }}:latest-arm64 || true
+          docker system prune -f
           
-          # Download datastream test output
-          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
-          
-          if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
-            echo "## Docker Build Log" >> $GITHUB_STEP_SUMMARY
-            cat $GITHUB_WORKSPACE/docker_build_log.txt >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -f $GITHUB_WORKSPACE/datastream_test_output.txt ]; then
-            echo "## Datastream Test Output" >> $GITHUB_STEP_SUMMARY
-            cat $GITHUB_WORKSPACE/datastream_test_output.txt >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Upload build logs as artifact
-        if: always()
-        uses: actions/upload-artifact@v4
+  cleanup-artifacts:
+    needs: test-arm64
+    runs-on: ubuntu-22.04-arm-aws
+    if: always()
+    steps:
+      - name: Delete artifacts
+        uses: geekyeggo/delete-artifact@v5
         with:
-          name: docker-build-logs-${{ github.run_number }}
-          path: |
-            docker_build_log.txt
-            datastream_test_output.txt
-          if-no-files-found: ignore
-          retention-days: 30
-
-      - name: Tear down infra
-        if: always()
-        working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
-        run : |
-          terraform destroy -var-file=variables.tfvars -auto-approve
-          sleep 60
+          name: datastream-arm64
