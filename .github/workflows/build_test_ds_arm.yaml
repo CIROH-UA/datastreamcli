@@ -29,7 +29,6 @@ jobs:
         run: |
           sudo rm -rf ${{ github.workspace }}/* || true
           sudo rm -rf ${{ github.workspace }}/.* || true
-          sudo find ${{ github.workspace }} -maxdepth 1 -name ".*" -not -name "." -not -name ".." -delete || true
           
       - name: Checkout code
         uses: actions/checkout@v4
@@ -77,7 +76,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 10
       matrix:
         test-suite:
           - name: "Validation - Missing Geopackage"
@@ -181,17 +180,19 @@ jobs:
             awiciroh/${{ matrix.test-suite.image }}:latest-arm64 \
             ${{ matrix.test-suite.command }}
             
-      - name: Clean up Docker image
-        if: always()
-        run: |
-          docker rmi awiciroh/${{ matrix.test-suite.image }}:latest-arm64 || true
-          docker system prune -f
+
           
   cleanup-artifacts:
     needs: test-arm64
     runs-on: ubuntu-22.04-arm-aws
     if: always()
     steps:
+      - name: Clean up Docker images
+        continue-on-error: true
+        run: |
+          docker rmi awiciroh/datastream:latest-arm64 || true
+          docker system prune -af --volumes
+
       - name: Delete artifacts
         uses: geekyeggo/delete-artifact@v5
         with:

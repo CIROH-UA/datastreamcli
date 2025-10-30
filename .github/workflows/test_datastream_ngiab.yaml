@@ -181,17 +181,18 @@ jobs:
             awiciroh/${{ matrix.test-suite.image }}:latest-arm64 \
             ${{ matrix.test-suite.command }}
             
-      - name: Clean up Docker image
-        if: always()
-        run: |
-          docker rmi awiciroh/${{ matrix.test-suite.image }}:latest-arm64 || true
-          docker system prune -f
           
   cleanup-artifacts:
     needs: test-arm64
     runs-on: ubuntu-22.04-arm-aws
     if: always()
     steps:
+      - name: Clean up Docker images
+        continue-on-error: true
+        run: |
+          docker rmi awiciroh/datastream:latest-arm64 || true
+          docker system prune -af --volumes
+          
       - name: Delete artifacts
         uses: geekyeggo/delete-artifact@v5
         with:
