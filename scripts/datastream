@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # NextGen DataStream CLI: A batteries-included style workflow for running NextGen
 #
@@ -30,10 +30,6 @@ is_url() {
 is_file() {
   [[ -e "$1" ]]
 }
-PIPE=""
-if [[ "$VERBOSE" == "True" ]]; then
-    PIPE="| tee /dev/stdout"
-fi
 
 get_file() {
     local IN_STRING="$1"
@@ -511,7 +507,8 @@ else
         --geopackage_provided "$GEOPACKAGE"
 fi
 
-DS_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$DOCKER_TAG" --format "{{.ID}}") | tr -d '"')
+#DS_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$DOCKER_TAG" --format "{{.ID}}") | tr -d '"')
+DS_HASH=$(command -v docker >/dev/null 2>&1 && docker image ls "$DOCKER_TAG" --format "{{.ID}}" | head -n1 | xargs -r docker inspect --format='{{json .Id}}' | tr -d '"' || echo "N/A")
 DATASTREAM_ENV="${DATASTREAM_META%/}/datastream.env"
 echo "FP_TAG=$FP_TAG" >> "$DATASTREAM_ENV"
 echo "DS_TAG=$DS_TAG" >> "$DATASTREAM_ENV"
@@ -639,7 +636,8 @@ else
                 -u $(id -u):$(id -g) -w "$DOCKER_RESOURCES" "$DOCKER_TAG" \
                 python3 "$DOCKER_FP"processor.py "$DOCKER_META/conf_fp.json" $PIPE
         fi
-        FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$DOCKER_TAG" --format "{{.ID}}") | tr -d '"')
+        #FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$DOCKER_TAG" --format "{{.ID}}") | tr -d '"')
+        FP_HASH=$(command -v docker >/dev/null 2>&1 && docker image ls "$DOCKER_TAG" --format "{{.ID}}" | head -n1 | xargs -r docker inspect --format='{{json .Id}}' | tr -d '"' || echo "N/A")
         log_time "FORCINGPROCESSOR_END"
         if [ ! -e "$DATASTREAM_RESOURCES_NGENFORCINGS" ]; then
             mkdir -p "$DATASTREAM_RESOURCES_NGENFORCINGS"
@@ -721,7 +719,8 @@ else
         log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
             -u $(id -u):$(id -g) "$NIGAB_TAG" "$DOCKER_MOUNT" auto "$NPROCS" local $PIPE
     fi
-    NGIAB_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$NIGAB_TAG" --format "{{.ID}}") | tr -d '"')
+    #NGIAB_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$NIGAB_TAG" --format "{{.ID}}") | tr -d '"')
+    NGIAB_HASH=$(command -v docker >/dev/null 2>&1 && docker image ls "$NIGAB_TAG" --format "{{.ID}}" | head -n1 | xargs -r docker inspect --format='{{json .Id}}' | tr -d '"' || echo "N/A")
     cp -r "$NGEN_RUN"/*partitions* "$DATASTREAM_RESOURCES_NGENCONF"/
 fi
 log_time "NGEN_END"
@@ -740,7 +739,8 @@ else
             -u $(id -u):$(id -g) zwills/merkdir \
             /merkdir/merkdir gen -o "$DOCKER_MOUNT/merkdir.file" "$DOCKER_MOUNT"
     fi
-    MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
+    #MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
+    MERK_HASH=$(command -v docker >/dev/null 2>&1 && docker image ls "zwills/merkdir:latest" --format "{{.ID}}" | head -n1 | xargs -r docker inspect --format='{{json .Id}}' | tr -d '"' || echo "N/A")
 fi
 log_time "MERKLE_END"
 
@@ -760,7 +760,8 @@ if [ "$EVAL" == "True" ]; then
     else
         log_n_run_steps docker run -v "$NGEN_RUN:/app/data" "$TEEHR_DOCKER:$TEEHR_TAG"
     fi
-    TEEHR_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$TEEHR_DOCKER:$TEEHR_TAG" --format "{{.ID}}") | tr -d '"')
+    #TEEHR_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$TEEHR_DOCKER:$TEEHR_TAG" --format "{{.ID}}") | tr -d '"')
+    TEEHR_HASH=$(command -v docker >/dev/null 2>&1 && docker image ls "$TEEHR_DOCKER:$TEEHR_TAG" --format "{{.ID}}" | head -n1 | xargs -r docker inspect --format='{{json .Id}}' | tr -d '"' || echo "N/A")
     log_time "EVAL_END"
 fi
 
