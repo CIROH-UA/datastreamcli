@@ -7,7 +7,7 @@ set -e
 #   Jordan Laser <jlaser@lynker.com>
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-PACAKGE_DIR=$(dirname "$SCRIPT_DIR)"
+PACAKGE_DIR=$(dirname "$SCRIPT_DIR")
 START_TIME_UTC=$(date -u +'%Y%m%d%H%M%S')
 START_DATE_UTC=$(date -u +'%Y%m%d')
 run_date=$START_DATE_UTC
