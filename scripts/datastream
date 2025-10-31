@@ -7,7 +7,7 @@ set -e
 #   Jordan Laser <jlaser@lynker.com>
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-PACAKGE_DIR=$(dirname $SCRIPT_DIR)
+PACAKGE_DIR=$(dirname "$SCRIPT_DIR)"
 START_TIME_UTC=$(date -u +'%Y%m%d%H%M%S')
 START_DATE_UTC=$(date -u +'%Y%m%d')
 run_date=$START_DATE_UTC
@@ -30,6 +30,10 @@ is_url() {
 is_file() {
   [[ -e "$1" ]]
 }
+PIPE=""
+if [[ "$VERBOSE" == "True" ]]; then
+    PIPE="| tee /dev/stdout"
+fi
 
 get_file() {
     local IN_STRING="$1"
@@ -455,7 +459,9 @@ fi
 if [[ $SINGULARITY_PULL -eq 1 ]]; then
   for img in awiciroh/datastream awiciroh/forcingprocessor awiciroh/ciroh-ngen-image zwills/merkdir awiciroh/ngiab-teehr; do
     echo "Pulling $img..."
-    singularity pull "docker://$img:latest"
+    #singularity pull "docker://$img:latest"
+    singularity pull --name "$(basename "$img")_latest.sif" "docker://$img:latest"
+
   done
 fi
 
@@ -477,8 +483,8 @@ CONFIGURER=$DOCKER_PY"configure_datastream.py"
 ######## DATASTREAM CONFIG GENERATION ##########
 
 if [[ $SINGULARITY_PULL -eq 1 ]]; then
-    [[ ! -f awiciroh_datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
-    singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" awiciroh_datastream_latest.sif \
+    [[ ! -f datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
+    singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" datastream_latest.sif \
         python3 "$CONFIGURER" \
         --docker_mount "$DOCKER_MOUNT" --start_date "$START_DATE" --end_date "$END_DATE" \
         --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" \
@@ -529,8 +535,8 @@ if [ ! -f "$PKL_FILE" ]; then
         echo "COMMAND: docker run --rm -v \"$NGEN_RUN\":\"$DOCKER_MOUNT\" $DOCKER_TAG python3 $NOAHOWPPKL_GENERATOR --hf_file \"$DOCKER_MOUNT/config/$GEO_BASE\" --outdir $DOCKER_MOUNT/config"
     else
         if [[ $SINGULARITY_PULL -eq 1 ]]; then
-            [[ ! -f awiciroh_datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
-            singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" awiciroh_datastream_latest.sif \
+            [[ ! -f datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
+            singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" datastream_latest.sif \
                 python3 "$NOAHOWPPKL_GENERATOR" \
                 --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config"
         else
@@ -548,8 +554,8 @@ if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
     echo "COMMAND: docker run --rm -v \"$NGEN_RUN\":\"$DOCKER_MOUNT\" -u $(id -u):$(id -g) $DOCKER_TAG python3 $NGEN_CONFGEN ..."
 else
     if [[ $SINGULARITY_PULL -eq 1 ]]; then
-        [[ ! -f awiciroh_datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
-        singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" awiciroh_datastream_latest.sif \
+        [[ ! -f datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
+        singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" datastream_latest.sif \
             python3 "$NGEN_CONFGEN" \
             --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" \
             --pkl_file "$DOCKER_MOUNT/config/$PKL_NAME" --realization "$DOCKER_MOUNT/config/realization.json"
@@ -607,8 +613,8 @@ else
         fi
     else
         if [[ $SINGULARITY_PULL -eq 1 ]]; then
-            [[ ! -f awiciroh_forcingprocessor_latest.sif ]] && singularity pull docker://awiciroh/forcingprocessor:latest
-            singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" awiciroh_forcingprocessor_latest.sif \
+            [[ ! -f forcingprocessor_latest.sif ]] && singularity pull docker://awiciroh/forcingprocessor:latest
+            singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" forcingprocessor_latest.sif \
                 python3 "$DOCKER_FP"nwm_filenames_generator.py \
                 "$DOCKER_MOUNT/datastream-metadata/conf_nwmurl.json"
         else
@@ -625,8 +631,8 @@ else
         echo "COMMAND: docker run --rm -v \"$DATA_DIR\":\"$DOCKER_MOUNT\" -u $(id -u):$(id -g) -w \"$DOCKER_RESOURCES\" $DOCKER_TAG python3 \"$DOCKER_FP\"processor.py \"$DOCKER_META/conf_fp.json\" $PIPE"
     else
         if [[ $SINGULARITY_PULL -eq 1 ]]; then
-            [[ ! -f awiciroh_forcingprocessor_latest.sif ]] && singularity pull docker://awiciroh/forcingprocessor:latest
-            singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" awiciroh_forcingprocessor_latest.sif \
+            [[ ! -f forcingprocessor_latest.sif ]] && singularity pull docker://awiciroh/forcingprocessor:latest
+            singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" forcingprocessor_latest.sif \
                 python3 "$DOCKER_FP"processor.py "$DOCKER_META/conf_fp.json" $PIPE
         else
             log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
@@ -655,8 +661,8 @@ if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
             echo "COMMAND: docker run --rm -v \"$DATA_DIR\":\"$DOCKER_MOUNT\" -u $(id -u):$(id -g) -w \"$DOCKER_RESOURCES\" $DOCKER_TAG python3 \"$DOCKER_FP\"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM"
         else
             if [[ $SINGULARITY_PULL -eq 1 ]]; then
-                [[ ! -f awiciroh_forcingprocessor_latest.sif ]] && singularity pull docker://awiciroh/forcingprocessor:latest
-                singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" awiciroh_forcingprocessor_latest.sif \
+                [[ ! -f forcingprocessor_latest.sif ]] && singularity pull docker://awiciroh/forcingprocessor:latest
+                singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" forcingprocessor_latest.sif \
                     python3 "$DOCKER_FP"medium_range_time_ax_mod.py \
                     --input_file_ens0 "$DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE" \
                     --output_dir "$DOCKER_MOUNT/ngen-run/forcings" \
@@ -686,8 +692,8 @@ if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
     echo "COMMAND: docker run --rm -v \"$NGEN_RUN\":\"$DOCKER_MOUNT\" -u $(id -u):$(id -g) $DOCKER_TAG python3 $VALIDATOR --data_dir $DOCKER_MOUNT"
 else
     if [[ $SINGULARITY_PULL -eq 1 ]]; then
-        [[ ! -f awiciroh_datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
-        singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" awiciroh_datastream_latest.sif \
+        [[ ! -f datastream_latest.sif ]] && singularity pull docker://awiciroh/datastream:latest
+        singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" datastream_latest.sif \
             python3 "$VALIDATOR" --data_dir "$DOCKER_MOUNT"
     else
         log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
@@ -708,8 +714,8 @@ if [ "$DRYRUN" == "True" ]; then
     echo "COMMAND: docker run --rm -v \"$NGEN_RUN\":\"$DOCKER_MOUNT\" -u $(id -u):$(id -g) $NIGAB_TAG \"$DOCKER_MOUNT\" auto $NPROCS local $PIPE"
 else
     if [[ $SINGULARITY_PULL -eq 1 ]]; then
-        [[ ! -f awiciroh_ciroh-ngen-image_latest.sif ]] && singularity pull docker://awiciroh/ciroh-ngen-image:latest
-        singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" awiciroh_ciroh-ngen-image_latest.sif \
+        [[ ! -f ciroh-ngen-image_latest.sif ]] && singularity pull docker://awiciroh/ciroh-ngen-image:latest
+        singularity exec --bind "$NGEN_RUN":"$DOCKER_MOUNT" ciroh-ngen-image_latest.sif \
             "$DOCKER_MOUNT" auto "$NPROCS" local $PIPE
     else
         log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
@@ -726,8 +732,8 @@ if [ "$DRYRUN" == "True" ]; then
     echo "COMMAND: docker run --rm -v \"$DATA_DIR\":\"$DOCKER_MOUNT\" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT"
 else
     if [[ $SINGULARITY_PULL -eq 1 ]]; then
-        [[ ! -f zwills_merkdir_latest.sif ]] && singularity pull docker://zwills/merkdir:latest
-        singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" zwills_merkdir_latest.sif \
+        [[ ! -f merkdir_latest.sif ]] && singularity pull docker://zwills/merkdir:latest
+        singularity exec --bind "$DATA_DIR":"$DOCKER_MOUNT" merkdir_latest.sif \
             /merkdir/merkdir gen -o "$DOCKER_MOUNT/merkdir.file" "$DOCKER_MOUNT"
     else
         log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
@@ -749,8 +755,8 @@ if [ "$EVAL" == "True" ]; then
     TEEHR_DOCKER="awiciroh/ngiab-teehr"
     TEEHR_TAG="latest"
     if [[ $SINGULARITY_PULL -eq 1 ]]; then
-        [[ ! -f awiciroh_ngiab-teehr_latest.sif ]] && singularity pull docker://awiciroh/ngiab-teehr:latest
-        singularity exec --bind "$NGEN_RUN":"/app/data" awiciroh_ngiab-teehr_latest.sif
+        [[ ! -f ngiab-teehr_latest.sif ]] && singularity pull docker://awiciroh/ngiab-teehr:latest
+        singularity exec --bind "$NGEN_RUN":"/app/data" ngiab-teehr_latest.sif
     else
         log_n_run_steps docker run -v "$NGEN_RUN:/app/data" "$TEEHR_DOCKER:$TEEHR_TAG"
     fi
