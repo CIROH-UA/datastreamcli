@@ -8,13 +8,13 @@ NextGen is a framework in which physical models can be coupled in numerical simu
 * [PET](https://github.com/NOAA-OWP/evapotranspiration)
 * [Noah-OWP-Modular](https://github.com/NOAA-OWP/noah-owp-modular)
 * [t-route](https://github.com/NOAA-OWP/t-route)
+* [LSTM Rust](https://github.com/CIROH-UA/NGIAB-CloudInfra/pull/351)
 
 ## NextGen Models Available in NGIAB and coming soon to `datastreamcli`
 * [SoilFreezeThaw](https://github.com/NOAA-OWP/SoilFreezeThaw)
 * [SoilMoistureProfiles](https://github.com/NOAA-OWP/SoilMoistureProfiles)
 * [TOPMODEL](https://github.com/NOAA-OWP/topmodel)
-* [LSTM](https://github.com/NOAA-OWP/lstm)
-  
+
 ## Coming Soon to NGIAB and `datastreamcli`
 * [Sac-SMA](https://github.com/NOAA-OWP/sac-sma)
 * [Snow17](https://github.com/NOAA-OWP/snow17)
