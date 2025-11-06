@@ -5,6 +5,7 @@ import re, os
 import pickle, copy
 from pathlib import Path
 import datetime
+import subprocess
 gpd.options.io_engine = "pyogrio"
 
 from ngen.config_gen.file_writer import DefaultFileWriter
@@ -100,6 +101,22 @@ def generate_troute_conf(out_dir,start,max_loop_size,geo_file_path):
 
     with open(Path(out_dir,"troute.yaml"),'w') as fp:
         fp.writelines(troute_conf_str)  
+
+def gen_LSTM(hf_file,out):
+    filename = "lstm_conus_cat_config.tar.gz"
+    archive_file = "https://ciroh-community-ngen-datastream.s3.amazonaws.com/v2.2_resources/" + filename
+    cat_config_lstm_tar = Path(out,'cat_config',filename)
+    
+    lstm_config_dir = Path(out,'cat_config')
+    if not Path.exists(lstm_config_dir):
+        os.system(f"mkdir -p {lstm_config_dir}")
+    print(f"BMI config generation for LSTM not implemented.\nPulling archived files from {archive_file}")
+    command = f"curl -o {cat_config_lstm_tar} {archive_file}"
+    process = subprocess.run(command, shell=True)
+    print("uncompressing archive to cat_config/lstm")
+    untar_command = f"tar -xzf {cat_config_lstm_tar} -C {lstm_config_dir}"
+    untar_process = subprocess.run(untar_command, shell=True)
+    return
 
 def gen_petAORcfe(hf_file,out,include):
     models = []
@@ -202,7 +219,8 @@ if __name__ == "__main__":
     dir_dict = {"CFE":"CFE",
                 "PET":"PET",
                 "NoahOWP":"NOAH-OWP-M",
-                "SLOTH":""}
+                "SLOTH":"",
+                "bmi_rust":"lstm"}
 
     ignore = []
     for jmodel in model_names:
@@ -238,6 +256,14 @@ if __name__ == "__main__":
         else:
             print(f'Generating PET configs from pydantic models',flush = True)
             gen_petAORcfe(args.hf_file,args.outdir,["PET"])
+
+    if "bmi_rust" in model_names:
+        if "bmi_rust" in ignore:
+            print(f'ignoring LSTM')
+        else:
+            print(f'Generating LSTM configs from pydantic models',flush = True)
+            gen_LSTM(args.hf_file,args.outdir)        
+
 
     globals = [x[0] for x in serialized_realization]
     if serialized_realization.routing is not None:
