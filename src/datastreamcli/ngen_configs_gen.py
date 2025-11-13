@@ -327,6 +327,14 @@ if __name__ == "__main__":
             print(f'Generating LSTM configs from pydantic models',flush = True)
             gen_lstm(hf,attrs,args.outdir,serialized_realization)        
 
+    if "bmi_rust" in model_names:
+        if "bmi_rust" in ignore:
+            print(f'ignoring LSTM')
+        else:
+            print(f'Generating LSTM configs from pydantic models',flush = True)
+            gen_LSTM(args.hf_file,args.outdir)        
+
+
     globals = [x[0] for x in serialized_realization]
     if serialized_realization.routing is not None:
         if "routing" in ignore:
