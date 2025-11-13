@@ -56,12 +56,12 @@ jobs:
 
     - name: Get geopackage 
       run: |
-        curl -L -O https://ngen-datastream.s3.us-east-2.amazonaws.com/palisade.gpkg
+        curl -L -O https://ciroh-community-ngen-datastream.s3.amazonaws.com/v2.2_resources/VPU_09/config/nextgen_VPU_09.gpkg
 
     - name: Base test and NWM_RETRO_V3
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test        
-        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
 
     - name: Cache resource directory and CONF_FILE
       run: |
@@ -81,7 +81,7 @@ jobs:
       if: always()
       run: |
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -g $(pwd)/palisade.gpkg -R $(pwd)/data/cache/datastream-resources/config/realization_sloth_nom_cfe_pet.json -F $(pwd)/data/cache/datastream-resources/ngen-forcings/1_forcings.nc -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test        
+        ./scripts/datastream -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/data/cache/datastream-resources/config/realization_sloth_nom_cfe_pet.json -F $(pwd)/data/cache/datastream-resources/ngen-forcings/1_forcings.nc -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test        
 
     - name: Resource directory test missing all
       if: always()
@@ -89,7 +89,7 @@ jobs:
         sudo rm -rf $(pwd)/data/datastream_test
         sudo rm -rf ./data/cache/datastream-resources-missing/ngen-forcings 
         sudo rm -rf ./data/cache/datastream-resources-missing/config/*
-        ./scripts/datastream -r ./data/cache/datastream-resources-missing -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg
+        ./scripts/datastream -r ./data/cache/datastream-resources-missing -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg
 
     - name: Resource directory test
       if: always()
@@ -126,7 +126,7 @@ jobs:
       if: always()
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json -S ciroh-community-ngen-datastream -o git_actions_test
+        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json -S ciroh-community-ngen-datastream -o git_actions_test
         aws s3api wait object-exists --bucket ciroh-community-ngen-datastream --key git_actions_test/ngen-run.tar.gz   
         aws s3 rm s3://ciroh-community-ngen-datastream/git_actions_test --recursive
 
@@ -134,25 +134,25 @@ jobs:
       if: always()
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_SHORT_RANGE_00 -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+        ./scripts/datastream -s DAILY -C NWM_SHORT_RANGE_00 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
 
     - name: DAILY short_range 23 today test
       if: always()
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_SHORT_RANGE_23 -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+        ./scripts/datastream -s DAILY -C NWM_SHORT_RANGE_23 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
 
     - name: DAILY short_range 00 pick day test
       if: always()
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -e $(date -d '-15 day' '+%Y%m%d0000') -C NWM_SHORT_RANGE_00 -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+        ./scripts/datastream -s DAILY -e $(date -d '-15 day' '+%Y%m%d0000') -C NWM_SHORT_RANGE_00 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
         
     - name: DAILY medium_range today test 00 0
       if: always()
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_MEDIUM_RANGE_00_0 -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+        ./scripts/datastream -s DAILY -C NWM_MEDIUM_RANGE_00_0 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
     
     - name: DAILY medium_range today test 00 3
       if: always()
@@ -165,4 +165,4 @@ jobs:
       if: always()
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_ANALYSIS_ASSIM_EXTEND_16 -e $(date -d '-2 day' '+%Y%m%d0000') -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json      
+        ./scripts/datastream -s DAILY -C NWM_ANALYSIS_ASSIM_EXTEND_16 -e $(date -d '-2 day' '+%Y%m%d0000') -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json      
