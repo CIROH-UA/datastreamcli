@@ -69,7 +69,22 @@ def gen_noah_owp_confs(gdf,hf_version):
             all_confs[jcatch] = jcatch_conf
     return all_confs
 
-def multiprocess_gen_pkl(gpkg_path,outdir,hf_version):
+def multiprocess_gen_pkl(gpkg_path : str,
+                         outdir : str,
+                         hf_version : str
+                         ):
+    """
+    Multiprocessing layer for gen_noah_owp_confs()
+
+    Parameters
+        gpkg_path : Path to geopackage,
+        outdir : Path to directory to store pickle file,
+        hf_version : hydrofabric version
+
+    Returns
+        None
+    
+    """
     print(f'Generating NoahOWP pkl',flush=True)
 
     if hf_version == "v2.2":
@@ -136,7 +151,9 @@ if __name__ == "__main__":
         hf_file = args.hf_file
 
     outdir = args.outdir
-    multiprocess_gen_pkl(hf_file,outdir)   
+    hf_version = "v2.1"
+    if "divide-attributes" in list(gpd.list_layers(hf_file).name): hf_version = "v2.2"
+    multiprocess_gen_pkl(hf_file,outdir,hf_version)   
     # gdf     = gpd.read_file(hf_file,layer = 'divide-attributes')
     # catchment_list = sorted(list(gdf['divide_id']))         
     # gen_noah_owp_confs(catchment_list,gdf)

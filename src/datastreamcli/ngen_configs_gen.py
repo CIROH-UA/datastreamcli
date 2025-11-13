@@ -147,7 +147,24 @@ def generate_troute_conf(out_dir,start,max_loop_size,geo_file_path):
     with open(Path(out_dir,"troute.yaml"),'w') as fp:
         fp.writelines(troute_conf_str)  
 
-def gen_lstm(hf,attrs,out,real):
+def gen_lstm(
+        hf : gpd.GeoDataFrame,
+        attrs : gpd.GeoDataFrame,
+        out : str, 
+        real : NgenRealization
+        ):
+    """
+    Generate LSTM BMI configs from hydrofabric and NextGen realizaiton files
+
+    Parameters
+        hf : divides layer of hydrofabric,
+        attrs : attributes of the divides,
+        out : path to write configs out to, 
+        real : NextGen realization
+
+    Returns
+        None
+    """
     lstm_config_dir = Path(out,'cat_config/LSTM')
     if not Path.exists(lstm_config_dir):
         os.system(f"mkdir -p {lstm_config_dir}")

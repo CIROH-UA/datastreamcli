@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 # NextGen DataStream CLI: A batteries-included style workflow for running NextGen
 #
