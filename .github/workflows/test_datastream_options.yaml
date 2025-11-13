@@ -6,33 +6,24 @@ on:
     branches:
       - main
     paths:
+      - .github/workflow/test_datastream_options.yaml
       - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'
+      - '!docker/README.md'      
+      - 'scripts/datastream'  
+      - 'src/datastreamcli/**'  
+      - '!src/datastreamcli/README.md'      
      
   pull_request:
     branches:
       - main  
     paths:
+      - .github/workflow/test_datastream_options.yaml
       - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'            
+      - '!docker/README.md'      
+      - 'scripts/datastream'  
+      - 'src/datastreamcli/**'  
+      - '!src/datastreamcli/README.md'               
 
-      
 permissions:
   contents: read      
 
@@ -106,6 +97,12 @@ jobs:
         sudo rm -rf $(pwd)/data/datastream_test
         ./scripts/datastream -r ./data/cache/datastream-resources -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test
 
+    - name: Rust LSTM test
+      if: always()
+      run: |
+        sudo rm -rf $(pwd)/data/datastream_test
+        ./scripts/datastream -r ./data/cache/datastream-resources -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -R $(pwd)/configs/ngen/realization_rust_lstm.json
+
     - name: Forcings sources option test NWM_RETRO_V2
       if: always()
       run: |
@@ -169,4 +166,3 @@ jobs:
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test
         ./scripts/datastream -s DAILY -C NWM_ANALYSIS_ASSIM_EXTEND_16 -e $(date -d '-2 day' '+%Y%m%d0000') -d $(pwd)/data/datastream_test -g $(pwd)/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json      
-  
