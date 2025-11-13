@@ -6,31 +6,23 @@ on:
     branches:
       - main
     paths:
+      - .github/workflow/test_datastream_options.yaml
       - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'
-     
+      - '!docker/README.md'      
+      - 'scripts/datastream'  
+      - 'src/datastreamcli/**'  
+      - '!src/datastreamcli/README.md'      
+
   pull_request:
     branches:
       - main  
     paths:
+      - .github/workflow/test_datastream_options.yaml
       - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'         
+      - '!docker/README.md'      
+      - 'scripts/datastream'  
+      - 'src/datastreamcli/**'  
+      - '!src/datastreamcli/README.md'            
 
 permissions:
   contents: read      
@@ -63,4 +55,4 @@ jobs:
     - name: Base test and NWM_RETRO_V3
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test        
-        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g https://ngen-datastream.s3.us-east-2.amazonaws.com/palisade.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/v2.2_resources/VPU_09/config/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
