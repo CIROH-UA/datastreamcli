@@ -5,6 +5,7 @@ import re, os
 import pickle, copy
 from pathlib import Path
 import datetime
+import subprocess
 gpd.options.io_engine = "pyogrio"
 
 from ngen.config_gen.file_writer import DefaultFileWriter
@@ -16,6 +17,51 @@ from ngen.config_gen.models.pet import Pet
 
 from ngen.config.realization import NgenRealization
 from ngen.config.configurations import Routing
+
+LSTM_TEMPLATE = data = {
+    "time_step": "",
+    "area_sqkm": 0,
+    "basin_id": "cat-1",
+    "basin_name": "cat-1",
+    "elev_mean": 0,
+    "initial_state": "zero",
+    "lat": None,  
+    "lon": None,  
+    "slope_mean": 0,
+    "train_cfg_file": [
+        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_7/config.yml",
+        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_8/config.yml",
+        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_9/config.yml",
+        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed101_0701_143442/config.yml",
+        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed103_2701_171540/config.yml",
+        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_slope_elev_precip_temp_seq999_seed101_2801_191806/config.yml"
+    ],
+    "verbose": 0
+}
+
+def get_hf(hf_file : str):
+    """
+    Parameters:
+        hf_file : path to hydrofabric file (*.gpkg)
+
+    Returns:
+        hf : divide layer of hydrofabric
+        layers :  all layers within the hydrofabric file
+        attrs : divide attributes (found under different layers)
+            v2.1 -> model-attributes
+            v2.2 -> divide-attributes
+    """
+
+    hf: gpd.GeoDataFrame = gpd.read_file(hf_file, layer="divides") 
+    layers = gpd.list_layers(hf_file)
+    if "model-attributes" in list(layers.name):
+        attrs: pd.DataFrame = gpd.read_file(hf_file,layer="model-attributes")
+    elif "divide-attributes" in list(layers.name):
+        attrs: pd.DataFrame = gpd.read_file(hf_file,layer="divide-attributes")
+    else:
+        raise Exception(f"Can't find attributes!")        
+
+    return hf, layers, attrs
 
 def gen_noah_owp_confs_from_pkl(pkl_file,out_dir,start,end):
 
@@ -101,22 +147,54 @@ def generate_troute_conf(out_dir,start,max_loop_size,geo_file_path):
     with open(Path(out_dir,"troute.yaml"),'w') as fp:
         fp.writelines(troute_conf_str)  
 
-def gen_petAORcfe(hf_file,out,include):
+def gen_lstm(hf,attrs,out,real):
+    lstm_config_dir = Path(out,'cat_config/LSTM')
+    if not Path.exists(lstm_config_dir):
+        os.system(f"mkdir -p {lstm_config_dir}")
+
+    lstm_config = copy.copy(LSTM_TEMPLATE)
+    interval = real.time.output_interval // 3600
+    lstm_config['time_step'] = f"{interval} hour"
+    cats = attrs['divide_id']
+    ncats = len(cats)
+    from pyproj import Transformer
+    import yaml
+    count = 0
+    for x, y in zip(hf.sort_values(by="divide_id").iterrows(),attrs.sort_values(by="divide_id").iterrows()) :    
+        count += 1
+        j, hf_row = x    
+        k, attrs_row =y
+        lstm_config_jcat = copy.copy(lstm_config)
+        jcat = attrs_row['divide_id']
+        source_crs = 'EPSG:5070' 
+        target_crs = 'EPSG:4326'
+        transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+        x_coord = attrs_row['centroid_x']
+        y_coord = attrs_row['centroid_y']
+        lon, lat = transformer.transform(x_coord,y_coord)        
+        lstm_config_jcat['area_sqkm'] = hf_row['areasqkm']
+        lstm_config_jcat['basid_id'] = jcat  
+        lstm_config_jcat['basid_name'] = jcat    
+        lstm_config_jcat['elev_mean'] = attrs_row['mean.elevation']    
+        lstm_config_jcat['lat'] = lat
+        lstm_config_jcat['lon'] = lon
+        lstm_config_jcat['slope_mean'] = attrs_row['mean.slope']   
+        filename = Path(lstm_config_dir, jcat + ".yml")
+        with open(filename,"w") as fp:
+            yaml.dump(lstm_config_jcat, fp, default_flow_style=False, sort_keys=False)
+        perc_comp = 100 * (count/ncats)
+        print(f"{perc_comp:.1f}% complete",end='\r')
+
+    return
+
+def gen_petAORcfe(hf,attrs,out,include):
     models = []
     if 'PET' in include:
         models.append(Pet)
     if 'CFE' in include:
         models.append(Cfe)        
     for j, jmodel in enumerate(include):
-        hf: gpd.GeoDataFrame = gpd.read_file(hf_file, layer="divides")
-        layers = gpd.list_layers(hf_file)
-        if "model-attributes" in list(layers.name):
-            hf_lnk_data: pd.DataFrame = gpd.read_file(hf_file,layer="model-attributes")
-        elif "divide-attributes" in list(layers.name):
-            hf_lnk_data: pd.DataFrame = gpd.read_file(hf_file,layer="divide-attributes")
-        else:
-            raise Exception(f"Can't find attributes!")
-        hook_provider = DefaultHookProvider(hf=hf, hf_lnk_data=hf_lnk_data)
+        hook_provider = DefaultHookProvider(hf=hf, hf_lnk_data=attrs)
         jmodel_out = Path(out,'cat_config',jmodel)
         os.system(f"mkdir -p {jmodel_out}")
         file_writer = DefaultFileWriter(jmodel_out)
@@ -135,7 +213,7 @@ def gen_petAORcfe(hf_file,out,include):
 #     file_writer: FileWriter,
 #     pool: cf.ProcessPoolExecutor,
 # ):
-#     def capture(divide_id: str, bv: BuilderVisitableFn):
+#     def capture(divide)_id: str, bv: BuilderVisitableFn):
 #         bld_vbl = bv()
 #         bld_vbl.visit(hook_prov)
 #         model = bld_vbl.build()
@@ -202,14 +280,17 @@ if __name__ == "__main__":
     dir_dict = {"CFE":"CFE",
                 "PET":"PET",
                 "NoahOWP":"NOAH-OWP-M",
-                "SLOTH":""}
+                "SLOTH":"",
+                "bmi_rust":"lstm"}
 
     ignore = []
     for jmodel in model_names:
         config_path = Path(args.outdir,"cat_config",dir_dict[jmodel])
         if config_path.exists(): ignore.append(jmodel)
     routing_path = Path(args.outdir,"troute.yaml")
-    if routing_path.exists(): ignore.append("routing")        
+    if routing_path.exists(): ignore.append("routing")       
+
+    hf, layers, attrs = get_hf(args.hf_file)
 
     if "NoahOWP" in model_names:
         if "NoahOWP" in ignore:
@@ -230,14 +311,21 @@ if __name__ == "__main__":
             print(f'ignoring CFE')
         else:
             print(f'Generating CFE configs from pydantic models',flush = True)
-            gen_petAORcfe(args.hf_file,args.outdir,["CFE"])
+            gen_petAORcfe(hf,attrs,args.outdir,["CFE"])
 
     if "PET" in model_names: 
         if "PET" in ignore:
             print(f'ignoring PET')
         else:
             print(f'Generating PET configs from pydantic models',flush = True)
-            gen_petAORcfe(args.hf_file,args.outdir,["PET"])
+            gen_petAORcfe(hf,attrs,args.outdir,["PET"])
+
+    if "bmi_rust" in model_names:
+        if "bmi_rust" in ignore:
+            print(f'ignoring LSTM')
+        else:
+            print(f'Generating LSTM configs from pydantic models',flush = True)
+            gen_lstm(hf,attrs,args.outdir,serialized_realization)        
 
     globals = [x[0] for x in serialized_realization]
     if serialized_realization.routing is not None:
