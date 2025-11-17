@@ -224,7 +224,7 @@ jobs:
 
           BUILD_FLAGS=$(echo "$BUILD_FLAGS" | sed 's/^ *//')
 
-          sed -i -e "s/\${DEPS_TAG}/$DEPS_TAG/g" -e "s/\${DS_TAG}/$DS_TAG/g" -e "s/\${BUILD_ARGS}/$BUILD_FLAGS/g" \
+          sed -i -e "s/\${DEPS_TAG}/$DEPS_TAG/g" -e "s/\${DS_TAG}/$DS_TAG/g" -e "s/\${FP_TAG}/$DS_TAG/g" -e "s/\${BUILD_ARGS}/$BUILD_FLAGS/g" \
             .github/executions/ds_push_execution_arm.json
           
           echo "Generated execution file:"
