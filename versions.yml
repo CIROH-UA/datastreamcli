@@ -1,2 +1,2 @@
-datastream-deps: "test_workflow"
-datastream: "test_workflow"
+datastream-deps: "test"
+datastream: "test"
