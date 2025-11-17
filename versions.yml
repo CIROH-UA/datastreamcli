@@ -1,2 +1,2 @@
-datastream-deps: "testing"
-datastream: "testing"
+datastream-deps: "test"
+datastream: "test"
