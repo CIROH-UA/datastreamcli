@@ -8,6 +8,10 @@ import datetime
 import subprocess
 gpd.options.io_engine = "pyogrio"
 
+import ruamel, io
+from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString
+
 from ngen.config_gen.file_writer import DefaultFileWriter
 from ngen.config_gen.hook_providers import DefaultHookProvider
 from ngen.config_gen.generate import generate_configs
@@ -34,7 +38,7 @@ LSTM_TEMPLATE = data = {
         "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_9/config.yml",
         "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed101_0701_143442/config.yml",
         "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed103_2701_171540/config.yml",
-        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_slope_elev_precip_temp_seq999_seed101_2801_191806/config.yml"
+        "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_slope_elev_precip_temp_seq999_seed101_2801_191806/config.yml"
     ],
     "verbose": 0
 }
@@ -171,34 +175,39 @@ def gen_lstm(
 
     lstm_config = copy.copy(LSTM_TEMPLATE)
     interval = real.time.output_interval // 3600
-    lstm_config['time_step'] = f"{interval} hour"
+    lstm_config['time_step'] = DoubleQuotedScalarString(f"{interval} hour")
     cats = attrs['divide_id']
     ncats = len(cats)
     from pyproj import Transformer
     import yaml
     count = 0
-    for x, y in zip(hf.sort_values(by="divide_id").iterrows(),attrs.sort_values(by="divide_id").iterrows()) :    
+    source_crs = 'EPSG:5070' 
+    target_crs = 'EPSG:4326'
+    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)    
+    for x, y in zip(hf.sort_values(by="divide_id").iterrows(),attrs.sort_values(by="divide_id").iterrows()) :   
         count += 1
         j, hf_row = x    
         k, attrs_row =y
         lstm_config_jcat = copy.copy(lstm_config)
         jcat = attrs_row['divide_id']
-        source_crs = 'EPSG:5070' 
-        target_crs = 'EPSG:4326'
-        transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
         x_coord = attrs_row['centroid_x']
-        y_coord = attrs_row['centroid_y']
-        lon, lat = transformer.transform(x_coord,y_coord)        
+        y_coord = attrs_row['centroid_y']      
+        lon, lat = transformer.transform(x_coord,y_coord)     
         lstm_config_jcat['area_sqkm'] = hf_row['areasqkm']
-        lstm_config_jcat['basid_id'] = jcat  
-        lstm_config_jcat['basid_name'] = jcat    
+        lstm_config_jcat['basin_id'] = jcat  
+        lstm_config_jcat['basin_name'] = jcat    
         lstm_config_jcat['elev_mean'] = attrs_row['mean.elevation']    
         lstm_config_jcat['lat'] = lat
         lstm_config_jcat['lon'] = lon
         lstm_config_jcat['slope_mean'] = attrs_row['mean.slope']   
         filename = Path(lstm_config_dir, jcat + ".yml")
-        with open(filename,"w") as fp:
-            yaml.dump(lstm_config_jcat, fp, default_flow_style=False, sort_keys=False)
+        yaml = ruamel.yaml.YAML()
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        stream = io.StringIO()
+        yaml.dump(lstm_config_jcat, stream)
+        yaml_string = stream.getvalue()
+        with open(filename,'w') as fp:
+            fp.write(yaml_string)
         perc_comp = 100 * (count/ncats)
         print(f"{perc_comp:.1f}% complete",end='\r')
 
@@ -343,14 +352,6 @@ if __name__ == "__main__":
         else:
             print(f'Generating LSTM configs from pydantic models',flush = True)
             gen_lstm(hf,attrs,args.outdir,serialized_realization)        
-
-    if "bmi_rust" in model_names:
-        if "bmi_rust" in ignore:
-            print(f'ignoring LSTM')
-        else:
-            print(f'Generating LSTM configs from pydantic models',flush = True)
-            gen_LSTM(args.hf_file,args.outdir)        
-
 
     globals = [x[0] for x in serialized_realization]
     if serialized_realization.routing is not None:
