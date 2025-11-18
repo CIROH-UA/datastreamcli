@@ -10,7 +10,7 @@
     "runuser -l ec2-user -c 'export DS_TAG=latest-arm64 FP_TAG=latest-arm64 && /home/ec2-user/datastreamcli/scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d /home/ec2-user/datastreamcli/data/datastream_test -g https://ngen-datastream.s3.us-east-2.amazonaws.com/palisade.gpkg -R /home/ec2-user/datastreamcli/configs/ngen/realization_sloth_nom_cfe_pet.json' >> /home/ec2-user/datastreamcli/docker_build_log.txt 2>&1",
     "runuser -l ec2-user -c 'echo \"--s3_bucket ciroh-community-ngen-datastream --s3_prefix test/docker_build --forcing_source NWM_RETRO_V3\" > /dev/null'",
     "runuser -l ec2-user -c 'chmod +x /home/ec2-user/datastreamcli/docker/docker_loginNpush.sh'",
-    "runuser -l ec2-user -c '/home/ec2-user/datastreamcli/docker/docker_loginNpush.sh ${DEPS_TAG} ${DS_TAG} \"${BUILD_ARGS}\"' >> /home/ec2-user/datastreamcli/docker_login_log.txt 2>&1",
+    "runuser -l ec2-user -c '/home/ec2-user/datastreamcli/docker/docker_loginNpush.sh ${DEPS_TAG} ${DS_TAG} \"${BUILD_ARGS}\"'",
     "runuser -l ec2-user -c 'aws s3 cp /home/ec2-user/datastreamcli/docker_login_log.txt s3://ciroh-community-ngen-datastream/test/docker_login_log.txt'",
     "runuser -l ec2-user -c 'aws s3 cp /home/ec2-user/datastreamcli/docker_build_log.txt s3://ciroh-community-ngen-datastream/test/docker_build_log.txt'"
   ],
