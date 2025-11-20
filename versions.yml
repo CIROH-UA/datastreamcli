@@ -1,2 +1,2 @@
-datastream-deps: "testing"
-datastream: "testing"
+datastream-deps: "v2.0.0"
+datastream: "v2.0.0"
