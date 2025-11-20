@@ -649,9 +649,9 @@ TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
 if [ -n "$S3_BUCKET" ]; then
     TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
-    TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
     NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
     if [ ${NTROUTE} -gt 0 ]; then
+        TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
         mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
     fi
 fi
