@@ -81,7 +81,7 @@ jobs:
       if: always()
       run: |
         sudo rm -rf $(pwd)/data/datastream_test
-        forcings_file=$(find "./data/datastream-resources/ngen-forcings/" -type f)
+        forcings_file=$(find "./data/cache/datastream-resources/ngen-forcings/" -name "*.nc")
         ./scripts/datastream -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/data/cache/datastream-resources/config/realization_sloth_nom_cfe_pet.json -F $forcings_file -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test        
 
     - name: Resource directory test missing all
