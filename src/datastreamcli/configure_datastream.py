@@ -276,6 +276,8 @@ def create_conf_fp(args,start_real):
             gpkg_file.append(re.sub(PATTERN_VPU, jvpu, tmpl_cpy))
     elif args.united_conus:
         gpkg_file = [f"/mounted_dir/conus_weights.parquet"]
+    elif "CHRT" in args.forcing_source:
+        gpkg_file = ["s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"]
     else:
         gpkg_file = [f"{args.docker_mount}/datastream-resources/config/{geo_base}"]
 
