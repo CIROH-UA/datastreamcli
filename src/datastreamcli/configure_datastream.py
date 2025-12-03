@@ -267,6 +267,8 @@ def create_conf_fp(args,start_real):
     elif len(args.docker_mount) > 0:
         gpkg_file = [f"{args.docker_mount}/datastream-resources/config/{geo_base}"]
         output_path = f"{args.docker_mount}/ngen-run"
+    else:
+        output_path = args.data_dir + "/ngen-run"
 
     if len(args.forcing_split_vpu) > 0:
         template = f"/mounted_dir/nextgen_VPU_$VPU_weights.json"
