@@ -47,15 +47,16 @@ get_file() {
     if is_directory "$IN_STRING"; then
         log_n_run_steps cp -r $IN_STRING/* $OUT_STRING
     elif is_s3_key "$IN_STRING"; then
-        NUM_LINES=$(aws s3 ls --recursive $IN_STRING | wc -l)
+        NUM_LINES=$(aws s3 ls --recursive $IN_STRING --no-sign-request | wc -l)
         if [ $NUM_LINES -eq 0 ]; then
             echo "Nothing found for $IN_STRING"
         elif [ $NUM_LINES -eq 1 ]; then
-            log_n_run_steps aws s3 cp "$IN_STRING" "$(pwd)/$IN_STRING_BASE"
+            log_n_run_steps aws s3 cp "$IN_STRING" "$(pwd)/$IN_STRING_BASE" --no-sign-request
             log_n_run_steps get_file "$(pwd)/$IN_STRING_BASE" $OUT_STRING
             rm "$(pwd)/$IN_STRING_BASE"
         else
-            log_n_run_steps aws s3 sync $IN_STRING $OUT_STRING
+            # log_n_run_steps aws s3 sync $IN_STRING $OUT_STRING
+            log_n_run_steps aws s3 cp --recursive "$IN_STRING" "$OUT_STRING" --no-sign-request
         fi
     elif is_url "$IN_STRING"; then
         log_n_run_steps curl -# -L -o "$OUT_STRING" "$IN_STRING"
@@ -268,8 +269,8 @@ mkdir -p $NGENRUN_LAKEOUT
 DOCKER_MOUNT="/mounted_dir"
 DOCKER_RESOURCES="${DOCKER_MOUNT%/}/datastream-resources"
 DOCKER_META="${DOCKER_MOUNT%/}/datastream-metadata"
-DOCKER_FP="/forcingprocessor/src/forcingprocessor/"
-DOCKER_PY="/datastreamcli/src/datastreamcli/"
+DOCKER_FP="/Users/qylee/Documents/forcingprocessor/src/forcingprocessor/"
+DOCKER_PY="/Users/qylee/Documents/datastreamcli/src/datastreamcli/"
 
 # Time shift back 1 day for when init > hour
 if [[ "$START_DATE" == *"DAILY"* ]]; then
@@ -467,10 +468,14 @@ log_time "DATASTREAMCONFGEN_START"
 DOCKER_TAG="awiciroh/datastream:$DS_TAG"
 echo "Generating DataStreamCLI metadata"
 CONFIGURER=$DOCKER_PY"configure_datastream.py"
-log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
+# log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
+#     python3 $CONFIGURER \
+#     --docker_mount $DOCKER_MOUNT --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DOCKER_MOUNT}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE"
+
+log_n_run_steps
     python3 $CONFIGURER \
-    --docker_mount $DOCKER_MOUNT --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DOCKER_MOUNT}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE"
-DS_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
+     --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DATA_DIR}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE"
+# DS_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
 DATASTREAM_ENV="${DATASTREAM_META%/}/datastream.env"
 echo "FP_TAG=$FP_TAG" >> $DATASTREAM_ENV
 echo "DS_TAG=$DS_TAG" >> $DATASTREAM_ENV
@@ -504,10 +509,12 @@ if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
         $DOCKER_TAG python3 $NGEN_CONFGEN \
         --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --realization "$DOCKER_MOUNT/config/realization.json""
 else
-    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        $DOCKER_TAG python3 $NGEN_CONFGEN \
-        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --realization "$DOCKER_MOUNT/config/realization.json"
+    # log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+    #     -u $(id -u):$(id -g) \
+    #     $DOCKER_TAG python3 $NGEN_CONFGEN \
+    #     --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --realization "$DOCKER_MOUNT/config/realization.json"
+    log_n_run_steps python3 $NGEN_CONFGEN \
+        --hf_file "$DATA_DIR/ngen-run/config/$GEO_BASE" --outdir "$DATA_DIR/ngen-run/config" --realization "$DATA_DIR/ngen-run/config/realization.json"
     TAR_NAME="ngen-bmi-configs.tar.gz"
     NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
     tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
@@ -555,12 +562,15 @@ else
             cp -r $NWM_FORCINGS_DIR/* $DATASTREAM_RESOURCES_NWMFORCINGS
         fi
     else
-        log_n_run_steps docker run --rm -v "$DATA_DIR:"$DOCKER_MOUNT"" \
-            -u $(id -u):$(id -g) \
-            -w "$DOCKER_RESOURCES" $DOCKER_TAG \
-            python3 "$DOCKER_FP"nwm_filenames_generator.py \
-            "$DOCKER_MOUNT"/datastream-metadata/conf_nwmurl.json
-        mv $DATASTREAM_RESOURCES/*filenamelist*.txt $DATASTREAM_META
+        # log_n_run_steps docker run --rm -v "$DATA_DIR:"$DOCKER_MOUNT"" \
+        #     -u $(id -u):$(id -g) \
+        #     -w "$DOCKER_RESOURCES" $DOCKER_TAG \
+        #     python3 "$DOCKER_FP"nwm_filenames_generator.py \
+        #     "$DOCKER_MOUNT"/datastream-metadata/conf_nwmurl.json
+        log_n_run_steps python3 "$DOCKER_FP"nwm_filenames_generator.py \
+            "$DATA_DIR"/datastream-metadata/conf_nwmurl.json
+        # mv $DATASTREAM_RESOURCES/*filenamelist*.txt $DATASTREAM_META
+        mv "$(pwd)"/*filenamelist*.txt "$DATASTREAM_META"
     fi
     echo "Creating forcing files"
     if [ "$DRYRUN" == "True" ]; then
@@ -570,18 +580,23 @@ else
             -w "$DOCKER_RESOURCES" $DOCKER_TAG \
             python3 "$DOCKER_FP"processor.py "$DOCKER_META"/conf_fp.json" $PIPE
     else
-        log_n_run_steps docker run --rm -v "$DATA_DIR:"$DOCKER_MOUNT"" \
-            -u $(id -u):$(id -g) \
-            -w "$DOCKER_RESOURCES" $DOCKER_TAG \
-            python3 "$DOCKER_FP"processor.py "$DOCKER_META"/conf_fp.json $PIPE
-        FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
+        # log_n_run_steps docker run --rm -v "$DATA_DIR:"$DOCKER_MOUNT"" \
+        #     -u $(id -u):$(id -g) \
+        #     -w "$DOCKER_RESOURCES" $DOCKER_TAG \
+        #     python3 "$DOCKER_FP"processor.py "$DOCKER_META"/conf_fp.json $PIPE
+        # FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
+        log_n_run_steps python3 "$DOCKER_FP"processor.py "$DATA_DIR"/datastream-metadata/conf_fp.json $PIPE
+        # FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
         # mv $DATASTREAM_RESOURCES/profile_fp.txt $DATASTREAM_META
         log_time "FORCINGPROCESSOR_END"
         if [ ! -e $$DATASTREAM_RESOURCES_NGENFORCINGS ]; then
             mkdir -p $DATASTREAM_RESOURCES_NGENFORCINGS
         fi
-        FORCINGS_BASE=$(basename $(find "$NGENRUN_FORCINGS" -type f -name "*forcing*"))
-        cp $NGENRUN_FORCINGS/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
+        # FORCINGS_BASE=$(basename $(find "$NGENRUN_FORCINGS" -type f -name "*forcing*"))
+        # cp $NGENRUN_FORCINGS/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
+        cp -r "$NGENRUN_FORCINGS" "$DATASTREAM_RESOURCES_NGENFORCINGS"
+        rm -r "$NGENRUN_OUTPUT_NGEN"
+        mv "$NGENRUN_FORCINGS" "$NGENRUN_OUTPUT_NGEN" # because these are ngen outputs
         mv "$NGENRUN_METADATA/forcings_metadata" $DATASTREAM_META
     fi
 fi
@@ -637,11 +652,11 @@ if [ "$DRYRUN" == "True" ]; then
             -w $NIGAB_TAG --entrypoint /bin/bash $NIGAB_TAG \
             python3 -m nwm_routing -f -V4 ./config/troute.yaml"
 else
-    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+    log_n_run_steps docker run --rm -v "$NGEN_RUN":/ngen/ngen/data \
             -u $(id -u):$(id -g) \
-            -w $NIGAB_TAG --entrypoint /bin/bash $NIGAB_TAG \
-            python3 -m nwm_routing -f -V4 ./config/troute.yaml
-    NGIAB_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $NIGAB_TAG --format "{{.ID}}") | tr -d '"')
+            -w /ngen/ngen/data --entrypoint /bin/bash $NIGAB_TAG \
+            -c "python -m nwm_routing -f -V4 ./config/troute.yaml"
+    # NGIAB_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $NIGAB_TAG --format "{{.ID}}") | tr -d '"')
     # cp -r $NGEN_RUN/*partitions* $DATASTREAM_RESOURCES_NGENCONF/
 fi
 log_time "NGEN_END"
@@ -651,8 +666,8 @@ if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - MERKDIR EXECUTION SKIPPED"
     echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT"
 else
-    log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT
-    MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
+    log_n_run_steps docker run --rm -v "$DATA_DIR":"$DATA_DIR/ngen-run" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DATA_DIR/ngen-run/merkdir.file $DATA_DIR/ngen-run
+    # MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
 fi
 log_time "MERKLE_END"
 

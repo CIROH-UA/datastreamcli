@@ -259,7 +259,11 @@ def create_conf_fp(args,start_real):
     else:
         filename = "filenamelist.txt"
 
-    output_file_type = ["netcdf"]
+    if "CHRT" in args.forcing_source:
+        output_file_type = ["csv"]
+    else:
+        output_file_type = ["netcdf"]
+
     if len(args.s3_bucket) > 0:
         if "DAILY" in args.start_date:
             args.s3_prefix = re.sub(r"\DAILY",datetime.strptime(start_real,'%Y-%m-%d %H:%M:%S').strftime('%Y%m%d'),args.s3_prefix)
@@ -278,15 +282,20 @@ def create_conf_fp(args,start_real):
             gpkg_file.append(re.sub(PATTERN_VPU, jvpu, tmpl_cpy))
     elif args.united_conus:
         gpkg_file = [f"/mounted_dir/conus_weights.parquet"]
-    elif "CHRT" in args.forcing_source:
-        gpkg_file = ["s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"]
     else:
-        gpkg_file = [f"{args.docker_mount}/datastream-resources/config/{geo_base}"]
+        # TODO: change back to docker_mount when not testing
+        gpkg_file = [f"{args.data_dir}/datastream-resources/config/{geo_base}"]
+
+    if "CHRT" in args.forcing_source:
+        map_file = "s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"
+    else:
+        map_file = None
 
     fp_conf = {
         "forcing" : {
-            "nwm_file"     : f"{args.docker_mount}/datastream-metadata/{filename}",
+            "nwm_file"     : f"{args.data_dir}/datastream-metadata/{filename}",
             "gpkg_file"    : gpkg_file,
+            "map_file"     : map_file
         },
         "storage" : {
             "output_path"      : output_path,
