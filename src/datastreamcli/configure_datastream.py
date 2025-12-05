@@ -283,8 +283,7 @@ def create_conf_fp(args,start_real):
     elif args.united_conus:
         gpkg_file = [f"/mounted_dir/conus_weights.parquet"]
     else:
-        # TODO: change back to docker_mount when not testing
-        gpkg_file = [f"{args.data_dir}/datastream-resources/config/{geo_base}"]
+        gpkg_file = [f"{args.docker_mount}/datastream-resources/config/{geo_base}"]
 
     if "CHRT" in args.forcing_source:
         map_file = "s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"
@@ -293,7 +292,7 @@ def create_conf_fp(args,start_real):
 
     fp_conf = {
         "forcing" : {
-            "nwm_file"     : f"{args.data_dir}/datastream-metadata/{filename}",
+            "nwm_file"     : f"{args.docker_mount}/datastream-metadata/{filename}",
             "gpkg_file"    : gpkg_file,
             "map_file"     : map_file
         },

@@ -37,7 +37,7 @@ def generate_troute_conf(out_dir,start,max_loop_size,geo_file_path):
         if re.search(pattern,jline):
             troute_conf_str[j] = re.sub(pattern,  f'\\1 {geo_file_path}', jline)
 
-        pattern = r'^(.*binary_nexus_file_folder.*)$'
+        pattern = r'^(.*binary_nexus_file_folder.*)$' # this is commented out for speed
         if re.search(pattern, jline):
             troute_conf_str[j] = re.sub(pattern, r'# \1', jline)
 
