@@ -585,7 +585,7 @@ if [ "$DRYRUN" == "True" ]; then
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
             -u $(id -u):$(id -g) \
             -w /ngen/ngen/data --entrypoint /bin/bash $NIGAB_TAG \
-            -c "python3 -m nwm_routing -f -V4 ./config/troute.yaml"
+            -c "python3 -m nwm_routing -f -V4 ./config/troute.yaml""
 else
     log_n_run_steps docker run --rm -v "$NGEN_RUN":/ngen/ngen/data \
             -u $(id -u):$(id -g) \
@@ -608,14 +608,14 @@ log_time "MERKLE_END"
 log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
-if [ -n "$S3_BUCKET" ]; then
-    TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
-    TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
-    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
-    if [ ${NTROUTE} -gt 0 ]; then
-        mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
-    fi
-fi
+# if [ -n "$S3_BUCKET" ]; then
+#     TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
+#     TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
+#     NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
+#     if [ ${NTROUTE} -gt 0 ]; then
+#         mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
+#     fi
+# fi
 log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
 log_time "TAR_END"
 
@@ -654,8 +654,11 @@ if [ -n "$S3_BUCKET" ]; then
     aws s3 cp $NGENRUN_TAR "s3://$S3_BUCKET/${S3_PREFIX%/}/$TAR_NAME"
     aws s3 cp $DATA_DIR/merkdir.file "s3://$S3_BUCKET/${S3_PREFIX%/}/merkdir.file"
     aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"
+    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
     if [ ${NTROUTE} -gt 0 ]; then
-        aws s3 cp ./$TROUTE_OUTPUT_NC_BASENAME "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/$TROUTE_OUTPUT_NC_BASENAME"
+    # this kept breaking in the original datastream implementation
+    # which is why I changed it here
+        aws s3 cp "$NGENRUN_OUTPUT_TROUTE" "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/" --recursive
     fi
 
     log_time "S3_MOVE_END"
