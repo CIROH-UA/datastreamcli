@@ -8,6 +8,7 @@ import datetime
 import subprocess
 import numpy as np
 from pyproj import Transformer
+import sqlite3
 gpd.options.io_engine = "pyogrio"
 
 from ngen.config_gen.file_writer import DefaultFileWriter
@@ -133,7 +134,7 @@ def gen_petAORcfe(hf_file,out,include):
             hf_lnk_data: pd.DataFrame = gpd.read_file(hf_file,layer="model-attributes")
         elif "divide-attributes" in list(layers.name):
             hf_lnk_data: pd.DataFrame = gpd.read_file(hf_file,layer="divide-attributes")
-            hf_lnk_data = fix_v2_2_units(hf_lnk_data)
+            hf_lnk_data = fix_v2_2_units(hf_lnk_data, hf_file)
         else:
             raise Exception(f"Can't find attributes!")
         hook_provider = DefaultHookProvider(hf=hf, hf_lnk_data=hf_lnk_data)
@@ -146,27 +147,45 @@ def gen_petAORcfe(hf_file,out,include):
             file_writer=file_writer,
         )
 
+def get_table_crs_short(gpkg: str | Path, table: str) -> str:
+    """
+    Gets the CRS of the specified table in the specified geopackage as a short string. e.g. EPSG:5070
 
-def fix_v2_2_units(gdf:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    gdf["mean.Zmax"] = gdf["mean.Zmax"]/ 1000 # this changed to mm in hf v2.2
-    gdf["mean.elevation"] = gdf["mean.elevation"] / 100 # incorrectly labelled as meters in data_model.html but it's in cm
+    Args:
+        gpkg (str): The path to the geopackage.
+        table (str): The table name.
+    """
+    with sqlite3.connect(gpkg) as con:
+        sql_query = f"""SELECT organization || ':' || organization_coordsys_id
+                    FROM gpkg_spatial_ref_sys
+                    WHERE srs_id = (
+                        SELECT srs_id
+                        FROM gpkg_geometry_columns
+                        WHERE table_name = '{table}'
+                    )"""
+        crs = con.execute(sql_query).fetchone()[0]
+    return crs
+
+def fix_v2_2_units(df:pd.DataFrame, gpkg: str | Path) -> gpd.GeoDataFrame:
+    df["mean.Zmax"] = df["mean.Zmax"]/ 1000 # this changed to mm in hf v2.2
+    df["mean.elevation"] = df["mean.elevation"] / 100 # incorrectly labelled as meters in data_model.html but it's in cm
     # min elevation is -8447 aka -85m in death valley, max is 395320 so likely cm 
-    
+    source_crs = get_table_crs_short(gpkg, "divides")
     # centroids are in 5070 in hf2.2
-    transformer = Transformer.from_crs(gdf.crs, "EPSG:4326", always_xy=True)
-    lon, lat = transformer.transform(gdf["centroid_x"].values, gdf["centroid_y"].values)
-    gdf["centroid_x"] = lon
-    gdf["centroid_y"] = lat
+    transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+    lon, lat = transformer.transform(df["centroid_x"].values, df["centroid_y"].values)
+    df["centroid_x"] = lon
+    df["centroid_y"] = lat
     
     # no idea how to modify ngen-cal to do this, but lstm needs meters per km
     # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
     # flip 0 and 90 degree values
-    gdf["flipped_mean_slope"] = abs(gdf["mean.slope"] - 90)
+    df["flipped_mean_slope"] = abs(df["mean.slope"] - 90)
     # Convert degrees to meters per kmmeter
-    gdf["mean_slope_mpkm"] = (
-        np.tan(np.radians(gdf["flipped_mean_slope"])) * 1000
+    df["mean_slope_mpkm"] = (
+        np.tan(np.radians(df["flipped_mean_slope"])) * 1000
     )
-    return gdf
+    return df
 
 # Austin's multiprocess example from chat 3/25
 # import concurrent.futures as cf

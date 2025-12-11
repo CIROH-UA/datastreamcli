@@ -67,7 +67,7 @@ def multiprocess_pkl(gpkg_path,outdir):
     try:
         HF_VERSION = "v2.2"
         gdf = gpd.read_file(gpkg_path,layer = 'divide-attributes').sort_values(by='divide_id')
-        gdf = fix_v2_2_units(gdf)
+        gdf = fix_v2_2_units(gdf, gpkg_path)
     except:
         HF_VERSION = "v2.1"
         gdf = gpd.read_file(gpkg_path,layer = 'model-attributes').sort_values(by='divide_id')
