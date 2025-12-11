@@ -147,7 +147,7 @@ def gen_petAORcfe(hf_file,out,include):
             file_writer=file_writer,
         )
 
-def get_table_crs_short(gpkg: str | Path, table: str) -> str:
+def get_table_crs_short(gpkg, table: str) -> str:
     """
     Gets the CRS of the specified table in the specified geopackage as a short string. e.g. EPSG:5070
 
@@ -166,7 +166,7 @@ def get_table_crs_short(gpkg: str | Path, table: str) -> str:
         crs = con.execute(sql_query).fetchone()[0]
     return crs
 
-def fix_v2_2_units(df:pd.DataFrame, gpkg: str | Path) -> gpd.GeoDataFrame:
+def fix_v2_2_units(df:pd.DataFrame, gpkg) -> gpd.GeoDataFrame:
     df["mean.Zmax"] = df["mean.Zmax"]/ 1000 # this changed to mm in hf v2.2
     df["mean.elevation"] = df["mean.elevation"] / 100 # incorrectly labelled as meters in data_model.html but it's in cm
     # min elevation is -8447 aka -85m in death valley, max is 395320 so likely cm 
