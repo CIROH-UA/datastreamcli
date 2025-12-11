@@ -6,6 +6,8 @@ import pickle, copy
 from pathlib import Path
 import datetime
 import subprocess
+import numpy as np
+from pyproj import Transformer
 gpd.options.io_engine = "pyogrio"
 
 from ngen.config_gen.file_writer import DefaultFileWriter
@@ -131,6 +133,7 @@ def gen_petAORcfe(hf_file,out,include):
             hf_lnk_data: pd.DataFrame = gpd.read_file(hf_file,layer="model-attributes")
         elif "divide-attributes" in list(layers.name):
             hf_lnk_data: pd.DataFrame = gpd.read_file(hf_file,layer="divide-attributes")
+            hf_lnk_data = fix_v2_2_units(hf_lnk_data)
         else:
             raise Exception(f"Can't find attributes!")
         hook_provider = DefaultHookProvider(hf=hf, hf_lnk_data=hf_lnk_data)
@@ -142,6 +145,28 @@ def gen_petAORcfe(hf_file,out,include):
             hook_objects=[models[j]],
             file_writer=file_writer,
         )
+
+
+def fix_v2_2_units(gdf:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    gdf["mean.Zmax"] = gdf["mean.Zmax"]/ 1000 # this changed to mm in hf v2.2
+    gdf["mean.elevation"] = gdf["mean.elevation"] / 100 # incorrectly labelled as meters in data_model.html but it's in cm
+    # min elevation is -8447 aka -85m in death valley, max is 395320 so likely cm 
+    
+    # centroids are in 5070 in hf2.2
+    transformer = Transformer.from_crs(gdf.crs, "EPSG:4326", always_xy=True)
+    lon, lat = transformer.transform(gdf["centroid_x"].values, gdf["centroid_y"].values)
+    gdf["centroid_x"] = lon
+    gdf["centroid_y"] = lat
+    
+    # no idea how to modify ngen-cal to do this, but lstm needs meters per km
+    # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
+    # flip 0 and 90 degree values
+    gdf["flipped_mean_slope"] = abs(gdf["mean.slope"] - 90)
+    # Convert degrees to meters per kmmeter
+    gdf["mean_slope_mpkm"] = (
+        np.tan(np.radians(gdf["flipped_mean_slope"])) * 1000
+    )
+    return gdf
 
 # Austin's multiprocess example from chat 3/25
 # import concurrent.futures as cf
