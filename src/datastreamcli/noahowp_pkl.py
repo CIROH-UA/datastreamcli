@@ -4,6 +4,7 @@ import geopandas as gpd
 gpd.options.io_engine = "pyogrio"
 import concurrent.futures as cf
 from datastreamcli.ngen_configs_gen import fix_v2_2_units
+from pyogrio.errors import DataLayerError
 
 def gen_noah_owp_pkl(gdf):    
     template = Path(__file__).parent.parent.parent/"configs/ngen/noah-owp-modular-init.namelist.input"
@@ -14,8 +15,8 @@ def gen_noah_owp_pkl(gdf):
     if HF_VERSION == "v2.2":
         for row in gdf.itertuples():
             jcatch = row.divide_id
-            lat = row.centroid_x
-            lon = row.centroid_y
+            lon = row.centroid_x
+            lat = row.centroid_y
             slope = row._37
             azimuth = row._38
             jcatch_conf = copy.deepcopy(conf_template)
@@ -68,7 +69,7 @@ def multiprocess_pkl(gpkg_path,outdir):
         HF_VERSION = "v2.2"
         gdf = gpd.read_file(gpkg_path,layer = 'divide-attributes').sort_values(by='divide_id')
         gdf = fix_v2_2_units(gdf, gpkg_path)
-    except:
+    except DataLayerError:
         HF_VERSION = "v2.1"
         gdf = gpd.read_file(gpkg_path,layer = 'model-attributes').sort_values(by='divide_id')
     
