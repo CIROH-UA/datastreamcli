@@ -181,10 +181,11 @@ def fix_v2_2_units(df:pd.DataFrame, gpkg: str | Path) -> gpd.GeoDataFrame:
     # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
     # flip 0 and 90 degree values
     df["flipped_mean_slope"] = abs(df["mean.slope"] - 90)
-    # Convert degrees to meters per kmmeter
+    # Convert degrees to meters per kilometer (m/km)
     df["mean_slope_mpkm"] = (
         np.tan(np.radians(df["flipped_mean_slope"])) * 1000
     )
+    df.drop(columns=["flipped_mean_slope"], inplace=True)
     return df
 
 # Austin's multiprocess example from chat 3/25
