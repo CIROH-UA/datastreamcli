@@ -163,7 +163,13 @@ def get_table_crs_short(gpkg, table: str) -> str:
                         FROM gpkg_geometry_columns
                         WHERE table_name = '{table}'
                     )"""
-        crs = con.execute(sql_query).fetchone()[0]
+        result = con.execute(sql_query).fetchone()
+        if result is None:
+            raise ValueError(
+                f"Could not determine CRS for table '{table}' in geopackage '{gpkg}'. "
+                "The table may not exist or may not have a spatial reference defined."
+            )
+        crs = result[0]
     return crs
 
 def fix_v2_2_units(df:pd.DataFrame, gpkg) -> gpd.GeoDataFrame:
