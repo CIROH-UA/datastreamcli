@@ -156,14 +156,14 @@ def get_table_crs_short(gpkg, table: str) -> str:
         table (str): The table name.
     """
     with sqlite3.connect(gpkg) as con:
-        sql_query = f"""SELECT organization || ':' || organization_coordsys_id
+        sql_query = """SELECT organization || ':' || organization_coordsys_id
                     FROM gpkg_spatial_ref_sys
                     WHERE srs_id = (
                         SELECT srs_id
                         FROM gpkg_geometry_columns
-                        WHERE table_name = '{table}'
+                        WHERE table_name = ?
                     )"""
-        result = con.execute(sql_query).fetchone()
+        result = con.execute(sql_query, (table,)).fetchone()
         if result is None:
             raise ValueError(
                 f"Could not determine CRS for table '{table}' in geopackage '{gpkg}'. "
