@@ -1,4 +1,4 @@
-name: Build, Test Forcing Processor Docker Containers on ARM
+name: Build, Test Forcing Datastream Docker Containers on ARM
 on:
   workflow_dispatch:
   push:
