@@ -9,7 +9,7 @@ import pandas as pd
 from datetime import datetime, timezone
 import concurrent.futures as cf
 
-def check_forcings(forcings_start,forcings_end,n):
+def check_forcings(serialized_realization,forcings_start,forcings_end,n):
     start_time = serialized_realization.time.start_time
     end_time   = serialized_realization.time.end_time
     dt_s = serialized_realization.time.output_interval
@@ -42,7 +42,7 @@ def validate_realization(realization_file):
     
     return serialized_realization, relative_dir
 
-def validate_catchment_files(validations, catchments):
+def validate_catchment_files(validations, catchments,forcing_dir,serialized_realization):
     """
     General function to validate any files that need to be associated with a catchment
 
@@ -69,7 +69,7 @@ def validate_catchment_files(validations, catchments):
                     df = ngen_forcings['precip_rate']
                     forcings_start = datetime.fromtimestamp(ngen_forcings.Time.values[0,0],timezone.utc)
                     forcings_end   = datetime.fromtimestamp(ngen_forcings.Time.values[0,-1],timezone.utc)
-                    check_forcings(forcings_start,forcings_end,len(ngen_forcings.time.values))
+                    check_forcings(serialized_realization,forcings_start,forcings_end,len(ngen_forcings.time.values))
                     continue
 
         for j, jcatch in enumerate(catchments):    
@@ -116,11 +116,9 @@ def validate_data_dir(data_dir):
     catchments     = gpd.read_file(geopackage_file, layer='divides')
     catchment_list = sorted(list(catchments['divide_id']))
 
-    global serialized_realization
     serialized_realization, relative_dir = validate_realization(realization_file)    
 
     print(f'Done\nValidating required individual catchment paths',flush = True)
-    global forcing_dir, config_dir, validate_type_names
     forcing_dir    = os.path.join(relative_dir,serialized_realization.global_config.forcing.path)
     config_dir     = os.path.join(data_dir,"config","cat_config")
     if os.path.isdir(forcing_dir):
@@ -180,12 +178,15 @@ def validate_data_dir(data_dir):
         catchment_list_list.append(jcatchments)
         i = k
         
-    # validate_catchment_files(val_dict_list[0],catchment_list_list[0])
+    validate_catchment_files(val_dict_list[0],catchment_list_list[0],forcing_dir,serialized_realization)
     with cf.ProcessPoolExecutor() as pool:
         for results in pool.map(
             validate_catchment_files,
             val_dict_list,
-            catchment_list_list):
+            catchment_list_list,
+            [forcing_dir for x in range(nprocs)],
+            [serialized_realization for x in range(nprocs)]
+            ):
             pass    
 
     print(f'\nNGen run folder is valid\n',flush = True)        
