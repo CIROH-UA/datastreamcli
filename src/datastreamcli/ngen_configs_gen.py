@@ -126,7 +126,8 @@ def gen_lstm(
         hf : gpd.GeoDataFrame,
         attrs : gpd.GeoDataFrame,
         out : str, 
-        real : NgenRealization
+        real : NgenRealization,
+        lstm_ensembles : list
         ):
     """
     Generate LSTM BMI configs from hydrofabric and NextGen realizaiton files
@@ -135,7 +136,8 @@ def gen_lstm(
         hf : divides layer of hydrofabric,
         attrs : attributes of the divides,
         out : path to write configs out to, 
-        real : NextGen realization
+        real : NextGen realization,
+        lstm_ensembles : list of indices to pick lstm training files (ensembles)
 
     Returns
         None
@@ -145,6 +147,11 @@ def gen_lstm(
         os.system(f"mkdir -p {lstm_config_dir}")
 
     lstm_config = copy.copy(LSTM_TEMPLATE)
+    ens_picked = []
+    for j in lstm_ensembles:
+        jens = LSTM_TEMPLATE['train_cfg_file'][int(j)]
+        ens_picked.append(jens)
+    lstm_config['train_cfg_file'] = ens_picked
     interval = real.time.output_interval // 3600
     lstm_config['time_step'] = DoubleQuotedScalarString(f"{interval} hour")
     cats = attrs['divide_id']
@@ -163,7 +170,8 @@ def gen_lstm(
         jcat = attrs_row['divide_id']
         x_coord = attrs_row['centroid_x']
         y_coord = attrs_row['centroid_y']      
-        lon, lat = transformer.transform(x_coord,y_coord)     
+        lon, lat = transformer.transform(x_coord,y_coord)    
+        df_fixed = attrs_row 
         # variable transformations taken from 
         # https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/36b8f0a8dd77462aae3d33c9e93385103637cf98/modules/data_processing/create_realization.py#L149C5-L172C14
         # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
@@ -267,6 +275,14 @@ if __name__ == "__main__":
         required=False
     )     
 
+    parser.add_argument(
+        "--lstm_ensembles",
+        dest="lstm_ensembles", 
+        type=list,
+        help="List of integers corresponding to lstm ensemble members", 
+        required=False
+    )    
+
     args = parser.parse_args()
 
     global start,end
@@ -330,8 +346,9 @@ if __name__ == "__main__":
         if "bmi_rust" in ignore:
             print(f'ignoring LSTM')
         else:
+            lstm_ensembles = [0]
             print(f'Generating LSTM configs from pydantic models',flush = True)
-            gen_lstm(hf,attrs,args.outdir,serialized_realization)        
+            gen_lstm(hf,attrs,args.outdir,serialized_realization,args.lstm_ensembles)        
 
     globals = [x[0] for x in serialized_realization]
     if serialized_realization.routing is not None:

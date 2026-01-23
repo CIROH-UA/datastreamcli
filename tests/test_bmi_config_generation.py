@@ -118,7 +118,7 @@ def test_pet_v22():
 def test_lstm_v22():
     serialized_realization = NgenRealization.parse_file(LSTM_REALIZATION)
     LSTM_DIR.mkdir(parents=True, exist_ok=True)
-    gen_lstm(hf_v22, attrs_v22, DATA_DIR,serialized_realization)
+    gen_lstm(hf_v22, attrs_v22, DATA_DIR,serialized_realization,[0,1,2])
     lstm_example = LSTM_DIR / "cat-1496145.yml"
     assert lstm_example.exists()
 
