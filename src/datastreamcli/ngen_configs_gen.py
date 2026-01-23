@@ -280,7 +280,8 @@ if __name__ == "__main__":
         dest="lstm_ensembles", 
         type=list,
         help="List of integers corresponding to lstm ensemble members", 
-        required=False
+        required=False,
+        default="012345"
     )    
 
     args = parser.parse_args()
