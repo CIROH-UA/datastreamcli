@@ -5,7 +5,6 @@ import re, os
 import pickle, copy
 from pathlib import Path
 import datetime
-import subprocess
 gpd.options.io_engine = "pyogrio"
 
 import ruamel, io
@@ -87,35 +86,6 @@ def gen_noah_owp_confs_from_pkl(pkl_file,out_dir,start,end):
 
         with open(Path(out_dir,f"noah-owp-modular-init-{jcatch}.namelist.input"),"w") as fp:
             fp.writelines(jcatch_str)
-
-def multiprocess_noahowp():
-    with open(pkl_file, 'rb') as fp:
-        nom_dict = pickle.load(fp)
-    catchment_list = list(nom_dict.keys())
-
-    nprocs = os.cpu_count() - 1
-    ncatch = len(nom_dict)
-    catchment_list_list = []
-    gdf_list = []
-    nper = ncatch // nprocs
-    nleft = ncatch - (nper * nprocs)   
-    i = 0
-    k = nper
-    for j in range(nprocs):
-        if j < nleft: k += 1
-        catchment_list_list.append(catchment_list[i:k])
-        gdf_list.append(gdf[i:k])
-        i=k
-        k = nper + i
-        
-    all_proc_confs = {}
-    with cf.ProcessPoolExecutor(max_workers=nprocs) as pool:
-        for results in pool.map(
-        gen_noah_owp_pkl,
-        catchment_list_list,
-        gdf_list
-        ):
-            all_proc_confs.update(results)
 
 def generate_troute_conf(out_dir,start,max_loop_size,geo_file_path):
 
