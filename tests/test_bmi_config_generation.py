@@ -70,14 +70,14 @@ def test_noah_owp_m_v21():
 
 def test_cfe_v21():
     CFE_DIR.mkdir(parents=True, exist_ok=True)
-    gen_petAORcfe(hf_v21, attrs_v21, DATA_DIR, ["CFE"])
+    gen_petAORcfe(GEOPACKAGE_PATH_v21, DATA_DIR, ["CFE"])
     cfe_example = CFE_DIR / "CFE_cat-2586011.ini"
     assert cfe_example.exists()
 
 
 def test_pet_v21():
     PET_DIR.mkdir(parents=True, exist_ok=True)
-    gen_petAORcfe(hf_v21, attrs_v21, DATA_DIR, ["PET"])
+    gen_petAORcfe(GEOPACKAGE_PATH_v21, DATA_DIR, ["PET"])
     pet_example = PET_DIR / "PET_cat-2586011.ini"
     assert pet_example.exists()
 
@@ -103,14 +103,14 @@ def test_noah_owp_m_v22():
 
 def test_cfe_v22():
     CFE_DIR.mkdir(parents=True, exist_ok=True)
-    gen_petAORcfe(hf_v22, attrs_v22, DATA_DIR, ["CFE"])
+    gen_petAORcfe(GEOPACKAGE_PATH_v22, DATA_DIR, ["CFE"])
     cfe_example = CFE_DIR / "CFE_cat-1496145.ini"
     assert cfe_example.exists()
 
 
 def test_pet_v22():
     PET_DIR.mkdir(parents=True, exist_ok=True)
-    gen_petAORcfe(hf_v22, attrs_v22, DATA_DIR, ["PET"])
+    gen_petAORcfe(GEOPACKAGE_PATH_v22, DATA_DIR, ["PET"])
     pet_example = PET_DIR / "PET_cat-1496145.ini"
     assert pet_example.exists()
 
