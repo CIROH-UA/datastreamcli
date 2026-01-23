@@ -174,7 +174,6 @@ def gen_lstm(
         x_coord = attrs_row['centroid_x']
         y_coord = attrs_row['centroid_y']      
         lon, lat = transformer.transform(x_coord,y_coord)    
-        df_fixed = attrs_row 
         # variable transformations taken from 
         # https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/36b8f0a8dd77462aae3d33c9e93385103637cf98/modules/data_processing/create_realization.py#L149C5-L172C14
         # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
