@@ -3,6 +3,7 @@ import pandas as pd
 import argparse
 import re, os
 import pickle, copy
+import numpy as np
 from pathlib import Path
 import datetime
 gpd.options.io_engine = "pyogrio"
@@ -163,13 +164,22 @@ def gen_lstm(
         x_coord = attrs_row['centroid_x']
         y_coord = attrs_row['centroid_y']      
         lon, lat = transformer.transform(x_coord,y_coord)     
+        # variable transformations taken from 
+        # https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/36b8f0a8dd77462aae3d33c9e93385103637cf98/modules/data_processing/create_realization.py#L149C5-L172C14
+        # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
+        # flip 0 and 90 degree values
+        attrs_row["flipped_mean_slope"] = abs(attrs_row["mean.slope"] - 90)
+        # Convert degrees to meters per kmmeter
+        attrs_row["mean_slope_mpkm"] = (
+            np.tan(np.radians(attrs_row["flipped_mean_slope"])) * 1000
+        )
         lstm_config_jcat['area_sqkm'] = hf_row['areasqkm']
         lstm_config_jcat['basin_id'] = jcat  
         lstm_config_jcat['basin_name'] = jcat    
-        lstm_config_jcat['elev_mean'] = attrs_row['mean.elevation']    
+        lstm_config_jcat['elev_mean'] = attrs_row['mean.elevation'] / 100,  # convert cm in hf to m
         lstm_config_jcat['lat'] = lat
         lstm_config_jcat['lon'] = lon
-        lstm_config_jcat['slope_mean'] = attrs_row['mean.slope']   
+        lstm_config_jcat['slope_mean'] = attrs_row['mean_slope_mpkm']   
         filename = Path(lstm_config_dir, jcat + ".yml")
         yaml = ruamel.yaml.YAML()
         yaml.indent(mapping=2, sequence=4, offset=2)
