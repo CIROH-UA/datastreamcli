@@ -3,6 +3,8 @@ import re, copy, pickle, argparse, os
 import geopandas as gpd
 gpd.options.io_engine = "pyogrio"
 import concurrent.futures as cf
+from datastreamcli.ngen_configs_gen import fix_v2_2_units
+from pyogrio.errors import DataLayerError
 
 def gen_noah_owp_confs(gdf,hf_version):    
     """
@@ -23,8 +25,8 @@ def gen_noah_owp_confs(gdf,hf_version):
     if hf_version == "v2.2":
         for row in gdf.itertuples():
             jcatch = row.divide_id
-            lat = row.centroid_x
-            lon = row.centroid_y
+            lon = row.centroid_x
+            lat = row.centroid_y
             slope = row._37
             azimuth = row._38
             jcatch_conf = copy.deepcopy(conf_template)
