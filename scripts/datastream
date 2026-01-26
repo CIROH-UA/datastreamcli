@@ -648,11 +648,11 @@ log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
 if [ -n "$S3_BUCKET" ]; then
-    TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
-    TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
     NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
     if [ ${NTROUTE} -gt 0 ]; then
-        mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
+        TROUTE_TMP=./troute_tmp
+        mkdir $TROUTE_TMP
+        mv $NGENRUN_OUTPUT_TROUTE/*.nc $TROUTE_TMP
     fi
 fi
 log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
@@ -694,7 +694,7 @@ if [ -n "$S3_BUCKET" ]; then
     aws s3 cp $DATA_DIR/merkdir.file "s3://$S3_BUCKET/${S3_PREFIX%/}/merkdir.file"
     aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"    
     if [ ${NTROUTE} -gt 0 ]; then
-        aws s3 cp ./$TROUTE_OUTPUT_NC_BASENAME "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/$TROUTE_OUTPUT_NC_BASENAME"
+        aws s3 sync $TROUTE_TMP "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/"
     fi
 
     log_time "S3_MOVE_END"
