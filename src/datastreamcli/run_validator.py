@@ -170,7 +170,8 @@ def validate_data_dir(data_dir : str) -> None:
 
     jdir_dict = {"CFE":"CFE",
                  "PET":"PET",
-                 "NoahOWP":"NOAH-OWP-M"}
+                 "NoahOWP":"NOAH-OWP-M",
+                 "bmi_rust":"LSTM"}
 
     validate_files = {"forcing":{"pattern":serialized_realization.global_config.forcing.file_pattern,"files": forcing_files}}
     serialized_realization = NgenRealization.parse_file(realization_file)
