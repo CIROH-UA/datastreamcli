@@ -102,7 +102,7 @@ jobs:
       if: always()
       run: |
         sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -r ./data/cache/datastream-resources -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -R $(pwd)/configs/ngen/realization_rust_lstm.json
+        ./scripts/datastream -r ./data/cache/datastream-resources -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -R $(pwd)/configs/ngen/realization_rust_lstm.json --lstm_ensembles 012
 
     - name: Forcings sources option test NWM_RETRO_V2
       if: always()
