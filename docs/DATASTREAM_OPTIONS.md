@@ -24,6 +24,8 @@ or run with cli args
   -n, --NPROCS              <Process limit> 
   -y, --DRYRUN              <True to skip calculations> 
   -E, --EVAL                <True to run TEEHR evaluation service> 
+  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> 
+
   ```
 
 ### Explanation of cli args (or variables in defined in `CONF_FILE`)
@@ -50,6 +52,17 @@ or run with cli args
 | CONF_FILE            | `-c` | Store CLI args as env variables in a file. |  |
 | EVAL | `-E` | Set to "True" to run the TEEHR automated evaluation service on NextGen outputs. |  |
 | VERBOSE | `-V` | Set to "True" to output all of forcingprocessor and NGIAB outputs |  |
+| LSTM_ENS_MEMBERS |`-L` |  List of integers corresponding to the LSTM ens members bewlow, for example 025| |
+
+#### LSTM Enesmble Member Mapping
+```    
+0:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_7/config.yml",
+1:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_8/config.yml",
+2:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_9/config.yml",
+3:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed101_0701_143442/config.yml",
+4:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed103_2701_171540/config.yml",
+5:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_slope_elev_precip_temp_seq999_seed101_2801_191806/config.yml"
+```
 
 ### Note for supplying file(s) paths
 DataStreamCLI is designed to pick up files or folder whether they are local, public, or in AWS s3 object storage.
