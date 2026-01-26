@@ -8,8 +8,24 @@ gpd.options.io_engine = "pyogrio"
 import pandas as pd
 from datetime import datetime, timezone
 import concurrent.futures as cf
+from typing import Tuple, Dict, List, Union
 
-def check_forcings(forcings_start,forcings_end,n,serialized_realization):
+def check_forcings(serialized_realization : NgenRealization,
+                    forcings_start : datetime,
+                    forcings_end : datetime,
+                    n  : int,
+                   ) -> None:
+    """
+    Checks that the forcing time axis in the forcing file matches 
+    that which is defined in the NextGen realization.
+
+    This checks that the forcing time axis begins and ends at the specified times and with the proper interval.
+
+    serialized_realization (NgenRealization) : NextGen realization object from ngen-cal
+    forcings_start (datetime) : First time value in forcing file
+    forcings_end (datetime) : Last time value in forcing file
+    n (int) : Number of time values in forcing file
+    """
     start_time = serialized_realization.time.start_time
     end_time   = serialized_realization.time.end_time
     dt_s = serialized_realization.time.output_interval
@@ -22,11 +38,13 @@ def check_forcings(forcings_start,forcings_end,n,serialized_realization):
     assert dt_s == dt_forcings_s, f"Realization output_interval {dt_s} does not match forcing time axis {dt_forcings_s}"    
 
 
-def validate_realization(realization_file):
+def validate_realization(realization_file : str) -> Tuple[NgenRealization, str]:
     """
     Validates
     1) Realization files meets pydantic model as defined in ngen-cal
     2) Paths given in file exist
+
+    realization_file (str) :  Path to local NextGen realization file
     """
     relative_dir     = os.path.dirname(os.path.dirname(realization_file))
 
@@ -42,14 +60,21 @@ def validate_realization(realization_file):
     
     return serialized_realization, relative_dir
 
-def validate_catchment_files(validations : dict,
-                            catchments : list,
-                            forcing_dir : str,
-                            serialized_realization : NgenRealization):
+def validate_catchment_files(validations : Dict[str, List[str]], 
+                             catchments : list,
+                             forcing_dir : str, 
+                             serialized_realization : NgenRealization
+                             ) -> None:
     """
     General function to validate any files that need to be associated with a catchment
 
-    Parameters:
+    validations (dict) : a dictionary of patterns and files to validate.
+        validate_files[jmod.params.model_name] = {"pattern":pattern,"files":sorted([x for x in config_files if bool(compiled.match(x))])}
+    catchments (list) :  a list of catchment (divide) id's in the geopackage
+    forcing_dir (str) : path to folder containing forcing file
+    serialized_realization (NgenRealization) :  serialized NextGen realization via ngen-cal
+
+    Inputs:
     validations: dictionary of list of patterns and files to match. Each list should be a 1:1 correspondence between a catchment and it's file.
     Multiple lists are allowed to allow for multiple file types (forcings, ngen configs like CFE)
     Validates 
@@ -62,7 +87,7 @@ def validate_catchment_files(validations : dict,
         pattern     = validations[jval]['pattern']
         files       = validations[jval]['files']
         if len(files) == 0:
-            raise Exception(f"No files found at {pattern}!")
+            continue
         if jval == "forcing":
             if files[0].endswith(".nc"):
                 nc_file = files[0]
@@ -72,12 +97,12 @@ def validate_catchment_files(validations : dict,
                     df = ngen_forcings['precip_rate']
                     forcings_start = datetime.fromtimestamp(ngen_forcings.Time.values[0,0],timezone.utc)
                     forcings_end   = datetime.fromtimestamp(ngen_forcings.Time.values[0,-1],timezone.utc)
-                    check_forcings(forcings_start,forcings_end,len(ngen_forcings.time.values),serialized_realization)
+                    check_forcings(serialized_realization,forcings_start,forcings_end,len(ngen_forcings.time.values))
                     continue
 
         for j, jcatch in enumerate(catchments):    
             jcatch_pattern = pattern.replace('{{id}}',jcatch)
-            compiled       = re.compile(jcatch_pattern)    
+            compiled       = re.compile(jcatch_pattern)      
 
             jfile = files[j]     
             if not bool(compiled.match(jfile)):
@@ -89,9 +114,14 @@ def validate_catchment_files(validations : dict,
                     df = pd.read_csv(full_path)
                     forcings_start = datetime.strptime(df['time'].iloc[0],'%Y-%m-%d %H:%M:%S')
                     forcings_end   = datetime.strptime(df['time'].iloc[-1],'%Y-%m-%d %H:%M:%S')
-                    check_forcings(forcings_start,forcings_end,len(df['time']),serialized_realization)
+                    check_forcings(forcings_start,forcings_end,len(df['time']))
 
-def validate_data_dir(data_dir):
+def validate_data_dir(data_dir : str) -> None:
+    """
+    Top level validation function for a datastreamcli (NextGen) execution
+
+    data_dir (str) : Path to datastreamcli standard folder ngen-run/
+    """
 
     realization_file = None
     geopackage_file  = None
@@ -140,9 +170,7 @@ def validate_data_dir(data_dir):
 
     jdir_dict = {"CFE":"CFE",
                  "PET":"PET",
-                 "NoahOWP":"NOAH-OWP-M",
-                 "bmi_rust":"LSTM"
-                 }
+                 "NoahOWP":"NOAH-OWP-M"}
 
     validate_files = {"forcing":{"pattern":serialized_realization.global_config.forcing.file_pattern,"files": forcing_files}}
     serialized_realization = NgenRealization.parse_file(realization_file)
@@ -183,15 +211,16 @@ def validate_data_dir(data_dir):
         catchment_list_list.append(jcatchments)
         i = k
         
-    validate_catchment_files(val_dict_list[0],catchment_list_list[0],forcing_dir, serialized_realization)
-    # with cf.ProcessPoolExecutor() as pool:
-    #     for results in pool.map(
-    #         validate_catchment_files,
-    #         val_dict_list,
-    #         catchment_list_list,
-    #         [forcing_dir for x in range(nprocs)],
-    #         [serialized_realization for x in range(nprocs)]):
-    #         pass    
+    validate_catchment_files(val_dict_list[0],catchment_list_list[0],forcing_dir,serialized_realization)
+    with cf.ProcessPoolExecutor() as pool:
+        for results in pool.map(
+            validate_catchment_files,
+            val_dict_list,
+            catchment_list_list,
+            [forcing_dir for x in range(nprocs)],
+            [serialized_realization for x in range(nprocs)]
+            ):
+            pass    
 
     print(f'\nNGen run folder is valid\n',flush = True)        
 
