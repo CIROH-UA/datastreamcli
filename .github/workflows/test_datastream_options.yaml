@@ -6,31 +6,17 @@ on:
     branches:
       - main
     paths:
-      - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'
+      - '.github/workflows/test_datastream_options.yaml'
+      - 'scripts/datastream'
+      - 'versions.yml'
      
   pull_request:
     branches:
       - main  
     paths:
-      - 'docker/**'
-      - 'forcingprocessor/**'
-      - 'scripts/**'  
-      - 'python_tools/**'      
-      - '!docs/**'
-      - '!workflows/**'
-      - '!scripts/README.md'
-      - '!docker/README.md'
-      - '!forcingprocessor/README.md'
-      - '!python_tools/README.md'            
+      - '.github/workflows/test_datastream_options.yaml'
+      - 'scripts/datastream'
+      - 'versions.yml'  
 
       
 permissions:
