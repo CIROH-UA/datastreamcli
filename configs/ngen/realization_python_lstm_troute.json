@@ -29,8 +29,7 @@
         ],
         "forcing": {
             "path": "./forcings/forcings.nc",
-            "provider": "NetCDF",
-            "enable_cache": false
+            "provider": "NetCDF"
         }
     },
     "time": {
