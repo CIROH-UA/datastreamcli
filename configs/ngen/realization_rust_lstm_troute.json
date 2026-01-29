@@ -30,8 +30,7 @@
         ],
         "forcing": {
             "path": "./forcings/forcings.nc",
-            "provider": "NetCDF",
-            "enable_cache": false
+            "provider": "NetCDF"
         }
     },
     "time": {
@@ -42,6 +41,5 @@
     "routing": {
         "t_route_config_file_with_path": "./config/troute.yaml"
     },
-    "remotes_enabled": false,
     "output_root": "./outputs/ngen"
 }

@@ -30,8 +30,7 @@
         ],
         "forcing": {
             "path": "./forcings/forcings.nc",
-            "provider": "NetCDF",
-            "enable_cache": false
+            "provider": "NetCDF"
         }
     },
     "time": {
@@ -39,6 +38,5 @@
         "end_time": "2010-01-02 00:00:00",
         "output_interval": 3600
     },
-    "remotes_enabled": false,
     "output_root": "./outputs/ngen"
 }
