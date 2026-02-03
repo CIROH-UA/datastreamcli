@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 # NextGen DataStream CLI: A batteries-included style workflow for running NextGen
 #
@@ -634,6 +634,29 @@ else
 fi
 log_time "NGEN_END"
 
+log_time "CONVERT_TROUTE_NC2PARQUET_START"
+NC2PARQUET_CONVERTER=$DOCKER_PY"nc2parquet.py"
+TROUTE_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
+TROUTE_NC_BASE=$(basename $TROUTE_NC)
+DOCKER_TROUTE_DIR=$DOCKER_MOUNT/outputs/troute/
+if [ "$DRYRUN" == "True" ]; then
+    echo "DRYRUN - CONVERT_TROUTE_NC2PARQUET SKIPPED"
+    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $NC2PARQUET_CONVERTER \
+        --nc_file $DOCKER_TROUTE_DIR$TROUTE_NC_BASE \
+        --out_dir $DOCKER_TROUTE_DIR"
+
+else
+    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $NC2PARQUET_CONVERTER \
+        --nc_file $DOCKER_TROUTE_DIR$TROUTE_NC_BASE \
+        --out_dir $DOCKER_TROUTE_DIR    
+    rm $TROUTE_NC
+fi
+log_time "CONVERT_TROUTE_NC2PARQUET_END"
+
 log_time "MERKLE_START"
 if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - MERKDIR EXECUTION SKIPPED"
@@ -648,11 +671,11 @@ log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
 if [ -n "$S3_BUCKET" ]; then
-    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
+    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.parquet" | wc -l)
     if [ ${NTROUTE} -gt 0 ]; then
         TROUTE_TMP=./troute_tmp
         mkdir $TROUTE_TMP
-        mv $NGENRUN_OUTPUT_TROUTE/*.nc $TROUTE_TMP
+        mv $NGENRUN_OUTPUT_TROUTE/*.parquet $TROUTE_TMP
     fi
 fi
 log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
