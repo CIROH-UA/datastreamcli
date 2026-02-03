@@ -16,7 +16,7 @@
                         "params": {
                             "name": "bmi_c",
                             "model_type_name": "bmi_rust",
-                            "init_config": "./config/cat_config/lstm/{{id}}.yml",
+                            "init_config": "./config/cat_config/LSTM/{{id}}.yml",
                             "allow_exceed_end_time": true,
                             "main_output_variable": "land_surface_water__runoff_depth",
                             "uses_forcing_file": false,
@@ -37,9 +37,6 @@
         "start_time": "2010-01-01 00:00:00",
         "end_time": "2010-01-02 00:00:00",
         "output_interval": 3600
-    },
-    "routing": {
-        "t_route_config_file_with_path": "./config/troute.yaml"
     },
     "output_root": "./outputs/ngen"
 }
