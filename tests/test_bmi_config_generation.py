@@ -1,13 +1,20 @@
 import pytest
-from datastreamcli.ngen_configs_gen import gen_noah_owp_confs_from_pkl, gen_petAORcfe, generate_troute_conf
-from datastreamcli.noahowp_pkl import multiprocess_pkl
+from datastreamcli.ngen_configs_gen import gen_noah_owp_confs_from_pkl, gen_petAORcfe, generate_troute_conf, gen_lstm, get_hf
+from datastreamcli.noahowp_pkl import multiprocess_gen_pkl
 import datetime as dt
 from pathlib import Path
 import shutil
 import subprocess
+from ngen.config.realization import NgenRealization
 
 TEST_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = TEST_DIR.parent
+CONFIG_DIR = PROJECT_ROOT / "configs"
+NGEN_CONFIG_DIR = CONFIG_DIR / "ngen"
 DATA_DIR = TEST_DIR / "data"
+
+LSTM_REALIZATION =  NGEN_CONFIG_DIR / "realization_rust_lstm.json"
+PKL_FILE = DATA_DIR / "noah-owp-modular-init.namelist.input.pkl"
 
 # Ensure DATA_DIR exists and is empty
 if DATA_DIR.exists():
@@ -18,13 +25,13 @@ CONF_DIR = DATA_DIR / "cat_config"
 NOAH_DIR = CONF_DIR / "NOAH-OWP-M"
 CFE_DIR  = CONF_DIR / "CFE"
 PET_DIR  = CONF_DIR / "PET"
+LSTM_DIR  = CONF_DIR / "LSTM"
 
 GEOPACKAGE_NAME_v21 = "palisade.gpkg"
 GEOPACKAGE_NAME_v22 = "vpu-09_subset.gpkg"
 GEOPACKAGE_PATH_v21 = DATA_DIR / GEOPACKAGE_NAME_v21
 GEOPACKAGE_PATH_v22 = DATA_DIR / GEOPACKAGE_NAME_v22
 
-# Download geopackages using subprocess (more portable than os.system)
 subprocess.run([
     "curl", "-L", "-o", str(GEOPACKAGE_PATH_v21),
     f"https://ngen-datastream.s3.us-east-2.amazonaws.com/{GEOPACKAGE_NAME_v21}"
@@ -35,10 +42,12 @@ subprocess.run([
     f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/VPU/{GEOPACKAGE_NAME_v22}"
 ], check=True)
 
-PKL_FILE = DATA_DIR / "noah-owp-modular-init.namelist.input.pkl"
+
 START    = dt.datetime.strptime("202006200100", '%Y%m%d%H%M')
 END      = dt.datetime.strptime("202006200100", '%Y%m%d%H%M')
 
+hf_v21, layers_v21, attrs_v21 = get_hf(GEOPACKAGE_PATH_v21)
+hf_v22, layers_v22, attrs_v22 = get_hf(GEOPACKAGE_PATH_v22)
 
 @pytest.fixture(autouse=True)
 def clean_dir():
@@ -48,7 +57,7 @@ def clean_dir():
 
 
 def test_pkl_v21():
-    multiprocess_pkl(GEOPACKAGE_PATH_v21, DATA_DIR)
+    multiprocess_gen_pkl(GEOPACKAGE_PATH_v21, DATA_DIR, "v2.1")
     assert PKL_FILE.exists()
 
 
@@ -81,7 +90,7 @@ def test_routing_v21():
 
 
 def test_pkl_v22():
-    multiprocess_pkl(GEOPACKAGE_PATH_v22, DATA_DIR)
+    multiprocess_gen_pkl(GEOPACKAGE_PATH_v22, DATA_DIR, "v2.2")
     assert PKL_FILE.exists()
 
 
@@ -104,6 +113,14 @@ def test_pet_v22():
     gen_petAORcfe(GEOPACKAGE_PATH_v22, DATA_DIR, ["PET"])
     pet_example = PET_DIR / "PET_cat-1496145.ini"
     assert pet_example.exists()
+
+
+def test_lstm_v22():
+    serialized_realization = NgenRealization.parse_file(LSTM_REALIZATION)
+    LSTM_DIR.mkdir(parents=True, exist_ok=True)
+    gen_lstm(hf_v22, attrs_v22, DATA_DIR,serialized_realization,[0,1,2])
+    lstm_example = LSTM_DIR / "cat-1496145.yml"
+    assert lstm_example.exists()
 
 
 def test_routing_v22():

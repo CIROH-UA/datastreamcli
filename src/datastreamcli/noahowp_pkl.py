@@ -6,13 +6,23 @@ import concurrent.futures as cf
 from datastreamcli.ngen_configs_gen import fix_v2_2_units
 from pyogrio.errors import DataLayerError
 
-def gen_noah_owp_pkl(gdf):    
+def gen_noah_owp_confs(gdf,hf_version):    
+    """
+    Create a json of noah owp config dicts
+
+    Parameters:
+        gdf : geopandas data frame of divides
+        hf_version : hydrofabric version
+
+    Returns:
+        all_confs : a dict of noah owp configs (json objects)
+    """
     template = Path(__file__).parent.parent.parent/"configs/ngen/noah-owp-modular-init.namelist.input"
     with open(template,'r') as fp:
         conf_template = fp.readlines()
 
     all_confs = {}
-    if HF_VERSION == "v2.2":
+    if hf_version == "v2.2":
         for row in gdf.itertuples():
             jcatch = row.divide_id
             lon = row.centroid_x
@@ -61,23 +71,35 @@ def gen_noah_owp_pkl(gdf):
             all_confs[jcatch] = jcatch_conf
     return all_confs
 
-def multiprocess_pkl(gpkg_path,outdir):
+def multiprocess_gen_pkl(gpkg_path : str,
+                         outdir : str,
+                         hf_version : str
+                         ):
+    """
+    Multiprocessing layer for gen_noah_owp_confs()
+
+    Parameters
+        gpkg_path : Path to geopackage,
+        outdir : Path to directory to store pickle file,
+        hf_version : hydrofabric version
+
+    Returns
+        None
+    
+    """
     print(f'Generating NoahOWP pkl',flush=True)
 
-    global HF_VERSION
-    try:
-        HF_VERSION = "v2.2"
+    if hf_version == "v2.2":
         gdf = gpd.read_file(gpkg_path,layer = 'divide-attributes').sort_values(by='divide_id')
-        gdf = fix_v2_2_units(gdf, gpkg_path)
-    except DataLayerError:
-        HF_VERSION = "v2.1"
+    elif hf_version == "v2.1":
         gdf = gpd.read_file(gpkg_path,layer = 'model-attributes').sort_values(by='divide_id')
-    
+    else:
+        raise Exception("This function supports v2.1 and v2.2 hydrofabrics")
+
     catchment_list = sorted(list(gdf['divide_id']))
 
     nprocs = max(os.cpu_count() - 1,1)
     ncatch = len(catchment_list)
-    catchment_list_list = []
     gdf_list = []
     nper = ncatch // nprocs
     nleft = ncatch - (nper * nprocs)   
@@ -92,8 +114,9 @@ def multiprocess_pkl(gpkg_path,outdir):
     all_proc_confs = {}
     with cf.ProcessPoolExecutor(max_workers=nprocs) as pool:
         for results in pool.map(
-        gen_noah_owp_pkl,
-        gdf_list
+        gen_noah_owp_confs,
+        gdf_list,
+        [hf_version for x in range(nprocs)]
         ):
             all_proc_confs.update(results)
 
@@ -130,7 +153,9 @@ if __name__ == "__main__":
         hf_file = args.hf_file
 
     outdir = args.outdir
-    multiprocess_pkl(hf_file,outdir)   
+    hf_version = "v2.1"
+    if "divide-attributes" in list(gpd.list_layers(hf_file).name): hf_version = "v2.2"
+    multiprocess_gen_pkl(hf_file,outdir,hf_version)   
     # gdf     = gpd.read_file(hf_file,layer = 'divide-attributes')
     # catchment_list = sorted(list(gdf['divide_id']))         
-    # gen_noah_owp_pkl(catchment_list,gdf)
+    # gen_noah_owp_confs(catchment_list,gdf)
