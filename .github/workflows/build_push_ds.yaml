@@ -183,12 +183,14 @@ jobs:
         retention-days: 10
 
     - name: Login to Docker Hub
+      if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != ''))
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Push docker containers
+      if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != ''))
       run: |
         if [ "${{ needs.detect-changes.outputs.build_deps }}" == "true" ]; then
           VERSION_TAG="${{ needs.detect-changes.outputs.deps_version }}"
@@ -266,9 +268,16 @@ jobs:
 
           BUILD_FLAGS=$(echo "$BUILD_FLAGS" | sed 's/^ *//')
 
+          # Remove docker push steps for PR events (only push on merge to main or manual trigger with force build)
+          if [ "${{ github.event_name }}" == "pull_request" ] || \
+             ([ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -z "${{ inputs.force_build_deps }}" ] && [ -z "${{ inputs.force_build_ds }}" ]); then
+            echo "PR or non-forced workflow_dispatch detected - removing docker push steps"
+            sed -i "/docker_loginNpush\.sh/d" .github/executions/ds_push_execution_arm.json
+          fi
+
           sed -i -e "s/\${DEPS_TAG}/$DEPS_TAG/g" -e "s/\${DS_TAG}/$DS_TAG/g" -e "s/\${FP_TAG}/$DS_TAG/g" -e "s/\${BUILD_ARGS}/$BUILD_FLAGS/g" \
             .github/executions/ds_push_execution_arm.json
-          
+
           echo "Generated execution file:"
           cat .github/executions/ds_push_execution_arm.json
 
@@ -408,7 +417,9 @@ jobs:
   create-manifest:
     name: Create and Push Manifest
     needs: [detect-changes, build-test-push-docker-arm]
-    if: needs.detect-changes.outputs.build_deps == 'true' || needs.detect-changes.outputs.build_ds == 'true'
+    if: |
+      (needs.detect-changes.outputs.build_deps == 'true' || needs.detect-changes.outputs.build_ds == 'true') &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != '')))
     runs-on: ubuntu-latest
     steps:
       - name: Log in to Docker Hub
