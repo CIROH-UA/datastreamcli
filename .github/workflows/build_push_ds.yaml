@@ -24,6 +24,9 @@ on:
 
     paths:
       - 'versions.yml'
+  pull_request:
+    paths:
+      - 'versions.yml'
 
 permissions:
   contents: read
