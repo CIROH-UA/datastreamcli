@@ -97,14 +97,15 @@ jobs:
           
           # Test 8: DAILY medium_range 00 3
           echo "=== Test 8: DAILY medium_range 00 3 ==="
-          rm -rf "$WS/data/datastream_test"
-          YESTERDAY=$(date -d '-1 day' '+%Y%m%d')
-          ./scripts/datastream -s DAILY -e "${YESTERDAY}0000" -n 1 \
-            -F "s3://ciroh-community-ngen-datastream/forcings/v2.2_hydrofabric/ngen.$YESTERDAY/forcing_medium_range/18/ngen.t18z.medium_range.forcing.f001_f240.VPU_09.nc" \
-            --FORCING_SOURCE NWM_V3_MEDIUM_RANGE_06_3 \
-            -d "$WS/data/datastream_test" \
-            -r s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/datastream-resources/VPU_09 \
-            -R https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/realizations/realization_VPU_09.json
+          echo "SKIPPED RUN IS TOO LARGE FOR GITHUB RUNNER"
+          # rm -rf "$WS/data/datastream_test"
+          # YESTERDAY=$(date -d '-1 day' '+%Y%m%d')
+          # ./scripts/datastream -s DAILY -e "${YESTERDAY}0000" -n 1 \
+          #   -F "s3://ciroh-community-ngen-datastream/forcings/v2.2_hydrofabric/ngen.$YESTERDAY/forcing_medium_range/18/ngen.t18z.medium_range.forcing.f001_f240.VPU_09.nc" \
+          #   --FORCING_SOURCE NWM_V3_MEDIUM_RANGE_06_3 \
+          #   -d "$WS/data/datastream_test" \
+          #   -r s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/datastream-resources/VPU_09 \
+          #   -R https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/realizations/realization_VPU_09.json
           
           # Test 9: DAILY analysis assim extend
           echo "=== Test 9: DAILY analysis assim extend ==="
