@@ -3,167 +3,193 @@ name: Test Datastream Options
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - .github/workflow/test_datastream_options.yaml
-      - 'docker/**'
-      - '!docker/README.md'      
-      - 'scripts/datastream'  
-      - 'src/datastreamcli/**'  
-      - '!src/datastreamcli/README.md'      
-     
+      - '.github/workflows/test_datastream_options.yaml'
+      - 'scripts/datastream'
+      - 'versions.yml'
   pull_request:
-    branches:
-      - main  
+    branches: [main]
     paths:
-      - .github/workflow/test_datastream_options.yaml
-      - 'docker/**'
-      - '!docker/README.md'      
-      - 'scripts/datastream'  
-      - 'src/datastreamcli/**'  
-      - '!src/datastreamcli/README.md'               
+      - '.github/workflows/test_datastream_options.yaml'
+      - 'scripts/datastream'
+      - 'versions.yml'
 
 permissions:
-  contents: read      
+  contents: read
 
 jobs:
   test-datastream-options:
     runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2  
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3      
-
-    - name: Configure AWS
-      run: |
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws configure set region us-east-1    
-        export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-        export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        echo $AWS_ACCESS_KEY_ID
-        echo $AWS_SECRET_ACCESS_KEY
-
-    - name: Build docker containers
-      run : |
-        docker compose -f docker/docker-compose.yml build datastream
-
-    - name: Get geopackage 
-      run: |
-        curl -L -O https://ciroh-community-ngen-datastream.s3.amazonaws.com/v2.2_resources/VPU_09/config/nextgen_VPU_09.gpkg
-
-    - name: Base test and NWM_RETRO_V3
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test        
-        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
-
-    - name: Cache resource directory and CONF_FILE
-      run: |
-        mkdir ./data/cache
-        cp ./data/datastream_test/datastream-metadata/datastream.env ./data/cache
-        cp -r ./data/datastream_test/datastream-resources ./data/cache
-        cp -r ./data/cache/datastream-resources ./data/cache/datastream-resources-no-forcings
-        cp -r ./data/cache/datastream-resources ./data/cache/datastream-resources-missing
-        sudo rm -rf ./data/cache/datastream-resources-no-forcings/ngen-forcings 
-
-    - name: datastream CONF_FILE
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test        
-        ./scripts/datastream -c ./data/cache/datastream.env
-
-    - name: NextGen forcings CLI option test
-      if: always()
-      run: |
-        sudo rm -rf $(pwd)/data/datastream_test
-        forcings_file=$(find "./data/cache/datastream-resources/ngen-forcings/" -name "*.nc")
-        ./scripts/datastream -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/data/cache/datastream-resources/config/realization_sloth_nom_cfe_pet.json -F $forcings_file -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test        
-
-    - name: Resource directory test missing all
-      if: always()
-      run: |
-        sudo rm -rf $(pwd)/data/datastream_test
-        sudo rm -rf ./data/cache/datastream-resources-missing/ngen-forcings 
-        sudo rm -rf ./data/cache/datastream-resources-missing/config/*
-        ./scripts/datastream -r ./data/cache/datastream-resources-missing -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg
-
-    - name: Resource directory test
-      if: always()
-      run: |
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -r ./data/cache/datastream-resources -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test
-
-    - name: Rust LSTM test
-      if: always()
-      run: |
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -r ./data/cache/datastream-resources -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -R $(pwd)/configs/ngen/realization_rust_lstm.json -L 012
-
-    - name: Forcings sources option test NWM_RETRO_V2
-      if: always()
-      run: |
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -r ./data/cache/datastream-resources-no-forcings -s 201906200100 -e 201906200200 -C NWM_RETRO_V2 -d $(pwd)/data/datastream_test        
-        
-    - name: Forcings sources option test NWM_RETRO_V3
-      if: always()
-      run: |
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -r ./data/cache/datastream-resources-no-forcings -s 201906200100 -e 201906200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test        
-                  
-    - name: Forcings sources option test NOMADS
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        TODAY=$(env TZ=US/Eastern date +'%Y%m%d')
-        ./scripts/datastream -r ./data/cache/datastream-resources-no-forcings -s $TODAY"0100" -e $TODAY"0200" -C NOMADS -d $(pwd)/data/datastream_test  
-        
-    - name: S3 write out test
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json -S ciroh-community-ngen-datastream -o git_actions_test
-        aws s3api wait object-exists --bucket ciroh-community-ngen-datastream --key git_actions_test/ngen-run.tar.gz   
-        aws s3 rm s3://ciroh-community-ngen-datastream/git_actions_test --recursive
-
-    - name: DAILY short_range 00 today test
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_SHORT_RANGE_00 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
-
-    - name: DAILY short_range 23 today test
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_SHORT_RANGE_23 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
-
-    - name: DAILY short_range 00 pick day test
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -e $(date -d '-15 day' '+%Y%m%d0000') -C NWM_SHORT_RANGE_00 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
-        
-    - name: DAILY medium_range today test 00 0
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_MEDIUM_RANGE_00_0 -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
     
-    - name: DAILY medium_range today test 00 3
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        YESTERDAY=$(date -d '-1 day' '+%Y%m%d')
-        ./scripts/datastream -s DAILY -n 1 -F s3://ciroh-community-ngen-datastream/v2.2/ngen.$YESTERDAY/forcing_medium_range/18/ngen.t18z.medium_range.forcing.f001_f240.VPU_09.nc --FORCING_SOURCE NWM_V3_MEDIUM_RANGE_06_3 -d $(pwd)/data/datastream_test -r s3://ciroh-community-ngen-datastream/v2.2_resources/VPU_09 -R https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/realizations/realization_VPU_09.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+
+      - name: Build docker containers
+        run: docker compose -f docker/docker-compose.yml build datastream
+
+      - name: Setup test environment
+        run: |
+          cat > run_tests.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e
+          
+          # Environment setup
+          WS="${{ github.workspace }}"
+          RESOURCES_CACHE="$WS/data/cache/datastream-resources"
+          RESOURCES_RUN="$WS/data/datastream_test/datastream-resources"
+          NGENRUN="$WS/data/datastream_test/ngen-run"
+          
+          GPKG_TEST="palisade.gpkg"
+          GPKG_VPU="nextgen_VPU_09.gpkg"
+          REALIZATION_MODELS="realization_sloth_nom_cfe_pet.json"
+          REALIZATION_VPU="realization_VPU_09.json"
+          FORCINGS_FILE_TEST="1_forcings.nc"
+          FORCINGS_FILE_VPU="ngen.t00z.short_range.forcing.f001_f018.VPU_09.nc"
+          
+          HTTPS_BUCKET="https://ciroh-community-ngen-datastream.s3.amazonaws.com"
+          S3_BUCKET="s3://ciroh-community-ngen-datastream"
+          YESTERDAY=$(date -d "yesterday" +%Y%m%d)
+          
+          # Derived paths
+          BMI_CONFS_CACHE="$RESOURCES_CACHE/config/ngen-bmi-configs.tar.gz"
+          BMI_CONFS_HTTPS="$HTTPS_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/ngen-bmi-configs.tar.gz"
+          BMI_CONFS_S3="$S3_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/ngen-bmi-configs.tar.gz"
+          
+          GPKG_TEST_CACHE="$RESOURCES_CACHE/config/$GPKG_TEST"
+          GPKG_VPU_HTTPS="$HTTPS_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/$GPKG_VPU"
+          GPKG_VPU_S3="$S3_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/$GPKG_VPU"
+          
+          REALIZATION_CACHE="$RESOURCES_CACHE/config/$REALIZATION_MODELS"
+          REALIZATION_HTTPS="$HTTPS_BUCKET/realizations/$REALIZATION_VPU"
+          REALIZATION_S3="$S3_BUCKET/realizations/$REALIZATION_VPU"
+          
+          FORCINGS_TEST_CACHE="$RESOURCES_CACHE/ngen-forcings/$FORCINGS_FILE_TEST"
+          FORCINGS_VPU_HTTPS="$HTTPS_BUCKET/forcings/v2.2_hydrofabric/ngen.20260101/forcing_short_range/00/ngen.t00z.short_range.forcing.f001_f018.VPU_09.nc"
+          FORCINGS_VPU_S3="$S3_BUCKET/forcings/v2.2_hydrofabric/ngen.20260101/forcing_short_range/00/ngen.t00z.short_range.forcing.f001_f018.VPU_09.nc"
+          
+          RESOURCES_S3="$S3_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09"
+          
+          # Verification function
+          verify_files() {
+            local type=$1
+            local resources="$RESOURCES_RUN"
+            local ngenrun="$NGENRUN"
             
-    - name: DAILY analysis assim extend today test
-      if: always()
-      run: |        
-        sudo rm -rf $(pwd)/data/datastream_test
-        ./scripts/datastream -s DAILY -C NWM_ANALYSIS_ASSIM_EXTEND_16 -e $(date -d '-2 day' '+%Y%m%d0000') -d $(pwd)/data/datastream_test -g $(pwd)/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json      
+            echo "Verifying files for type: $type"
+            
+            if [ "$type" == "test" ]; then
+              files_resources=(
+                "$resources/config/ngen-bmi-configs.tar.gz"
+                "$resources/config/$GPKG_TEST"
+                "$resources/config/$REALIZATION_MODELS"
+                "$resources/ngen-forcings/$FORCINGS_FILE_TEST"
+              )
+              files_ngenrun=(
+                "$ngenrun/config/$GPKG_TEST"
+                "$ngenrun/config/realization.json"
+                "$ngenrun/forcings/$FORCINGS_FILE_TEST"
+              )
+            else
+              files_resources=(
+                "$resources/config/ngen-bmi-configs.tar.gz"
+                "$resources/config/$GPKG_VPU"
+                "$resources/config/$REALIZATION_VPU"
+                "$resources/ngen-forcings/$FORCINGS_FILE_VPU"
+              )
+              files_ngenrun=(
+                "$ngenrun/config/$GPKG_VPU"
+                "$ngenrun/config/realization.json"
+                "$ngenrun/forcings/$FORCINGS_FILE_VPU"
+              )
+            fi
+            
+            # Check resource files
+            for f in "${files_resources[@]}"; do
+              if [ ! -f "$f" ]; then
+                echo "Missing resource file: $f"
+                exit 1
+              fi
+            done
+            
+            # Check ngenrun files
+            for f in "${files_ngenrun[@]}"; do
+              if [ ! -f "$f" ]; then
+                echo "Missing ngenrun file: $f"
+                exit 1
+              fi
+            done
+            
+            # Check for cat_config subdirectories
+            subdir_count=$(find "$ngenrun/config/cat_config" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+            if [ "$subdir_count" -eq 0 ]; then
+              echo "No subdirectories found in $ngenrun/config/cat_config"
+              exit 1
+            fi
+            
+            echo "All files verified successfully"
+          }
+          
+          # Download geopackage
+          echo "=== Downloading geopackage ==="
+          curl -L -O https://ngen-datastream.s3.us-east-2.amazonaws.com/$GPKG_TEST
+          
+          # Test 1: Base test
+          echo "=== Test 1: Base test ==="
+          rm -rf "$WS/data/datastream_test"
+          ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d "$WS/data/datastream_test" -g "$WS/$GPKG_TEST" -R "$WS/configs/ngen/$REALIZATION_MODELS"
+          
+          # Test 2: CONF_FILE
+          echo "=== Test 2: CONF_FILE test ==="
+          mkdir -p ./data/cache
+          cp ./data/datastream_test/datastream-metadata/datastream.env ./data/cache
+          cp -r "$RESOURCES_RUN" ./data/cache
+          rm -rf "$WS/data/datastream_test"
+          ./scripts/datastream -c ./data/cache/datastream.env
+          
+          # Test 3: No resources (cached)
+          echo "=== Test 3: No resources (cached) ==="
+          rm -rf "$WS/data/datastream_test"
+          export DS_TAG="latest"
+          ./scripts/datastream -N "$BMI_CONFS_CACHE" -g "$GPKG_TEST_CACHE" -R "$REALIZATION_CACHE" -F "$FORCINGS_TEST_CACHE" -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d "$WS/data/datastream_test" -y True
+          verify_files test
+          
+          # Test 4: No resources (HTTPS)
+          echo "=== Test 4: No resources (HTTPS) ==="
+          rm -rf "$WS/data/datastream_test"
+          ./scripts/datastream -N "$BMI_CONFS_HTTPS" -g "$GPKG_VPU_HTTPS" -R "$REALIZATION_HTTPS" -F "$FORCINGS_VPU_HTTPS" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
+          verify_files vpu
+          
+          # Test 5: No resources (S3)
+          echo "=== Test 5: No resources (S3) ==="
+          rm -rf "$WS/data/datastream_test"
+          ./scripts/datastream -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
+          verify_files vpu
+          
+          # Test 6: With cached resources
+          echo "=== Test 6: With cached resources ==="
+          rm -rf "$WS/data/datastream_test"
+          ./scripts/datastream -r "$RESOURCES_CACHE" -N "$BMI_CONFS_CACHE" -g "$GPKG_TEST_CACHE" -R "$REALIZATION_CACHE" -F "$FORCINGS_TEST_CACHE" -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d "$WS/data/datastream_test" -y True
+          verify_files test
+          
+          # Test 7: With S3 resources
+          echo "=== Test 7: With S3 resources ==="
+          rm -rf "$WS/data/datastream_test"
+          ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
+          verify_files vpu
+          
+          echo "=== All tests passed ==="
+          SCRIPT
+          
+          chmod +x run_tests.sh
+
+      - name: Run all datastream tests
+        run: ./run_tests.sh
