@@ -3,12 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       deps_tag:
-        description: 'Build datastream-deps with this tag (leave empty to skip)'
+        description: 'Deps tag: pulls if exists on Docker Hub, builds if not (empty to skip)'
         required: false
         default: ''
         type: string
       ds_tag:
-        description: 'Build datastream with this tag (leave empty to skip)'
+        description: 'DS tag: pulls if exists on Docker Hub, builds if not (empty to skip)'
         required: false
         default: ''
         type: string
@@ -37,6 +37,8 @@ jobs:
     outputs:
       build_deps: ${{ steps.changes.outputs.build_deps }}
       build_ds: ${{ steps.changes.outputs.build_ds }}
+      pull_deps: ${{ steps.changes.outputs.pull_deps }}
+      pull_ds: ${{ steps.changes.outputs.pull_ds }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,24 +50,44 @@ jobs:
         run: |
           set -euo pipefail
 
-          # For workflow_dispatch, check which tags were provided
+          # For workflow_dispatch, check which tags were provided and if they exist
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "Manual trigger detected"
 
+            # Check if deps tag exists on Docker Hub
             if [ -n "${{ inputs.deps_tag }}" ]; then
-              echo "Building deps with tag: ${{ inputs.deps_tag }}"
-              echo "build_deps=true" >> "$GITHUB_OUTPUT"
+              DEPS_TAG="${{ inputs.deps_tag }}-arm64"
+              if docker manifest inspect awiciroh/datastream-deps:$DEPS_TAG >/dev/null 2>&1; then
+                echo "Deps tag $DEPS_TAG exists on Docker Hub - will pull"
+                echo "build_deps=false" >> "$GITHUB_OUTPUT"
+                echo "pull_deps=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "Deps tag $DEPS_TAG not found - will build"
+                echo "build_deps=true" >> "$GITHUB_OUTPUT"
+                echo "pull_deps=false" >> "$GITHUB_OUTPUT"
+              fi
             else
-              echo "Skipping deps build (no tag provided)"
+              echo "Skipping deps (no tag provided)"
               echo "build_deps=false" >> "$GITHUB_OUTPUT"
+              echo "pull_deps=false" >> "$GITHUB_OUTPUT"
             fi
 
+            # Check if datastream tag exists on Docker Hub
             if [ -n "${{ inputs.ds_tag }}" ]; then
-              echo "Building datastream with tag: ${{ inputs.ds_tag }}"
-              echo "build_ds=true" >> "$GITHUB_OUTPUT"
+              DS_TAG="${{ inputs.ds_tag }}-arm64"
+              if docker manifest inspect awiciroh/datastream:$DS_TAG >/dev/null 2>&1; then
+                echo "DS tag $DS_TAG exists on Docker Hub - will pull"
+                echo "build_ds=false" >> "$GITHUB_OUTPUT"
+                echo "pull_ds=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "DS tag $DS_TAG not found - will build"
+                echo "build_ds=true" >> "$GITHUB_OUTPUT"
+                echo "pull_ds=false" >> "$GITHUB_OUTPUT"
+              fi
             else
-              echo "Skipping datastream build (no tag provided)"
+              echo "Skipping datastream (no tag provided)"
               echo "build_ds=false" >> "$GITHUB_OUTPUT"
+              echo "pull_ds=false" >> "$GITHUB_OUTPUT"
             fi
 
             exit 0
@@ -108,6 +130,18 @@ jobs:
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
 
+      - name: Pull existing images
+        if: needs.detect-changes.outputs.pull_deps == 'true' || needs.detect-changes.outputs.pull_ds == 'true'
+        run: |
+          if [ "${{ needs.detect-changes.outputs.pull_deps }}" == "true" ]; then
+            echo "Pulling datastream-deps:${{ inputs.deps_tag }}-arm64"
+            docker pull awiciroh/datastream-deps:${{ inputs.deps_tag }}-arm64
+          fi
+          if [ "${{ needs.detect-changes.outputs.pull_ds }}" == "true" ]; then
+            echo "Pulling datastream:${{ inputs.ds_tag }}-arm64"
+            docker pull awiciroh/datastream:${{ inputs.ds_tag }}-arm64
+          fi
+
       - name: Build datastream-deps
         if: needs.detect-changes.outputs.build_deps == 'true'
         run: |
@@ -127,13 +161,13 @@ jobs:
 
 
       - name: Save Docker images
-        if: needs.detect-changes.outputs.build_ds == 'true'
+        if: needs.detect-changes.outputs.build_ds == 'true' || needs.detect-changes.outputs.pull_ds == 'true'
         run: |
           TAG="${{ inputs.ds_tag || 'latest' }}-arm64"
           docker save awiciroh/datastream:$TAG | gzip > /tmp/datastream-arm64.tar.gz
 
       - name: Upload datastream image
-        if: needs.detect-changes.outputs.build_ds == 'true'
+        if: needs.detect-changes.outputs.build_ds == 'true' || needs.detect-changes.outputs.pull_ds == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: datastream-arm64
@@ -147,7 +181,7 @@ jobs:
 
   test-arm64:
     needs: [detect-changes, build-arm64]
-    if: needs.detect-changes.outputs.build_ds == 'true'
+    if: needs.detect-changes.outputs.build_ds == 'true' || needs.detect-changes.outputs.pull_ds == 'true'
     runs-on: ubuntu-22.04-arm-aws
     timeout-minutes: 30
     strategy:
