@@ -2,10 +2,15 @@ name: Build, Test Forcing Processor Docker Containers on ARM
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Docker image tag (default: latest)'
+      deps_tag:
+        description: 'Build datastream-deps with this tag (leave empty to skip)'
         required: false
-        default: 'latest'
+        default: ''
+        type: string
+      ds_tag:
+        description: 'Build datastream with this tag (leave empty to skip)'
+        required: false
+        default: ''
         type: string
   push:
     branches:
@@ -43,11 +48,26 @@ jobs:
         run: |
           set -euo pipefail
 
-          # For workflow_dispatch, always build both
+          # For workflow_dispatch, check which tags were provided
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "Manual trigger - building both deps and datastream"
-            echo "build_deps=true" >> "$GITHUB_OUTPUT"
-            echo "build_ds=true" >> "$GITHUB_OUTPUT"
+            echo "Manual trigger detected"
+
+            if [ -n "${{ inputs.deps_tag }}" ]; then
+              echo "Building deps with tag: ${{ inputs.deps_tag }}"
+              echo "build_deps=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Skipping deps build (no tag provided)"
+              echo "build_deps=false" >> "$GITHUB_OUTPUT"
+            fi
+
+            if [ -n "${{ inputs.ds_tag }}" ]; then
+              echo "Building datastream with tag: ${{ inputs.ds_tag }}"
+              echo "build_ds=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Skipping datastream build (no tag provided)"
+              echo "build_ds=false" >> "$GITHUB_OUTPUT"
+            fi
+
             exit 0
           fi
 
@@ -92,14 +112,14 @@ jobs:
         if: needs.detect-changes.outputs.build_deps == 'true'
         run: |
           cd docker
-          TAG="${{ inputs.tag || 'latest' }}-arm64" ARCH=aarch64 \
+          TAG="${{ inputs.deps_tag || 'latest' }}-arm64" ARCH=aarch64 \
             docker compose -f docker-compose.yml build datastream-deps
 
       - name: Build datastream
         if: needs.detect-changes.outputs.build_ds == 'true'
         run: |
           cd docker
-          TAG="${{ inputs.tag || 'latest' }}-arm64" ARCH=aarch64 \
+          TAG="${{ inputs.ds_tag || 'latest' }}-arm64" ARCH=aarch64 \
             docker compose -f docker-compose.yml build datastream
             
       - name: List built images
@@ -109,7 +129,7 @@ jobs:
       - name: Save Docker images
         if: needs.detect-changes.outputs.build_ds == 'true'
         run: |
-          TAG="${{ inputs.tag || 'latest' }}-arm64"
+          TAG="${{ inputs.ds_tag || 'latest' }}-arm64"
           docker save awiciroh/datastream:$TAG | gzip > /tmp/datastream-arm64.tar.gz
 
       - name: Upload datastream image
@@ -227,7 +247,7 @@ jobs:
 
       - name: Run ${{ matrix.test-suite.name }}
         run: |
-          TAG="${{ github.event.inputs.tag || 'latest' }}-arm64"
+          TAG="${{ github.event.inputs.ds_tag || 'latest' }}-arm64"
           docker run --rm \
             -v $(pwd):/datastream \
             -w /datastream \
@@ -247,9 +267,10 @@ jobs:
       - name: Clean up Docker images
         continue-on-error: true
         run: |
-          TAG="${{ github.event.inputs.tag || 'latest' }}-arm64"
-          docker rmi awiciroh/datastream:$TAG || true
-          docker rmi awiciroh/datastream-deps:$TAG || true
+          DS_TAG="${{ github.event.inputs.ds_tag || 'latest' }}-arm64"
+          DEPS_TAG="${{ github.event.inputs.deps_tag || 'latest' }}-arm64"
+          docker rmi awiciroh/datastream:$DS_TAG || true
+          docker rmi awiciroh/datastream-deps:$DEPS_TAG || true
           docker system prune -af --volumes
 
       - name: Delete artifacts
