@@ -7,6 +7,16 @@ on:
         required: false
         default: ''
         type: string
+      force_build_deps:
+        description: 'Force build datastream-deps (provide tag version, e.g., 1.0.0)'
+        required: false
+        default: ''
+        type: string
+      force_build_ds:
+        description: 'Force build datastream (provide tag version, e.g., 1.0.0)'
+        required: false
+        default: ''
+        type: string
   push:
     branches:
       - main
@@ -47,6 +57,38 @@ jobs:
       shell: bash
       run: |
         set -euo pipefail
+
+        # Check for manual trigger with forced builds
+        FORCE_DEPS="${{ inputs.force_build_deps }}"
+        FORCE_DS="${{ inputs.force_build_ds }}"
+
+        if [ -n "$FORCE_DEPS" ] || [ -n "$FORCE_DS" ]; then
+          echo "Manual trigger with forced build detected"
+
+          if [ -n "$FORCE_DEPS" ]; then
+            echo "Force building datastream-deps with tag: $FORCE_DEPS"
+            echo "build_deps=true" >> "$GITHUB_OUTPUT"
+            echo "deps_version=$FORCE_DEPS" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_deps=false" >> "$GITHUB_OUTPUT"
+            CURRENT_DEPS=$(yq -r e '."datastream-deps"' versions.yml)
+            echo "deps_version=$CURRENT_DEPS" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$FORCE_DS" ]; then
+            echo "Force building datastream with tag: $FORCE_DS"
+            echo "build_ds=true" >> "$GITHUB_OUTPUT"
+            echo "ds_version=$FORCE_DS" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_ds=false" >> "$GITHUB_OUTPUT"
+            CURRENT_DS=$(yq -r e '.datastream' versions.yml)
+            echo "ds_version=$CURRENT_DS" >> "$GITHUB_OUTPUT"
+          fi
+
+          exit 0
+        fi
+
+        # Normal version change detection for push/PR events
         # Current versions (raw)
         CURRENT_DEPS=$(yq -r e '."datastream-deps"' versions.yml)
         CURRENT_DS=$(yq -r e '.datastream' versions.yml)
@@ -54,29 +96,29 @@ jobs:
         # Ensure previous commit and file exist
         if git rev-parse HEAD~1 >/dev/null 2>&1 && git cat-file -e HEAD~1:versions.yml 2>/dev/null; then
           git show HEAD~1:versions.yml > previous_versions.yml
-            else
-              printf "datastream-deps: '0.0.0'\ndatastream: '0.0.0'\n" > previous_versions.yml
-            fi
+        else
+          printf "datastream-deps: '0.0.0'\ndatastream: '0.0.0'\n" > previous_versions.yml
+        fi
 
-            PREVIOUS_DEPS=$(yq -r e '."datastream-deps"' previous_versions.yml)
-            PREVIOUS_DS=$(yq -r e '.datastream' previous_versions.yml)
+        PREVIOUS_DEPS=$(yq -r e '."datastream-deps"' previous_versions.yml)
+        PREVIOUS_DS=$(yq -r e '.datastream' previous_versions.yml)
 
-            # Check what changed and set outputs
-            if [ "$CURRENT_DEPS" != "$PREVIOUS_DEPS" ]; then
-              echo "datastream-deps changed: $PREVIOUS_DEPS -> $CURRENT_DEPS"
-              echo "build_deps=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "build_deps=false" >> "$GITHUB_OUTPUT"
-            fi
-            echo "deps_version=$CURRENT_DEPS" >> "$GITHUB_OUTPUT"
-        
-            if [ "$CURRENT_DS" != "$PREVIOUS_DS" ]; then
-              echo "datastream changed: $PREVIOUS_DS -> $CURRENT_DS"
-              echo "build_ds=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "build_ds=false" >> "$GITHUB_OUTPUT"
-            fi
-            echo "ds_version=$CURRENT_DS" >> "$GITHUB_OUTPUT"
+        # Check what changed and set outputs
+        if [ "$CURRENT_DEPS" != "$PREVIOUS_DEPS" ]; then
+          echo "datastream-deps changed: $PREVIOUS_DEPS -> $CURRENT_DEPS"
+          echo "build_deps=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "build_deps=false" >> "$GITHUB_OUTPUT"
+        fi
+        echo "deps_version=$CURRENT_DEPS" >> "$GITHUB_OUTPUT"
+
+        if [ "$CURRENT_DS" != "$PREVIOUS_DS" ]; then
+          echo "datastream changed: $PREVIOUS_DS -> $CURRENT_DS"
+          echo "build_ds=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "build_ds=false" >> "$GITHUB_OUTPUT"
+        fi
+        echo "ds_version=$CURRENT_DS" >> "$GITHUB_OUTPUT"
 
   build-test-push-docker-x86:
     needs: [detect-changes]
@@ -141,12 +183,14 @@ jobs:
         retention-days: 10
 
     - name: Login to Docker Hub
+      if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != ''))
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Push docker containers
+      if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != ''))
       run: |
         if [ "${{ needs.detect-changes.outputs.build_deps }}" == "true" ]; then
           VERSION_TAG="${{ needs.detect-changes.outputs.deps_version }}"
@@ -224,9 +268,16 @@ jobs:
 
           BUILD_FLAGS=$(echo "$BUILD_FLAGS" | sed 's/^ *//')
 
+          # Remove docker push steps for PR events (only push on merge to main or manual trigger with force build)
+          if [ "${{ github.event_name }}" == "pull_request" ] || \
+             ([ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -z "${{ inputs.force_build_deps }}" ] && [ -z "${{ inputs.force_build_ds }}" ]); then
+            echo "PR or non-forced workflow_dispatch detected - removing docker push steps"
+            sed -i "/docker_loginNpush\.sh/d" .github/executions/ds_push_execution_arm.json
+          fi
+
           sed -i -e "s/\${DEPS_TAG}/$DEPS_TAG/g" -e "s/\${DS_TAG}/$DS_TAG/g" -e "s/\${FP_TAG}/$DS_TAG/g" -e "s/\${BUILD_ARGS}/$BUILD_FLAGS/g" \
             .github/executions/ds_push_execution_arm.json
-          
+
           echo "Generated execution file:"
           cat .github/executions/ds_push_execution_arm.json
 
@@ -366,7 +417,9 @@ jobs:
   create-manifest:
     name: Create and Push Manifest
     needs: [detect-changes, build-test-push-docker-arm]
-    if: needs.detect-changes.outputs.build_deps == 'true' || needs.detect-changes.outputs.build_ds == 'true'
+    if: |
+      (needs.detect-changes.outputs.build_deps == 'true' || needs.detect-changes.outputs.build_ds == 'true') &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != '')))
     runs-on: ubuntu-latest
     steps:
       - name: Log in to Docker Hub
