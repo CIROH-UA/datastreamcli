@@ -192,9 +192,9 @@ jobs:
           rm -rf "$WS/data/datastream_test"
           ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test"
           verify_files vpu
-          TROUTE=$NGENRUN/outputs/troute/troute_output_$YESTERDAY0100.parquet
+          TROUTE=$NGENRUN/outputs/troute/troute_output_${YESTERDAY}0100.parquet
           if [ ! -f "$TROUTE" ]; then
-            echo "Missing resource file: $f"
+            echo "Missing resource file: $TROUTE"
             exit 1
           fi
 

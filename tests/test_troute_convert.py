@@ -31,8 +31,6 @@ def download_troute_files(tmp_path_factory):
         nc_files = ["flowveldepth.nc", "flowpathEdge.nc", "chrtout.nc"]
     
     downloaded_files = []
-    s3_client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
-    s3_client = boto3.client('s3', config=Config(signature_version=UNSIGNED))
     
     for nc_file in nc_files:
         output_path = test_data_dir / nc_file
