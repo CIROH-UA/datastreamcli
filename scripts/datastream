@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 # NextGen DataStream CLI: A batteries-included style workflow for running NextGen
 #
@@ -277,11 +277,15 @@ if [[ "$START_DATE" == *"DAILY"* ]]; then
         elif [[ "$FORCING_SOURCE" == *"ANALYSIS_ASSIM_EXTEND"* ]]; then
             INIT="16"
         elif [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
-            INIT=$(echo "$FORCING_SOURCE" | grep -oP '[0-9]{2}(?=_[0-9]$)')
+            INIT=$(echo "$FORCING_SOURCE" | grep -oE '[0-9]{2}_[0-9]$' | grep -oE '^[0-9]{2}')
         fi
         HOUR=$(date -u +%H)
-        if [[ $INIT > $HOUR ]]; then
-            run_date=$(date -u -d "$START_DATE_UTC -1 day" +'%Y%m%d')
+        if [[ $INIT -gt $HOUR ]]; then
+            if [[ "$(uname)" == "Darwin" ]]; then
+                run_date=$(date -u -v-1d -j -f "%Y%m%d" "$START_DATE_UTC" +'%Y%m%d')
+            else
+                run_date=$(date -u -d "$START_DATE_UTC -1 day" +'%Y%m%d')
+            fi
         fi
     fi
 fi
@@ -583,7 +587,7 @@ else
 fi    
 
 if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
-    ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oP '(?<=_)[0-9]$')
+    ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oE '[0-9]$' | tail -1)
     if [[ "$ENS_MEM" -gt 1 ]]; then
         echo "Applying lag to forcings for medium range ensemble members > 1"
         log_time "LAG_FORCINGS_START"
@@ -638,24 +642,30 @@ log_time "NGEN_END"
 
 log_time "CONVERT_TROUTE_NC2PARQUET_START"
 NC2PARQUET_CONVERTER=$DOCKER_PY"nc2parquet.py"
-TROUTE_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
-TROUTE_NC_BASE=$(basename $TROUTE_NC)
 DOCKER_TROUTE_DIR=$DOCKER_MOUNT/outputs/troute/
 if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - CONVERT_TROUTE_NC2PARQUET SKIPPED"
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $NC2PARQUET_CONVERTER \
-        --nc_file $DOCKER_TROUTE_DIR$TROUTE_NC_BASE \
+        --nc_file $DOCKER_TROUTE_DIR \
         --out_dir $DOCKER_TROUTE_DIR"
-
 else
     log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $NC2PARQUET_CONVERTER \
-        --nc_file $DOCKER_TROUTE_DIR$TROUTE_NC_BASE \
-        --out_dir $DOCKER_TROUTE_DIR    
-    rm $TROUTE_NC
+        --nc_file $DOCKER_TROUTE_DIR \
+        --out_dir $DOCKER_TROUTE_DIR
+    find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" -delete
+
+    if [ -n "$S3_BUCKET" ]; then
+        NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.parquet" | wc -l)
+        if [ ${NTROUTE} -gt 0 ]; then
+            TROUTE_TMP=$DATA_DIR/troute_tmp
+            mkdir $TROUTE_TMP
+            mv $NGENRUN_OUTPUT_TROUTE/*.parquet $TROUTE_TMP
+        fi
+    fi
 fi
 log_time "CONVERT_TROUTE_NC2PARQUET_END"
 
@@ -673,15 +683,9 @@ log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
 if [ -n "$S3_BUCKET" ]; then
-    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.parquet" | wc -l)
-    if [ ${NTROUTE} -gt 0 ]; then
-        TROUTE_TMP=./troute_tmp
-        mkdir $TROUTE_TMP
-        mv $NGENRUN_OUTPUT_TROUTE/*.parquet $TROUTE_TMP
-    fi
-fi
 log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
 log_time "TAR_END"
+fi
 
 if [ "$EVAL" == "True" ]; then
     log_time "EVAL_START"
@@ -719,7 +723,8 @@ if [ -n "$S3_BUCKET" ]; then
     aws s3 cp $DATA_DIR/merkdir.file "s3://$S3_BUCKET/${S3_PREFIX%/}/merkdir.file"
     aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"    
     if [ ${NTROUTE} -gt 0 ]; then
-        aws s3 cp ./$TROUTE_OUTPUT_NC_BASENAME "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/$TROUTE_OUTPUT_NC_BASENAME"
+        aws s3 sync $TROUTE_TMP "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/"
+        rm -rf $TROUTE_TMP
     fi
 
     log_time "S3_MOVE_END"
@@ -730,5 +735,3 @@ fi
 echo "Data exists here: $DATA_DIR"
 
 echo "DataStreamCLI run complete! Goodbye!"
-
-    

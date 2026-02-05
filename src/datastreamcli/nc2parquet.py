@@ -12,52 +12,70 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-
 def nc2parquet(nc_file: str, out_dir: str) -> None:
     """
-    Convert a NetCDF file to Parquet format.
-    
+    Convert a NetCDF file (or directory of NetCDF files) to Parquet format.
     Args:
-        nc_file: Path to input NetCDF file
-        out_dir: Directory to write output Parquet file
+        nc_file: Path to input NetCDF file or directory containing NetCDF files
+        out_dir: Directory to write output Parquet file(s)
     """
-    # Validate input file
+    
     nc_path = Path(nc_file)
+    
+    # Check if input exists
     if not nc_path.exists():
-        raise FileNotFoundError(f"NetCDF file not found: {nc_file}")
+        raise FileNotFoundError(f"Path not found: {nc_file}")
     
     # Create output directory if it doesn't exist
     out_path = Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
     
-    # Read NetCDF file
-    print(f"Reading NetCDF file: {nc_file}")
-    ds = xr.open_dataset(nc_file)
+    # Collect NetCDF files to process
+    if nc_path.is_dir():
+        nc_files = sorted(nc_path.glob("*.nc"))
+        if not nc_files:
+            print(f"No .nc files found in directory: {nc_file}")
+            return
+        print(f"Found {len(nc_files)} NetCDF file(s) to convert")
+    else:
+        nc_files = [nc_path]
     
-    # Convert to DataFrame
-    print("Converting to DataFrame...")
-    df = ds.to_dataframe().reset_index()
+    # Process each file
+    for idx, file_path in enumerate(nc_files, 1):
+        if len(nc_files) > 1:
+            print(f"\n[{idx}/{len(nc_files)}] Processing: {file_path.name}")
+        else:
+            print(f"Reading NetCDF file: {file_path}")
+        
+        # Read NetCDF file
+        ds = xr.open_dataset(file_path)
+        
+        # Convert to DataFrame
+        print("Converting to DataFrame...")
+        df = ds.to_dataframe().reset_index()
+        
+        # Close the dataset
+        ds.close()
+        
+        # Define output file path
+        output_file = out_path / f"{file_path.stem}.parquet"
+        
+        # Write to Parquet with brotli compression
+        print(f"Writing Parquet file: {output_file}")
+        df.to_parquet(
+            output_file,
+            compression='brotli',
+            index=False,
+            engine='pyarrow'
+        )
+        
+        print(f"✓ Successfully converted to: {output_file}")
+        print(f"  Rows: {len(df):,}")
+        print(f"  Columns: {len(df.columns)}")
+        print(f"  Size: {output_file.stat().st_size / 1024 / 1024:.2f} MB")
     
-    # Close the dataset
-    ds.close()
-    
-    # Define output file path
-    output_file = out_path / f"{nc_path.stem}.parquet"
-    
-    # Write to Parquet with brotli compression (maximum compression)
-    print(f"Writing Parquet file: {output_file}")
-    df.to_parquet(
-        output_file,
-        compression='brotli',
-        index=False,
-        engine='pyarrow'
-    )
-    
-    print(f"✓ Successfully converted to: {output_file}")
-    print(f"  Rows: {len(df):,}")
-    print(f"  Columns: {len(df.columns)}")
-    print(f"  Size: {output_file.stat().st_size / 1024 / 1024:.2f} MB")
-
+    if len(nc_files) > 1:
+        print(f"\n✓ All {len(nc_files)} files converted successfully!")
 
 def main():
     parser = argparse.ArgumentParser(
