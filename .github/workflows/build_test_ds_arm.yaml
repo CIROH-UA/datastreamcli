@@ -21,7 +21,37 @@ permissions:
   security-events: write
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-22.04-arm-aws
+    outputs:
+      deps-changed: ${{ steps.changes.outputs.deps }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for deps Dockerfile changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "deps=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "docker/Dockerfile.datastream-deps"; then
+              echo "deps=true" >> $GITHUB_OUTPUT
+            else
+              echo "deps=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            if git diff --name-only HEAD~1 | grep -q "docker/Dockerfile.datastream-deps"; then
+              echo "deps=true" >> $GITHUB_OUTPUT
+            else
+              echo "deps=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
   build-arm64:
+    needs: detect-changes
     runs-on: ubuntu-22.04-arm-aws
     steps:
       - name: Checkout code
@@ -33,7 +63,15 @@ jobs:
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
 
-      - name: Pull datastream-deps from Docker Hub
+      - name: Build datastream-deps (only if Dockerfile changed)
+        if: needs.detect-changes.outputs.deps-changed == 'true'
+        run: |
+          cd docker
+          ARCH=aarch64 TAG=latest-arm64 \
+            docker compose -f docker-compose.yml build datastream-deps
+
+      - name: Pull datastream-deps from Docker Hub (if not built)
+        if: needs.detect-changes.outputs.deps-changed != 'true'
         run: |
           docker pull awiciroh/datastream-deps:latest-arm64
 
@@ -63,7 +101,7 @@ jobs:
 
 
   test-arm64:
-    needs: build-arm64
+    needs: [detect-changes, build-arm64]
     runs-on: ubuntu-22.04-arm-aws
     timeout-minutes: 30
     strategy:
@@ -166,7 +204,7 @@ jobs:
 
 
   cleanup-artifacts:
-    needs: test-arm64
+    needs: [detect-changes, test-arm64]
     runs-on: ubuntu-22.04-arm-aws
     if: always()
     steps:
