@@ -77,6 +77,8 @@ jobs:
           FORCINGS_VPU_S3="$S3_BUCKET/forcings/v2.2_hydrofabric/ngen.20260101/forcing_short_range/00/ngen.t00z.short_range.forcing.f001_f018.VPU_09.nc"
           
           RESOURCES_S3="$S3_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09"
+
+          TROUTE=$NGENRUN/outputs/troute/troute_output_202601010100.parquet
           
           # Verification function
           verify_files() {
@@ -109,6 +111,7 @@ jobs:
                 "$ngenrun/config/$GPKG_VPU"
                 "$ngenrun/config/realization.json"
                 "$ngenrun/forcings/$FORCINGS_FILE_VPU"
+                "$TROUTE"
               )
             fi
             
