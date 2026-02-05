@@ -8,8 +8,24 @@ gpd.options.io_engine = "pyogrio"
 import pandas as pd
 from datetime import datetime, timezone
 import concurrent.futures as cf
+from typing import Tuple, Dict, List, Union
 
-def check_forcings(serialized_realization,forcings_start,forcings_end,n):
+def check_forcings(serialized_realization : NgenRealization,
+                    forcings_start : datetime,
+                    forcings_end : datetime,
+                    n  : int,
+                   ) -> None:
+    """
+    Checks that the forcing time axis in the forcing file matches 
+    that which is defined in the NextGen realization.
+
+    This checks that the forcing time axis begins and ends at the specified times and with the proper interval.
+
+    serialized_realization (NgenRealization) : NextGen realization object from ngen-cal
+    forcings_start (datetime) : First time value in forcing file
+    forcings_end (datetime) : Last time value in forcing file
+    n (int) : Number of time values in forcing file
+    """
     start_time = serialized_realization.time.start_time
     end_time   = serialized_realization.time.end_time
     dt_s = serialized_realization.time.output_interval
@@ -22,11 +38,13 @@ def check_forcings(serialized_realization,forcings_start,forcings_end,n):
     assert dt_s == dt_forcings_s, f"Realization output_interval {dt_s} does not match forcing time axis {dt_forcings_s}"    
 
 
-def validate_realization(realization_file):
+def validate_realization(realization_file : str) -> Tuple[NgenRealization, str]:
     """
     Validates
     1) Realization files meets pydantic model as defined in ngen-cal
     2) Paths given in file exist
+
+    realization_file (str) :  Path to local NextGen realization file
     """
     relative_dir     = os.path.dirname(os.path.dirname(realization_file))
 
@@ -42,9 +60,19 @@ def validate_realization(realization_file):
     
     return serialized_realization, relative_dir
 
-def validate_catchment_files(validations, catchments,forcing_dir,serialized_realization):
+def validate_catchment_files(validations : Dict[str, List[str]], 
+                             catchments : list,
+                             forcing_dir : str, 
+                             serialized_realization : NgenRealization
+                             ) -> None:
     """
     General function to validate any files that need to be associated with a catchment
+
+    validations (dict) : a dictionary of patterns and files to validate.
+        validate_files[jmod.params.model_name] = {"pattern":pattern,"files":sorted([x for x in config_files if bool(compiled.match(x))])}
+    catchments (list) :  a list of catchment (divide) id's in the geopackage
+    forcing_dir (str) : path to folder containing forcing file
+    serialized_realization (NgenRealization) :  serialized NextGen realization via ngen-cal
 
     Inputs:
     validations: dictionary of list of patterns and files to match. Each list should be a 1:1 correspondence between a catchment and it's file.
@@ -88,7 +116,12 @@ def validate_catchment_files(validations, catchments,forcing_dir,serialized_real
                     forcings_end   = datetime.strptime(df['time'].iloc[-1],'%Y-%m-%d %H:%M:%S')
                     check_forcings(forcings_start,forcings_end,len(df['time']))
 
-def validate_data_dir(data_dir):
+def validate_data_dir(data_dir : str) -> None:
+    """
+    Top level validation function for a datastreamcli (NextGen) execution
+
+    data_dir (str) : Path to datastreamcli standard folder ngen-run/
+    """
 
     realization_file = None
     geopackage_file  = None
@@ -137,7 +170,8 @@ def validate_data_dir(data_dir):
 
     jdir_dict = {"CFE":"CFE",
                  "PET":"PET",
-                 "NoahOWP":"NOAH-OWP-M"}
+                 "NoahOWP":"NOAH-OWP-M",
+                 "bmi_rust":"LSTM"}
 
     validate_files = {"forcing":{"pattern":serialized_realization.global_config.forcing.file_pattern,"files": forcing_files}}
     serialized_realization = NgenRealization.parse_file(realization_file)
