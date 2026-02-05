@@ -94,21 +94,21 @@ usage() {
     echo ""
     echo "Usage: $0 [options]"
     echo "Either provide a datastream configuration file"
-    echo "  -c, --CONF_FILE           <Path to datastream configuration file> "  
+    echo "  -c, --CONF_FILE           <Path to datastream configuration file> "
     echo "or run with cli args"
     echo "  -s, --START_DATE          <YYYYMMDDHHMM or \"DAILY\"> "
     echo "  -e, --END_DATE            <YYYYMMDDHHMM> "
     echo "  -C, --FORCING_SOURCE      <Forcing source option> "
-    echo "  -d, --DATA_DIR            <Path to write to> "    
-    echo "  -R, --REALIZATION         <Path to realization file> "   
+    echo "  -d, --DATA_DIR            <Path to write to> "
+    echo "  -R, --REALIZATION         <Path to realization file> "
     echo "  -g, --GEOPACKAGE          <Path to geopackage file> "
     echo "  -I, --SUBSET_ID           <Hydrofabric id to subset>  "
-    echo "  -i, --SUBSET_ID_TYPE      <Hydrofabric id type>  "   
-    echo "  -v, --HYDROFABRIC_VERSION <Hydrofabric version> "       
-    echo "  -D, --DOMAIN_NAME         <Name for spatial domain> "    
+    echo "  -i, --SUBSET_ID_TYPE      <Hydrofabric id type>  "
+    echo "  -v, --HYDROFABRIC_VERSION <Hydrofabric version> "
+    echo "  -D, --DOMAIN_NAME         <Name for spatial domain> "
     echo "  -r, --RESOURCE_DIR        <Path to resource directory> "
     echo "  -f, --NWM_FORCINGS_DIR    <Path to nwm forcings directory> "
-    echo "  -N, --NGEN_BMI_CONFS      <Path to ngen BMI config directory> "    
+    echo "  -N, --NGEN_BMI_CONFS      <Path to ngen BMI config directory> "
     echo "  -F, --NGEN_FORCINGS       <Path to ngen forcings directory, tarball, or netcdf> "
     echo "  -S, --S3_BUCKET           <s3 bucket to write output to>  "
     echo "  -o, --S3_PREFIX           <File prefix within s3 bucket> "
@@ -116,6 +116,7 @@ usage() {
     echo "  -y, --DRYRUN              <True to skip calculations> "
     echo "  -E, --EVAL                <True to run TEEHR evaluation service> "
     echo "  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> "
+    echo "  -t, --ROUTING_ONLY        <True to only run routing-only datastream> "
     exit 1
 }
 
@@ -140,6 +141,7 @@ S3_PREFIX=""
 NPROCS=4
 DRYRUN="False"
 DO_TEEHR="False"
+ROUTING_ONLY="False"
 VERBOSE="False"
 PIPE=""
 if [[ $VERBOSE == "True" ]]; then
@@ -170,14 +172,14 @@ fi
 if [ -f "/etc/os-release" ]; then
     HOST_OS=$(cat /etc/os-release | grep "PRETTY_NAME")
     HOST_OS=$(echo "$HOST_OS" | sed 's/.*"\(.*\)"/\1/')
-else 
+else
     echo "Warning: /etc/os-release file not found"
 fi
 
 # read cli args
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        -c|--CONF_FILE) CONF_FILE="$2"; shift 2;;    
+        -c|--CONF_FILE) CONF_FILE="$2"; shift 2;;
         -s|--START_DATE) START_DATE="$2"; shift 2;;
         -e|--END_DATE) END_DATE="$2"; shift 2;;
         -C|--FORCING_SOURCE) FORCING_SOURCE="$2"; shift 2;;
@@ -185,7 +187,7 @@ while [ "$#" -gt 0 ]; do
         -g|--GEOPACKAGE) GEOPACKAGE="$2"; shift 2;;
         -I|--SUBSET_ID) SUBSET_ID="$2"; shift 2;;
         -i|--SUBSET_ID_TYPE) SUBSET_ID_TYPE="$2"; shift 2;;
-        -v|--HYDROFABRIC_VERSION) HYDROFABRIC_VERSION="$2"; shift 2;;        
+        -v|--HYDROFABRIC_VERSION) HYDROFABRIC_VERSION="$2"; shift 2;;
         -R|--REALIZATION) REALIZATION="$2"; shift 2;;
         -d|--DATA_DIR) DATA_DIR="$2"; shift 2;;
         -r|--RESOURCE_DIR) RESOURCE_DIR="$2"; shift 2;;
@@ -197,6 +199,7 @@ while [ "$#" -gt 0 ]; do
         -n|--NPROCS) NPROCS="$2"; shift 2;;
         -y|--DRYRUN) DRYRUN="$2"; shift 2;;
         -E|--EVAL) EVAL="$2"; shift 2;;
+        -t|--ROUTING_ONLY) ROUTING_ONLY="$2"; shift 2;;
         -V|--VERBOSE) EVAL="$2"; shift 2;;
         -L|--LSTM_ENS_MEMBERS) LSTM_ENS_MEMBERS="$2"; shift 2;;
         *) usage;;
@@ -286,7 +289,7 @@ if [[ "$START_DATE" == *"DAILY"* ]]; then
     fi
 fi
 
-if [[ ${#S3_BUCKET} -ge 1 ]]; then    
+if [[ ${#S3_BUCKET} -ge 1 ]]; then
     if [[ "$S3_PREFIX" == *"DAILY"* ]]; then
         S3_PREFIX="${S3_PREFIX//DAILY/$run_date}"
         echo "Updated S3_PREFIX: $S3_PREFIX"
@@ -303,11 +306,11 @@ if [ ! -z $RESOURCE_DIR ]; then
     echo "running in lite mode"
     get_file "$RESOURCE_DIR" $DATASTREAM_RESOURCES
 else
-    echo "running in standard mode"    
+    echo "running in standard mode"
     mkdir -p $DATASTREAM_RESOURCES_NGENCONF
-fi  
+fi
 
-if [ ! -z $RESOURCE_DIR ]; then  
+if [ ! -z $RESOURCE_DIR ]; then
 
     # Assuming the resource directory is provided, make sure required files exist
     # This allows allows for files to be provided at the cli while using a resource directory
@@ -325,12 +328,12 @@ if [ ! -z $RESOURCE_DIR ]; then
             echo "realization arg is required if not providing within the resource directory"
             exit 1
         else
-            REAL_BASE=$(basename $REALIZATION_RESOURCES)                        
+            REAL_BASE=$(basename $REALIZATION_RESOURCES)
         fi
     else
         REAL_BASE=$(basename $REALIZATION)
         REALIZATION_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF$REAL_BASE"
-        get_file "$REALIZATION" $REALIZATION_RESOURCES   
+        get_file "$REALIZATION" $REALIZATION_RESOURCES
     fi
 
     if [ -z $GEOPACKAGE ]; then
@@ -344,9 +347,9 @@ if [ ! -z $RESOURCE_DIR ]; then
             echo "Using" $GEOPACKAGE_RESOURCES
             GEO_BASE=$(basename $GEOPACKAGE_RESOURCES)
         else
-            echo "geopackage missing from resources"     
-            exit 1   
-        fi    
+            echo "geopackage missing from resources"
+            exit 1
+        fi
     else
         GEO_BASE=$(basename $GEOPACKAGE)
         GEOPACKAGE_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF/$GEO_BASE"
@@ -364,7 +367,7 @@ if [ ! -z $RESOURCE_DIR ]; then
 
     if [ -z $NGEN_FORCINGS ]; then
         NNGEN_FORCINGS_DIR=$(find $DATASTREAM_RESOURCES -type d -name "ngen-forcings" | wc -l)
-        if [ ${NNGEN_FORCINGS_DIR} -gt 0 ]; then            
+        if [ ${NNGEN_FORCINGS_DIR} -gt 0 ]; then
             NGEN_FORCINGS=$(find $DATASTREAM_RESOURCES_NGENFORCINGS -type f -name "*forcing*")
             echo "Using resource directory forcings "$NGEN_FORCINGS
             get_file "$NGEN_FORCINGS" "$NGENRUN_FORCINGS"
@@ -378,14 +381,14 @@ if [ ! -z $RESOURCE_DIR ]; then
             echo "The NGEN_FORCINGS does not contain 'DAILY'."
         fi
         get_file "$NGEN_FORCINGS" "$NGENRUN_FORCINGS"
-    fi 
+    fi
 
     PARTITION_RESOURCES=$(find "$DATASTREAM_RESOURCES" -type f -name "*partitions*.json")
     if [ -e "$PARTITION_RESOURCES" ]; then
         PARTITION_NGENRUN=$NGEN_RUN/$(basename $PARTITION_RESOURCES)
         echo "Found $PARTITION_RESOURCES, copying to $PARTITION_NGENRUN"
         cp $PARTITION_RESOURCES $PARTITION_NGENRUN
-    fi    
+    fi
 
 else
     echo "RESOURCE_DIR not provided, using cli args"
@@ -393,11 +396,11 @@ else
     if [ ! -z $REALIZATION ]; then
         REAL_BASE=$(basename $REALIZATION)
         REALIZATION_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF$REAL_BASE"
-        get_file "$REALIZATION" $REALIZATION_RESOURCES        
+        get_file "$REALIZATION" $REALIZATION_RESOURCES
     else
         echo "realization arg is required"
         exit 1
-    fi    
+    fi
 
     if [ ! -z $NGEN_BMI_CONFS ]; then
         BMI_CONFS_BASE_NAME="$(basename $NGEN_BMI_CONFS)"
@@ -415,19 +418,19 @@ else
         fi
         FORCING_BASE=$(basename $NGEN_FORCINGS)
         get_file "$NGEN_FORCINGS" "$NGENRUN_FORCINGS"/$FORCING_BASE
-    fi 
+    fi
 
     if [ ! -z $NWM_FORCINGS_DIR ]; then
         NWM_FORCINGS=$(find "$NWM_FORCINGS_DIR" -type f -name "*.nc")
-    fi    
+    fi
 
     if [ ! -z $SUBSET_ID ]; then
-        echo "aquiring geospatial data from hfsubset"        
+        echo "aquiring geospatial data from hfsubset"
     else
         if [ ! -z $GEOPACKAGE ]; then
             GEO_BASE=$(basename $GEOPACKAGE)
             GEOPACKAGE_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF/$GEO_BASE"
-            get_file "$GEOPACKAGE" $GEOPACKAGE_RESOURCES            
+            get_file "$GEOPACKAGE" $GEOPACKAGE_RESOURCES
         else
             echo "geopackage arg is required"
             exit 1
@@ -435,16 +438,18 @@ else
     fi
 fi
 
-if [ ! -z $SUBSET_ID ]; then
-    log_time "SUBSET_START"
-    GEO_BASE="$SUBSET_ID.gpkg"
-    GEOPACKAGE_RESOURCES="${DATASTREAM_RESOURCES_NGENCONF%/}/$GEO_BASE"
-    log_n_run_steps hfsubset -w "medium_range" -s 'nextgen' -v "2.1.1" -l divides,flowlines,network,nexus,forcing-weights,flowpath-attributes,divide-attributes -o $GEOPACKAGE_RESOURCES -t $SUBSET_ID_TYPE "$SUBSET_ID"
-    GEOPACKAGE_NGENRUN=$NGENRUN_CONFIG/$GEO_BASE
-    cp $GEOPACKAGE_RESOURCES $GEOPACKAGE_NGENRUN       
-    log_steps HFSUBSET $CMD_STR $FP_DOCKER_SHA 
-    log_time "SUBSET_END"
-fi 
+if [ "$ROUTING_ONLY" == "False" ]; then
+    if [ ! -z $SUBSET_ID ]; then
+        log_time "SUBSET_START"
+        GEO_BASE="$SUBSET_ID.gpkg"
+        GEOPACKAGE_RESOURCES="${DATASTREAM_RESOURCES_NGENCONF%/}/$GEO_BASE"
+        log_n_run_steps hfsubset -w "medium_range" -s 'nextgen' -v "2.1.1" -l divides,flowlines,network,nexus,forcing-weights,flowpath-attributes,divide-attributes -o $GEOPACKAGE_RESOURCES -t $SUBSET_ID_TYPE "$SUBSET_ID"
+        GEOPACKAGE_NGENRUN=$NGENRUN_CONFIG/$GEO_BASE
+        cp $GEOPACKAGE_RESOURCES $GEOPACKAGE_NGENRUN
+        log_steps HFSUBSET $CMD_STR $FP_DOCKER_SHA
+        log_time "SUBSET_END"
+    fi
+fi
 
 NGEN_BMI_CONFS_RESOURCES=$DATASTREAM_RESOURCES_NGENCONF/ngen-bmi-configs.tar.gz
 if [ -f $NGEN_BMI_CONFS_RESOURCES ]; then
@@ -476,50 +481,72 @@ echo "NGIAB_TAG=$NGIAB_TAG" >> $DATASTREAM_ENV
 log_time "DATASTREAMCONFGEN_END"
 
 log_time "NGENCONFGEN_START"
-PKL_NAME="noah-owp-modular-init.namelist.input.pkl"
-PKL_FILE=$(find "$NGENRUN_CONFIG" -type f -name $PKL_NAME)
-if [ ! -f "$PKL_FILE" ]; then
-    echo "Generating noah-owp pickle file"
-    NOAHOWPPKL_GENERATOR=$DOCKER_PY"noahowp_pkl.py"
-    if [ "$DRYRUN" == "True" ]; then
-        echo "DRYRUN - NOAH PKL CALCULATION SKIPPED"
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" $DOCKER_TAG \
-            python3 $NOAHOWPPKL_GENERATOR \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config""
-    else
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
-            python3 $NOAHOWPPKL_GENERATOR \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config"
-    fi
-fi
 
-echo "Generating NGEN configs"
-NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
-if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
-    echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
-    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        $DOCKER_TAG python3 $NGEN_CONFGEN \
-        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS
+if [ "$ROUTING_ONLY" == "False" ]; then
+    PKL_NAME="noah-owp-modular-init.namelist.input.pkl"
+    PKL_FILE=$(find "$NGENRUN_CONFIG" -type f -name $PKL_NAME)
+    if [ ! -f "$PKL_FILE" ]; then
+        echo "Generating noah-owp pickle file"
+        NOAHOWPPKL_GENERATOR=$DOCKER_PY"noahowp_pkl.py"
+        if [ "$DRYRUN" == "True" ]; then
+            echo "DRYRUN - NOAH PKL CALCULATION SKIPPED"
+            echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" $DOCKER_TAG \
+                python3 $NOAHOWPPKL_GENERATOR \
+                --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config""
+        else
+            log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
+                python3 $NOAHOWPPKL_GENERATOR \
+                --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config"
+        fi
+    fi
+
+    echo "Generating NGEN configs"
+    NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
+    if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
+        echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS
+    else
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
+        TAR_NAME="ngen-bmi-configs.tar.gz"
+        NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
+        tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
+    fi
 else
-    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        $DOCKER_TAG python3 $NGEN_CONFGEN \
-        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
-    TAR_NAME="ngen-bmi-configs.tar.gz"
-    NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
-    tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
+    echo "Generating NGEN configs (troute only)"
+    NGEN_CONFGEN=$DOCKER_PY"troute_only_configs_gen.py"
+    if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
+        echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --realization "$DOCKER_MOUNT/config/realization.json""
+    else
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --realization "$DOCKER_MOUNT/config/realization.json"
+
+        TAR_NAME="ngen-bmi-configs.tar.gz"
+        NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
+        tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
+    fi
 fi
 log_time "NGENCONFGEN_END"
 
 if [ ! -z $NGEN_FORCINGS ]; then
     log_time "GET_FORCINGS_START"
     echo "Using $NGEN_FORCINGS"
-    FORCINGS_BASE=$(basename $NGEN_FORCINGS)    
+    FORCINGS_BASE=$(basename $NGEN_FORCINGS)
     if [ ! -e $DATASTREAM_RESOURCES_NGENFORCINGS ]; then
         mkdir -p $DATASTREAM_RESOURCES_NGENFORCINGS
         get_file "$NGEN_FORCINGS" "$DATASTREAM_RESOURCES_NGENFORCINGS"/$FORCINGS_BASE
-    fi    
+    fi
     log_time "GET_FORCINGS_END"
 else
     log_time "FORCINGPROCESSOR_START"
@@ -544,7 +571,7 @@ else
         done
         cp $LOCAL_FILENAMES $DATASTREAM_META/filenamelist.txt
         rm $FILENAMES
-        
+
         if [ ! -e $DATASTREAM_RESOURCES_NWMFORCINGS ]; then
             mkdir -p $DATASTREAM_RESOURCES_NWMFORCINGS
             echo "Copying nwm files into "$DATASTREAM_RESOURCES_NWMFORCINGS
@@ -571,68 +598,95 @@ else
             -w "$DOCKER_RESOURCES" $DOCKER_TAG \
             python3 "$DOCKER_FP"processor.py "$DOCKER_META"/conf_fp.json $PIPE
         FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
-        # mv $DATASTREAM_RESOURCES/profile_fp.txt $DATASTREAM_META 
+        # mv $DATASTREAM_RESOURCES/profile_fp.txt $DATASTREAM_META
         log_time "FORCINGPROCESSOR_END"
         if [ ! -e $$DATASTREAM_RESOURCES_NGENFORCINGS ]; then
             mkdir -p $DATASTREAM_RESOURCES_NGENFORCINGS
         fi
-        FORCINGS_BASE=$(basename $(find "$NGENRUN_FORCINGS" -type f -name "*forcing*"))
-        cp $NGENRUN_FORCINGS/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
+
+        if [ "$ROUTING_ONLY" == "False" ]; then
+            FORCINGS_BASE=$(basename $(find "$NGENRUN_FORCINGS" -type f -name "*forcing*"))
+            cp $NGENRUN_FORCINGS/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
+        else
+            cp -r "$NGENRUN_FORCINGS" "$DATASTREAM_RESOURCES_NGENFORCINGS"
+            rm -r "$NGENRUN_OUTPUT_NGEN"
+            mv "$NGENRUN_FORCINGS" "$NGENRUN_OUTPUT_NGEN" # because these are ngen outputs
+        fi
+
         mv "$NGENRUN_METADATA/forcings_metadata" $DATASTREAM_META
     fi
-fi    
-
-if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
-    ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oP '(?<=_)[0-9]$')
-    if [[ "$ENS_MEM" -gt 1 ]]; then
-        echo "Applying lag to forcings for medium range ensemble members > 1"
-        log_time "LAG_FORCINGS_START"
-        DOCKER_TAG="awiciroh/forcingprocessor:$FP_TAG"
-        if [ "$DRYRUN" == "True" ]; then
-            echo "DRYRUN - LAG FORCINGS SKIPPED"
-            echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
-                -u $(id -u):$(id -g) \
-                -w "$DOCKER_RESOURCES" $DOCKER_TAG \
-                python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM"
-        else
-            log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
-                -u $(id -u):$(id -g) \
-                -w "$DOCKER_RESOURCES" $DOCKER_TAG \
-                python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM
-            rm $NGENRUN_FORCINGS/$FORCINGS_BASE # remove original forcing file
-        fi
-        log_time "LAG_FORCINGS_END"
-    fi
-fi 
-
-log_time "VALIDATION_START"
-VALIDATOR=$DOCKER_PY"run_validator.py"
-DOCKER_TAG="awiciroh/datastream:$DS_TAG"
-echo "Validating " $NGEN_RUN
-if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
-    echo "DRYRUN - VALIDATION SKIPPED"
-    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT"
-else
-    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT
 fi
-log_time "VALIDATION_END"
+
+if [ "$ROUTING_ONLY" == "False" ]; then
+    if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
+        ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oP '(?<=_)[0-9]$')
+        if [[ "$ENS_MEM" -gt 1 ]]; then
+            echo "Applying lag to forcings for medium range ensemble members > 1"
+            log_time "LAG_FORCINGS_START"
+            DOCKER_TAG="awiciroh/forcingprocessor:$FP_TAG"
+            if [ "$DRYRUN" == "True" ]; then
+                echo "DRYRUN - LAG FORCINGS SKIPPED"
+                echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
+                    -u $(id -u):$(id -g) \
+                    -w "$DOCKER_RESOURCES" $DOCKER_TAG \
+                    python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM"
+            else
+                log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
+                    -u $(id -u):$(id -g) \
+                    -w "$DOCKER_RESOURCES" $DOCKER_TAG \
+                    python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM
+                rm $NGENRUN_FORCINGS/$FORCINGS_BASE # remove original forcing file
+            fi
+            log_time "LAG_FORCINGS_END"
+        fi
+    fi
+
+    log_time "VALIDATION_START"
+    VALIDATOR=$DOCKER_PY"run_validator.py"
+    DOCKER_TAG="awiciroh/datastream:$DS_TAG"
+    echo "Validating " $NGEN_RUN
+    if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
+        echo "DRYRUN - VALIDATION SKIPPED"
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $VALIDATOR \
+            --data_dir $DOCKER_MOUNT"
+    else
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $VALIDATOR \
+            --data_dir $DOCKER_MOUNT
+    fi
+    log_time "VALIDATION_END"
+fi
 
 NIGAB_TAG="awiciroh/ciroh-ngen-image:$NGIAB_TAG"
 log_time "NGEN_START"
 echo "Running NextGen in AUTO MODE from CIROH-UA/NGIAB-CloudInfra"
 if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - NEXTGEN EXECUTION SKIPPED"
-    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS" local $PIPE
-else    
-    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS local $PIPE
+    if [ "$ROUTING_ONLY" == "False" ]; then
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS" local $PIPE
+    else
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        -w /ngen/ngen/data --entrypoint /bin/bash $NIGAB_TAG \
+        -c "python3 -m nwm_routing -f -V4 ./config/troute.yaml""
+    fi
+else
+    if [ "$ROUTING_ONLY" == "False" ]; then
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS local $PIPE
+    else
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":/ngen/ngen/data \
+            -u $(id -u):$(id -g) \
+            -w /ngen/ngen/data --entrypoint /bin/bash $NIGAB_TAG \
+            -c "python -m nwm_routing -f -V4 ./config/troute.yaml"
+    fi
     NGIAB_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $NIGAB_TAG --format "{{.ID}}") | tr -d '"')
-    cp -r $NGEN_RUN/*partitions* $DATASTREAM_RESOURCES_NGENCONF/
+
+    if [ "$ROUTING_ONLY" == "False" ]; then
+        cp -r $NGEN_RUN/*partitions* $DATASTREAM_RESOURCES_NGENCONF/
+    fi
 fi
 log_time "NGEN_END"
 
@@ -640,7 +694,7 @@ log_time "MERKLE_START"
 if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - MERKDIR EXECUTION SKIPPED"
     echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT"
-else    
+else
     log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT
     MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
 fi
@@ -649,12 +703,14 @@ log_time "MERKLE_END"
 log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
-if [ -n "$S3_BUCKET" ]; then
-    TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
-    TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
-    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
-    if [ ${NTROUTE} -gt 0 ]; then
-        mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
+if [ "$ROUTING_ONLY" == "False" ]; then
+    if [ -n "$S3_BUCKET" ]; then
+        TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
+        TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
+        NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
+        if [ ${NTROUTE} -gt 0 ]; then
+            mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
+        fi
     fi
 fi
 log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
@@ -689,12 +745,12 @@ log_time "DATASTREAM_END"
 
 if [ -n "$S3_BUCKET" ]; then
 
-    log_time "S3_MOVE_START" 
+    log_time "S3_MOVE_START"
 
-    echo "Writing data to S3" $S3_OUT $S3_BUCKET $S3_PREFIX 
+    echo "Writing data to S3" $S3_OUT $S3_BUCKET $S3_PREFIX
     aws s3 cp $NGENRUN_TAR "s3://$S3_BUCKET/${S3_PREFIX%/}/$TAR_NAME"
     aws s3 cp $DATA_DIR/merkdir.file "s3://$S3_BUCKET/${S3_PREFIX%/}/merkdir.file"
-    aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"    
+    aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"
     if [ ${NTROUTE} -gt 0 ]; then
         aws s3 cp ./$TROUTE_OUTPUT_NC_BASENAME "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/$TROUTE_OUTPUT_NC_BASENAME"
     fi
@@ -708,4 +764,4 @@ echo "Data exists here: $DATA_DIR"
 
 echo "DataStreamCLI run complete! Goodbye!"
 
-    
+
