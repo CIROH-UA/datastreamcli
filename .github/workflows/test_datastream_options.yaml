@@ -109,7 +109,6 @@ jobs:
                 "$ngenrun/config/$GPKG_VPU"
                 "$ngenrun/config/realization.json"
                 "$ngenrun/forcings/$FORCINGS_FILE_VPU"
-                "$TROUTE"
               )
             fi
             
