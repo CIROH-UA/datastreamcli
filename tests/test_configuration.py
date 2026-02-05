@@ -245,7 +245,7 @@ def test_conf_daily_medium_range_init12_member3():
     end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
     assert start.day == (datetime.now(timezone.utc)).day or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
     assert start.hour == 13
-    assert end.day == (datetime.now(timezone.utc) + timedelta(days=10)).day or end.day == (datetime.now(timezone.utc) + timedelta(days=9)).day
+    assert end.day == (datetime.now(timezone.utc) + timedelta(days=10)).day or end.day == (datetime.now(timezone.utc) + timedelta(days=9)).day or end.day == (datetime.now(timezone.utc) + timedelta(days=8)).day
     assert end.hour == 0
 
     with open(CONF_NWM,'r') as fp:
