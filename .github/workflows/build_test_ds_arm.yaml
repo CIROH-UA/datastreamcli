@@ -32,6 +32,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Configure AWS
         run: |
@@ -131,6 +133,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Configure AWS
         run: |
