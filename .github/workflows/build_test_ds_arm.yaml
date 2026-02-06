@@ -24,16 +24,11 @@ jobs:
   build-arm64:
     runs-on: ubuntu-22.04-arm-aws
     steps:
-      - name: Pre-cleanup workspace
-        continue-on-error: true
-        run: |
-          sudo rm -rf ${{ github.workspace }}
-          mkdir -p ${{ github.workspace }}
+      - name: Fix workspace permissions
+        run: sudo chown -R $(id -u):$(id -g) ${{ github.workspace }} || true
 
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          clean: false
 
       - name: Configure AWS
         run: |
@@ -125,16 +120,11 @@ jobs:
     name: "${{ matrix.test-suite.name }}"
     
     steps:
-      - name: Pre-cleanup workspace
-        continue-on-error: true
-        run: |
-          sudo rm -rf ${{ github.workspace }}
-          mkdir -p ${{ github.workspace }}
+      - name: Fix workspace permissions
+        run: sudo chown -R $(id -u):$(id -g) ${{ github.workspace }} || true
 
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          clean: false
 
       - name: Configure AWS
         run: |
