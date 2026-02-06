@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-22.04-arm-aws
     steps:
       - name: Fix workspace permissions
-        run: sudo chown -R $(id -u):$(id -g) ${{ github.workspace }} || true
+        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -121,7 +121,7 @@ jobs:
     
     steps:
       - name: Fix workspace permissions
-        run: sudo chown -R $(id -u):$(id -g) ${{ github.workspace }} || true
+        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
 
       - name: Checkout code
         uses: actions/checkout@v4
