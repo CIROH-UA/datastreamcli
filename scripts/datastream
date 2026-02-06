@@ -683,14 +683,12 @@ log_time "MERKLE_END"
 log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
-if [ "$ROUTING_ONLY" == "False" ]; then
-    if [ -n "$S3_BUCKET" ]; then
-        TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
-        TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
-        NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
-        if [ ${NTROUTE} -gt 0 ]; then
-            mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
-        fi
+if [ -n "$S3_BUCKET" ]; then
+    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.parquet" | wc -l)
+    if [ ${NTROUTE} -gt 0 ]; then
+        TROUTE_TMP=$DATA_DIR/troute_tmp
+        mkdir $TROUTE_TMP
+        mv $NGENRUN_OUTPUT_TROUTE/*.parquet $TROUTE_TMP
     fi
 fi
 log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
