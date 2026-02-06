@@ -24,12 +24,9 @@ jobs:
   build-arm64:
     runs-on: ubuntu-22.04-arm-aws
     steps:
-      - name: Pre-cleanup workspace
-        continue-on-error: true
-        run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* || true
-          
+      - name: Fix workspace permissions
+        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -44,7 +41,7 @@ jobs:
           cd docker
           ARCH=aarch64 TAG=latest-arm64 \
             docker compose -f docker-compose.yml build datastream-deps
-            
+
       - name: Build datastream
         run: |
           cd docker
@@ -123,11 +120,8 @@ jobs:
     name: "${{ matrix.test-suite.name }}"
     
     steps:
-      - name: Pre-cleanup workspace
-        continue-on-error: true
-        run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* || true
+      - name: Fix workspace permissions
+        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -137,8 +131,7 @@ jobs:
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
-          
-        
+
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
@@ -172,6 +165,7 @@ jobs:
       - name: Run ${{ matrix.test-suite.name }}
         run: |
           docker run --rm \
+            --user $(id -u):$(id -g) \
             -v $(pwd):/datastream \
             -w /datastream \
             -e AWS_REGION=us-east-1 \
