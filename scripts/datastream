@@ -7,7 +7,7 @@ set -e
 #   Jordan Laser <jlaser@lynker.com>
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-PACAKGE_DIR=$(dirname $SCRIPT_DIR)
+PACKAGE_DIR=$(dirname $SCRIPT_DIR)
 START_TIME_UTC=$(date -u +'%Y%m%d%H%M%S')
 START_DATE_UTC=$(date -u +'%Y%m%d')
 run_date=$START_DATE_UTC
@@ -156,9 +156,17 @@ NGIAB_HASH="N/A"
 MERK_HASH="N/A"
 STREAM_HASH="sha256:"$(sha256sum $SCRIPT_DIR"/datastream" | awk '{ print $1 }')
 
-DS_TAG=${DS_TAG:-"latest"}
-FP_TAG=${FP_TAG:-"latest"}
-NGIAB_TAG=${NGIAB_TAG:-"latest"}
+VERSIONS_FILE=$PACKAGE_DIR/versions.yml
+VERSIONS_INTEGRATIONS_FILE=$PACKAGE_DIR/versions_integrations.yml
+DS_TAG=${DS_TAG:-$(sed -n 's/^datastream: *"\([^"]*\)".*/\1/p' "$VERSIONS_FILE")}
+FP_TAG=${FP_TAG:-$(sed -n 's/^forcingprocessor: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
+NGIAB_TAG=${NGIAB_TAG:-$(sed -n 's/^ciroh-ngen-image: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
+TEEHR_TAG=${TEEHR_TAG:-$(sed -n 's/^ngiab-teehr: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
+echo "Image Tags:"
+echo "  DS_TAG:     $DS_TAG"
+echo "  FP_TAG:     $FP_TAG"
+echo "  NGIAB_TAG:  $NGIAB_TAG"
+echo "  TEEHR_TAG:  $TEEHR_TAG"
 
 FORCING_SOURCE_OPTIONS=("NWM_RETRO_V2" "NWM_RETRO_V3" "NWM_OPERATIONAL_V3" "NOMADS_OPERATIONAL")
 if is_in_list "$FORCING_SOURCE" "${FORCING_SOURCE_OPTIONS[@]}"; then
@@ -663,7 +671,6 @@ log_time "TAR_END"
 if [ "$EVAL" == "True" ]; then
     log_time "EVAL_START"
     TEEHR_DOCKER=awiciroh/ngiab-teehr
-    TEEHR_TAG="latest"
     log_n_run_steps docker run -v "$NGEN_RUN:/app/data" "$TEEHR_DOCKER:$TEEHR_TAG"
     TEEHR_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$TEEHR_DOCKER:$TEEHR_TAG" --format "{{.ID}}") | tr -d '"')
     log_time "EVAL_END"
