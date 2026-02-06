@@ -27,9 +27,9 @@ jobs:
       - name: Pre-cleanup workspace
         continue-on-error: true
         run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* || true
-          
+          sudo rm -rf ${{ github.workspace }}
+          mkdir -p ${{ github.workspace }}
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -126,8 +126,8 @@ jobs:
       - name: Pre-cleanup workspace
         continue-on-error: true
         run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* || true
+          sudo rm -rf ${{ github.workspace }}
+          mkdir -p ${{ github.workspace }}
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -137,8 +137,7 @@ jobs:
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
-          
-        
+
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
