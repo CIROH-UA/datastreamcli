@@ -197,7 +197,7 @@ while [ "$#" -gt 0 ]; do
         -n|--NPROCS) NPROCS="$2"; shift 2;;
         -y|--DRYRUN) DRYRUN="$2"; shift 2;;
         -E|--EVAL) EVAL="$2"; shift 2;;
-        -V|--VERBOSE) EVAL="$2"; shift 2;;
+        -V|--VERBOSE) VERBOSE="$2"; shift 2;;
         -L|--LSTM_ENS_MEMBERS) LSTM_ENS_MEMBERS="$2"; shift 2;;
         *) usage;;
     esac
@@ -573,7 +573,7 @@ else
         FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
         # mv $DATASTREAM_RESOURCES/profile_fp.txt $DATASTREAM_META 
         log_time "FORCINGPROCESSOR_END"
-        if [ ! -e $$DATASTREAM_RESOURCES_NGENFORCINGS ]; then
+        if [ ! -e $DATASTREAM_RESOURCES_NGENFORCINGS ]; then
             mkdir -p $DATASTREAM_RESOURCES_NGENFORCINGS
         fi
         FORCINGS_BASE=$(basename $(find "$NGENRUN_FORCINGS" -type f -name "*forcing*"))
