@@ -438,17 +438,15 @@ else
     fi
 fi
 
-if [ "$ROUTING_ONLY" == "False" ]; then
-    if [ ! -z $SUBSET_ID ]; then
-        log_time "SUBSET_START"
-        GEO_BASE="$SUBSET_ID.gpkg"
-        GEOPACKAGE_RESOURCES="${DATASTREAM_RESOURCES_NGENCONF%/}/$GEO_BASE"
-        log_n_run_steps hfsubset -w "medium_range" -s 'nextgen' -v "2.1.1" -l divides,flowlines,network,nexus,forcing-weights,flowpath-attributes,divide-attributes -o $GEOPACKAGE_RESOURCES -t $SUBSET_ID_TYPE "$SUBSET_ID"
-        GEOPACKAGE_NGENRUN=$NGENRUN_CONFIG/$GEO_BASE
-        cp $GEOPACKAGE_RESOURCES $GEOPACKAGE_NGENRUN
-        log_steps HFSUBSET $CMD_STR $FP_DOCKER_SHA
-        log_time "SUBSET_END"
-    fi
+if [ ! -z $SUBSET_ID ]; then
+    log_time "SUBSET_START"
+    GEO_BASE="$SUBSET_ID.gpkg"
+    GEOPACKAGE_RESOURCES="${DATASTREAM_RESOURCES_NGENCONF%/}/$GEO_BASE"
+    log_n_run_steps hfsubset -w "medium_range" -s 'nextgen' -v "2.1.1" -l divides,flowlines,network,nexus,forcing-weights,flowpath-attributes,divide-attributes -o $GEOPACKAGE_RESOURCES -t $SUBSET_ID_TYPE "$SUBSET_ID"
+    GEOPACKAGE_NGENRUN=$NGENRUN_CONFIG/$GEO_BASE
+    cp $GEOPACKAGE_RESOURCES $GEOPACKAGE_NGENRUN
+    log_steps HFSUBSET $CMD_STR $FP_DOCKER_SHA
+    log_time "SUBSET_END"
 fi
 
 NGEN_BMI_CONFS_RESOURCES=$DATASTREAM_RESOURCES_NGENCONF/ngen-bmi-configs.tar.gz
@@ -482,61 +480,42 @@ log_time "DATASTREAMCONFGEN_END"
 
 log_time "NGENCONFGEN_START"
 
-if [ "$ROUTING_ONLY" == "False" ]; then
-    PKL_NAME="noah-owp-modular-init.namelist.input.pkl"
-    PKL_FILE=$(find "$NGENRUN_CONFIG" -type f -name $PKL_NAME)
-    if [ ! -f "$PKL_FILE" ]; then
-        echo "Generating noah-owp pickle file"
-        NOAHOWPPKL_GENERATOR=$DOCKER_PY"noahowp_pkl.py"
-        if [ "$DRYRUN" == "True" ]; then
-            echo "DRYRUN - NOAH PKL CALCULATION SKIPPED"
-            echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" $DOCKER_TAG \
-                python3 $NOAHOWPPKL_GENERATOR \
-                --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config""
-        else
-            log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
-                python3 $NOAHOWPPKL_GENERATOR \
-                --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config"
-        fi
-    fi
 
-    echo "Generating NGEN configs"
-    NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
-    if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
-        echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $NGEN_CONFGEN \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS
+PKL_NAME="noah-owp-modular-init.namelist.input.pkl"
+PKL_FILE=$(find "$NGENRUN_CONFIG" -type f -name $PKL_NAME)
+if [ ! -f "$PKL_FILE" ]; then
+    echo "Generating noah-owp pickle file"
+    NOAHOWPPKL_GENERATOR=$DOCKER_PY"noahowp_pkl.py"
+    if [ "$DRYRUN" == "True" ]; then
+        echo "DRYRUN - NOAH PKL CALCULATION SKIPPED"
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" $DOCKER_TAG \
+            python3 $NOAHOWPPKL_GENERATOR \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config""
     else
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $NGEN_CONFGEN \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
-        TAR_NAME="ngen-bmi-configs.tar.gz"
-        NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
-        tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
-    fi
-else
-    echo "Generating NGEN configs (troute only)"
-    NGEN_CONFGEN=$DOCKER_PY"troute_only_configs_gen.py"
-    if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
-        echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $NGEN_CONFGEN \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --realization "$DOCKER_MOUNT/config/realization.json""
-    else
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $NGEN_CONFGEN \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --realization "$DOCKER_MOUNT/config/realization.json"
-
-        TAR_NAME="ngen-bmi-configs.tar.gz"
-        NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
-        tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
+            python3 $NOAHOWPPKL_GENERATOR \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir $DOCKER_MOUNT"/config"
     fi
 fi
+
+echo "Generating NGEN configs"
+NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
+if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
+    echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
+    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $NGEN_CONFGEN \
+        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS
+else
+    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $NGEN_CONFGEN \
+        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
+    TAR_NAME="ngen-bmi-configs.tar.gz"
+    NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
+    tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
+fi
+
 log_time "NGENCONFGEN_END"
 
 if [ ! -z $NGEN_FORCINGS ]; then
@@ -640,25 +619,26 @@ if [ "$ROUTING_ONLY" == "False" ]; then
             log_time "LAG_FORCINGS_END"
         fi
     fi
-
-    log_time "VALIDATION_START"
-    VALIDATOR=$DOCKER_PY"run_validator.py"
-    DOCKER_TAG="awiciroh/datastream:$DS_TAG"
-    echo "Validating " $NGEN_RUN
-    if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
-        echo "DRYRUN - VALIDATION SKIPPED"
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $VALIDATOR \
-            --data_dir $DOCKER_MOUNT"
-    else
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $VALIDATOR \
-            --data_dir $DOCKER_MOUNT
-    fi
-    log_time "VALIDATION_END"
 fi
+
+log_time "VALIDATION_START"
+VALIDATOR=$DOCKER_PY"run_validator.py"
+DOCKER_TAG="awiciroh/datastream:$DS_TAG"
+echo "Validating " $NGEN_RUN
+if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
+    echo "DRYRUN - VALIDATION SKIPPED"
+    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $VALIDATOR \
+        --data_dir $DOCKER_MOUNT"
+else
+    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $VALIDATOR \
+        --data_dir $DOCKER_MOUNT
+fi
+log_time "VALIDATION_END"
+
 
 NIGAB_TAG="awiciroh/ciroh-ngen-image:$NGIAB_TAG"
 log_time "NGEN_START"
