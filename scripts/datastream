@@ -7,7 +7,7 @@ set -e
 #   Jordan Laser <jlaser@lynker.com>
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-PACAKGE_DIR=$(dirname $SCRIPT_DIR)
+PACKAGE_DIR=$(dirname $SCRIPT_DIR)
 START_TIME_UTC=$(date -u +'%Y%m%d%H%M%S')
 START_DATE_UTC=$(date -u +'%Y%m%d')
 run_date=$START_DATE_UTC
@@ -162,6 +162,11 @@ DS_TAG=${DS_TAG:-$(sed -n 's/^datastream: *"\([^"]*\)".*/\1/p' "$VERSIONS_FILE")
 FP_TAG=${FP_TAG:-$(sed -n 's/^forcingprocessor: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
 NGIAB_TAG=${NGIAB_TAG:-$(sed -n 's/^ciroh-ngen-image: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
 TEEHR_TAG=${TEEHR_TAG:-$(sed -n 's/^ngiab-teehr: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
+echo "Image Tags:"
+echo "  DS_TAG:     $DS_TAG"
+echo "  FP_TAG:     $FP_TAG"
+echo "  NGIAB_TAG:  $NGIAB_TAG"
+echo "  TEEHR_TAG:  $TEEHR_TAG"
 
 FORCING_SOURCE_OPTIONS=("NWM_RETRO_V2" "NWM_RETRO_V3" "NWM_OPERATIONAL_V3" "NOMADS_OPERATIONAL")
 if is_in_list "$FORCING_SOURCE" "${FORCING_SOURCE_OPTIONS[@]}"; then
