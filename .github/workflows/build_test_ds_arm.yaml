@@ -36,12 +36,12 @@ jobs:
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
 
-      - name: Build datastream-deps
-        run: |
-          cd docker
-          ARCH=aarch64 TAG=latest-arm64 \
-            docker compose -f docker-compose.yml build datastream-deps
-            
+      # - name: Build datastream-deps
+      #   run: |
+      #     cd docker
+      #     ARCH=aarch64 TAG=latest-arm64 \
+      #       docker compose -f docker-compose.yml build datastream-deps
+
       - name: Build datastream
         run: |
           cd docker
