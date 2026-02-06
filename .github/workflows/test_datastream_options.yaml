@@ -140,6 +140,9 @@ jobs:
           # Download geopackage
           echo "=== Downloading geopackage ==="
           curl -L -O https://ngen-datastream.s3.us-east-2.amazonaws.com/$GPKG_TEST
+
+          # Test with the local `latest` container that is built in previous step
+          export DS_TAG=latest
           
           # Test 1: Base test
           echo "=== Test 1: Base test ==="
@@ -186,9 +189,9 @@ jobs:
           verify_files vpu
 
           # Test 8: Test troute netcdf -> parquet conversion
-          echo "=== Test 7: With S3 resources ==="
+          echo "Test 8: Test troute netcdf -> parquet conversion"
           rm -rf "$WS/data/datastream_test"
-          ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e202601010000 -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test"
+          ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e 202601010000 -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test"
           verify_files vpu
           TROUTE=$NGENRUN/outputs/troute/troute_output_202601010000.parquet
           if [ ! -f "$TROUTE" ]; then
