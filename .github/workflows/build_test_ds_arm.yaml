@@ -1,4 +1,4 @@
-name: Build, Test Forcing Processor Docker Containers on ARM
+name: Build, Test Datastreamcli Docker Containers on ARM
 on:
   workflow_dispatch:
   push:
@@ -6,13 +6,13 @@ on:
       - main
       - dev
     paths:
-      - 'docker/**' 
+      - 'docker/**'
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
   pull_request:
     paths:
-      - 'docker/**' 
+      - 'docker/**'
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
@@ -21,15 +21,39 @@ permissions:
   security-events: write
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-22.04-arm-aws
+    outputs:
+      deps-changed: ${{ steps.changes.outputs.deps }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for deps Dockerfile changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "deps=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "docker/Dockerfile.datastream-deps"; then
+              echo "deps=true" >> $GITHUB_OUTPUT
+            else
+              echo "deps=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            if git diff --name-only HEAD~1 | grep -q "docker/Dockerfile.datastream-deps"; then
+              echo "deps=true" >> $GITHUB_OUTPUT
+            else
+              echo "deps=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
   build-arm64:
+    needs: detect-changes
     runs-on: ubuntu-22.04-arm-aws
     steps:
-      - name: Pre-cleanup workspace
-        continue-on-error: true
-        run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* || true
-          
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -39,25 +63,31 @@ jobs:
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
 
-      - name: Build datastream-deps
+      - name: Build datastream-deps (only if Dockerfile changed)
+        if: needs.detect-changes.outputs.deps-changed == 'true'
         run: |
           cd docker
           ARCH=aarch64 TAG=latest-arm64 \
             docker compose -f docker-compose.yml build datastream-deps
-            
+
+      - name: Pull datastream-deps from Docker Hub (if not built)
+        if: needs.detect-changes.outputs.deps-changed != 'true'
+        run: |
+          docker pull awiciroh/datastream-deps:latest-arm64
+
       - name: Build datastream
         run: |
           cd docker
-          ARCH=aarch64 TAG=latest-arm64 \
-            docker compose -f docker-compose.yml build datastream
-            
+          TAG="latest-arm64" \
+            docker compose -f docker-compose.yml build datastream --build-arg TAG_NAME="latest-arm64"
+
       - name: List built images
         run: docker images | grep datastream
-
 
       - name: Save Docker images
         run: |
           docker save awiciroh/datastream:latest-arm64 | gzip > /tmp/datastream-arm64.tar.gz
+
       - name: Upload datastream image
         uses: actions/upload-artifact@v4
         with:
@@ -71,7 +101,7 @@ jobs:
 
 
   test-arm64:
-    needs: build-arm64
+    needs: [detect-changes, build-arm64]
     runs-on: ubuntu-22.04-arm-aws
     timeout-minutes: 30
     strategy:
@@ -82,53 +112,47 @@ jobs:
           - name: "Validation - Missing Geopackage"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_geopackage"
-          
+
           - name: "Validation - Duplicate Geopackage"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_duplicate_geopackage"
-          
+
           - name: "Validation - Missing Realization"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_realization"
-          
+
           - name: "Validation - Duplicate Realization"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_duplicate_realization"
-          
+
           - name: "Validation - Missing BMI Config"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_bmi_config"
-          
+
           - name: "Validation - Missing Forcings"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_forcings"
-          
+
           - name: "Validation - Forcings Time Axis"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_forcings_time_axis"
-          
+
           - name: "Validation - Missing T-Route Config"
             image: "datastream"
             command: "pytest -vv tests/test_validation.py::test_missing_troute_config"
-          
+
           - name: "BMI Config Generation - All Tests"
             image: "datastream"
             command: "pytest -vv tests/test_bmi_config_generation.py"
-          
+
           - name: "Configuration - All Tests"
             image: "datastream"
             command: "pytest -vv tests/test_configuration.py"
 
 
     name: "${{ matrix.test-suite.name }}"
-    
-    steps:
-      - name: Pre-cleanup workspace
-        continue-on-error: true
-        run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* || true
 
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -137,20 +161,18 @@ jobs:
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
-          
-        
+
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
           name: datastream-arm64
           path: /tmp/artifacts
 
-
       - name: Verify artifact and load
         run: |
           set -euo pipefail
           ls -lh /tmp/artifacts
-          
+
           # Load gzipped image
           for i in 1 2 3; do
             if gunzip -c /tmp/artifacts/datastream-arm64.tar.gz | docker load; then
@@ -168,10 +190,10 @@ jobs:
             fi
           done
 
-
       - name: Run ${{ matrix.test-suite.name }}
         run: |
           docker run --rm \
+            --user $(id -u):$(id -g) \
             -v $(pwd):/datastream \
             -w /datastream \
             -e AWS_REGION=us-east-1 \
@@ -179,11 +201,10 @@ jobs:
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             awiciroh/${{ matrix.test-suite.image }}:latest-arm64 \
             ${{ matrix.test-suite.command }}
-            
 
-          
+
   cleanup-artifacts:
-    needs: test-arm64
+    needs: [detect-changes, test-arm64]
     runs-on: ubuntu-22.04-arm-aws
     if: always()
     steps:
@@ -191,6 +212,7 @@ jobs:
         continue-on-error: true
         run: |
           docker rmi awiciroh/datastream:latest-arm64 || true
+          docker rmi awiciroh/datastream-deps:latest-arm64 || true
           docker system prune -af --volumes
 
       - name: Delete artifacts
