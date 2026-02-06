@@ -57,7 +57,6 @@ jobs:
           
           HTTPS_BUCKET="https://ciroh-community-ngen-datastream.s3.amazonaws.com"
           S3_BUCKET="s3://ciroh-community-ngen-datastream"
-          YESTERDAY=$(date -d "yesterday" +%Y%m%d)
           
           # Derived paths
           BMI_CONFS_CACHE="$RESOURCES_CACHE/config/ngen-bmi-configs.tar.gz"
@@ -165,13 +164,13 @@ jobs:
           # Test 4: No resources (HTTPS)
           echo "=== Test 4: No resources (HTTPS) ==="
           rm -rf "$WS/data/datastream_test"
-          ./scripts/datastream -N "$BMI_CONFS_HTTPS" -g "$GPKG_VPU_HTTPS" -R "$REALIZATION_HTTPS" -F "$FORCINGS_VPU_HTTPS" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
+          ./scripts/datastream -N "$BMI_CONFS_HTTPS" -g "$GPKG_VPU_HTTPS" -R "$REALIZATION_HTTPS" -F "$FORCINGS_VPU_HTTPS" -s DAILY -e 202601010000 -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
           verify_files vpu
           
           # Test 5: No resources (S3)
           echo "=== Test 5: No resources (S3) ==="
           rm -rf "$WS/data/datastream_test"
-          ./scripts/datastream -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
+          ./scripts/datastream -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e 202601010000 -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
           verify_files vpu
           
           # Test 6: With cached resources
@@ -183,15 +182,15 @@ jobs:
           # Test 7: With S3 resources
           echo "=== Test 7: With S3 resources ==="
           rm -rf "$WS/data/datastream_test"
-          ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
+          ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e 202601010000 -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test" -y True
           verify_files vpu
 
           # Test 8: Test troute netcdf -> parquet conversion
           echo "=== Test 7: With S3 resources ==="
           rm -rf "$WS/data/datastream_test"
-          ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e "${YESTERDAY}0000" -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test"
+          ./scripts/datastream -r "$RESOURCES_S3" -N "$BMI_CONFS_S3" -g "$GPKG_VPU_S3" -R "$REALIZATION_S3" -F "$FORCINGS_VPU_S3" -s DAILY -e202601010000 -C NWM_V3_SHORT_RANGE_00 -d "$WS/data/datastream_test"
           verify_files vpu
-          TROUTE=$NGENRUN/outputs/troute/troute_output_${YESTERDAY}0100.parquet
+          TROUTE=$NGENRUN/outputs/troute/troute_output_202601010000.parquet
           if [ ! -f "$TROUTE" ]; then
             echo "Missing resource file: $TROUTE"
             exit 1
