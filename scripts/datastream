@@ -692,15 +692,9 @@ log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
 if [ -n "$S3_BUCKET" ]; then
-    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.parquet" | wc -l)
-    if [ ${NTROUTE} -gt 0 ]; then
-        TROUTE_TMP=$DATA_DIR/troute_tmp
-        mkdir $TROUTE_TMP
-        mv $NGENRUN_OUTPUT_TROUTE/*.parquet $TROUTE_TMP
-    fi
+  log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
+  log_time "TAR_END"
 fi
-log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
-log_time "TAR_END"
 
 if [ "$EVAL" == "True" ]; then
     log_time "EVAL_START"
