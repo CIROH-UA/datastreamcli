@@ -45,6 +45,9 @@ jobs:
           WS="${{ github.workspace }}"
           GPKG="palisade.gpkg"
           REALIZATION="$WS/configs/ngen/realization_sloth_nom_cfe_pet.json"
+
+          # Test with the local `latest` container that is built in previous step
+          export DS_TAG=latest
           
           # Download geopackage
           echo "=== Downloading geopackage ==="
