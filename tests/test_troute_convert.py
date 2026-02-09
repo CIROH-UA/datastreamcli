@@ -28,7 +28,7 @@ def download_troute_files(tmp_path_factory):
                     nc_files.append(filename)
     
     except Exception as e:
-        nc_files = ["flowveldepth.nc", "flowpathEdge.nc", "chrtout.nc"]
+        raise Exception(f"Datastream bucket is empty at given prefix")
     
     downloaded_files = []
     

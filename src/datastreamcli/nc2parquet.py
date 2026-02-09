@@ -6,11 +6,7 @@ nc2parquet: Convert NetCDF files to Parquet format with optimal compression.
 import argparse
 import sys
 from pathlib import Path
-
 import xarray as xr
-import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 
 def nc2parquet(nc_file: str, out_dir: str) -> None:
     """
