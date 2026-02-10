@@ -297,29 +297,29 @@ def test_conf_daily_assim_split_vpu_s3out():
     inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM"
     inputs.forcing_split_vpu = "01,02,03W,16"
     inputs.s3_bucket = "ciroh-community-ngen-datastream"
-    inputs.s3_prefix = "pytest"
+    inputs.s3_prefix = "test/cicd/datastream/pytest"
     create_confs(inputs)
     check_paths()
 
     with open(REALIZATION_RUN,'r') as fp:
-        data = json.load(fp) 
+        data = json.load(fp)
     start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")        
+    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
     assert start.hour == 22
     assert start.day == (datetime.now(timezone.utc)).day or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
     assert end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day or end.day == (datetime.now(timezone.utc)).day
     assert end.hour == 1
 
     with open(CONF_NWM,'r') as fp:
-        data = json.load(fp)   
-    assert data['urlbaseinput'] == 7 
-    assert data['runinput']     == 5 
+        data = json.load(fp)
+    assert data['urlbaseinput'] == 7
+    assert data['runinput']     == 5
     assert len(data['lead_time'] ) == 3
 
     with open(CONF_FP,'r') as fp:
-        data = json.load(fp)   
+        data = json.load(fp)
     assert len(data['forcing']['gpkg_file']) == 4
-    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/pytest")    
+    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest")
 
      
 def test_conf_daily_assim_extend_split_vpu_s3out():
@@ -328,12 +328,12 @@ def test_conf_daily_assim_extend_split_vpu_s3out():
     inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM_EXTEND_16"
     inputs.forcing_split_vpu = "01,02,03W,16"
     inputs.s3_bucket = "ciroh-community-ngen-datastream"
-    inputs.s3_prefix = "pytest"
+    inputs.s3_prefix = "test/cicd/datastream/pytest"
     create_confs(inputs)
     check_paths()
 
     with open(REALIZATION_RUN,'r') as fp:
-        data = json.load(fp) 
+        data = json.load(fp)
     start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
     end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
     assert start.hour == 13
@@ -342,16 +342,16 @@ def test_conf_daily_assim_extend_split_vpu_s3out():
     assert end.hour == 16
 
     with open(CONF_NWM,'r') as fp:
-        data = json.load(fp)   
-    assert data['urlbaseinput']    == 7 
+        data = json.load(fp)
+    assert data['urlbaseinput']    == 7
     assert data['runinput']        == 6
     assert data['fcst_cycle'][0]   == 16
     assert len(data['lead_time'] ) == 28
 
     with open(CONF_FP,'r') as fp:
-        data = json.load(fp)   
+        data = json.load(fp)
     assert len(data['forcing']['gpkg_file']) == 4
-    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/pytest")
+    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest")
 
 def test_conf_forcings_provided():
     inputs.start_date = "202410300100"
