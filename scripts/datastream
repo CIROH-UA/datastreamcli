@@ -597,13 +597,13 @@ else
 
         FORCING_FILES=$(find "$NGENRUN_FORCINGS" -type f -name "*forcing*")
         if [ ! -z "$FORCING_FILES" ]; then
-            FORCINGS_BASE=$(basename $(FORCING_FILES))
+            FORCINGS_BASE=$(basename "$FORCING_FILES")
             cp $NGENRUN_FORCINGS/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
         else
             # this is the case for the routing-only datastream
             FORCING_FILES=$(find "$NGENRUN_OUTPUT_NGEN" -type f -name "*forcing*")
             if [ ! -z "$FORCING_FILES" ]; then
-                FORCINGS_BASE=$(basename $(FORCING_FILES))
+                FORCINGS_BASE=$(basename "$FORCING_FILES")
                 cp $NGENRUN_OUTPUT_NGEN/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
             fi
         fi
