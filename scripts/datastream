@@ -591,41 +591,43 @@ else
             mkdir -p $DATASTREAM_RESOURCES_NGENFORCINGS
         fi
 
-        if [ "$ROUTING_ONLY" == "False" ]; then
-            FORCINGS_BASE=$(basename $(find "$NGENRUN_FORCINGS" -type f -name "*forcing*"))
+        FORCING_FILES=$(find "$NGENRUN_FORCINGS" -type f -name "*forcing*")
+        if [ ! -z "$FORCING_FILES" ]; then
+            FORCINGS_BASE=$(basename $(FORCING_FILES))
             cp $NGENRUN_FORCINGS/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
         else
-            cp -r "$NGENRUN_FORCINGS" "$DATASTREAM_RESOURCES_NGENFORCINGS"
-            rm -r "$NGENRUN_OUTPUT_NGEN"
-            mv "$NGENRUN_FORCINGS" "$NGENRUN_OUTPUT_NGEN" # because these are ngen outputs
+            # this is the case for the routing-only datastream
+            FORCING_FILES=$(find "$NGENRUN_OUTPUT_NGEN" -type f -name "*forcing*")
+            if [ ! -z "$FORCING_FILES" ]; then
+                FORCINGS_BASE=$(basename $(FORCING_FILES))
+                cp $NGENRUN_OUTPUT_NGEN/$FORCINGS_BASE $DATASTREAM_RESOURCES_NGENFORCINGS
+            fi
         fi
 
         mv "$NGENRUN_METADATA/forcings_metadata" $DATASTREAM_META
     fi
 fi
 
-if [ "$ROUTING_ONLY" == "False" ]; then
-    if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
-        ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oP '(?<=_)[0-9]$')
-        if [[ "$ENS_MEM" -gt 1 ]]; then
-            echo "Applying lag to forcings for medium range ensemble members > 1"
-            log_time "LAG_FORCINGS_START"
-            DOCKER_TAG="awiciroh/forcingprocessor:$FP_TAG"
-            if [ "$DRYRUN" == "True" ]; then
-                echo "DRYRUN - LAG FORCINGS SKIPPED"
-                echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
-                    -u $(id -u):$(id -g) \
-                    -w "$DOCKER_RESOURCES" $DOCKER_TAG \
-                    python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM"
-            else
-                log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
-                    -u $(id -u):$(id -g) \
-                    -w "$DOCKER_RESOURCES" $DOCKER_TAG \
-                    python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM
-                rm $NGENRUN_FORCINGS/$FORCINGS_BASE # remove original forcing file
-            fi
-            log_time "LAG_FORCINGS_END"
+if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* && "$FORCING_SOURCE" != *"CHRTOUT"*]]; then
+    ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oP '(?<=_)[0-9]$')
+    if [[ "$ENS_MEM" -gt 1 ]]; then
+        echo "Applying lag to forcings for medium range ensemble members > 1"
+        log_time "LAG_FORCINGS_START"
+        DOCKER_TAG="awiciroh/forcingprocessor:$FP_TAG"
+        if [ "$DRYRUN" == "True" ]; then
+            echo "DRYRUN - LAG FORCINGS SKIPPED"
+            echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
+                -u $(id -u):$(id -g) \
+                -w "$DOCKER_RESOURCES" $DOCKER_TAG \
+                python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM"
+        else
+            log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" \
+                -u $(id -u):$(id -g) \
+                -w "$DOCKER_RESOURCES" $DOCKER_TAG \
+                python3 "$DOCKER_FP"medium_range_time_ax_mod.py --input_file_ens0 $DOCKER_MOUNT/datastream-resources/ngen-forcings/$FORCINGS_BASE --output_dir $DOCKER_MOUNT/ngen-run/forcings --ensemble_member $ENS_MEM
+            rm $NGENRUN_FORCINGS/$FORCINGS_BASE # remove original forcing file
         fi
+        log_time "LAG_FORCINGS_END"
     fi
 fi
 
@@ -672,7 +674,8 @@ else
     fi
     NGIAB_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $NIGAB_TAG --format "{{.ID}}") | tr -d '"')
 
-    if [ "$ROUTING_ONLY" == "False" ]; then
+    PARTITION_FILES=$(find "$NGENRUN" -type f -name "*partitions*")
+    if [ ! -z "$PARTITION_FILES" ]; then
         cp -r $NGEN_RUN/*partitions* $DATASTREAM_RESOURCES_NGENCONF/
     fi
 fi
