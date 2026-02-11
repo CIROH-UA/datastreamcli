@@ -116,8 +116,6 @@ usage() {
     echo "  -y, --DRYRUN              <True to skip calculations> "
     echo "  -E, --EVAL                <True to run TEEHR evaluation service> "
     echo "  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> "
-    echo "  -t, --ROUTING_ONLY        <True to only run routing-only datastream> "
-    exit 1
 }
 
 # init variables
@@ -141,7 +139,6 @@ S3_PREFIX=""
 NPROCS=4
 DRYRUN="False"
 DO_TEEHR="False"
-ROUTING_ONLY="False"
 VERBOSE="False"
 PIPE=""
 if [[ $VERBOSE == "True" ]]; then
@@ -207,7 +204,6 @@ while [ "$#" -gt 0 ]; do
         -n|--NPROCS) NPROCS="$2"; shift 2;;
         -y|--DRYRUN) DRYRUN="$2"; shift 2;;
         -E|--EVAL) EVAL="$2"; shift 2;;
-        -t|--ROUTING_ONLY) ROUTING_ONLY="$2"; shift 2;;
         -V|--VERBOSE) VERBOSE="$2"; shift 2;;
         -L|--LSTM_ENS_MEMBERS) LSTM_ENS_MEMBERS="$2"; shift 2;;
         *) usage;;
@@ -659,23 +655,9 @@ log_time "NGEN_START"
 echo "Running NextGen in AUTO MODE from CIROH-UA/NGIAB-CloudInfra"
 if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - NEXTGEN EXECUTION SKIPPED"
-    if [ "$ROUTING_ONLY" == "False" ]; then
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS" local $PIPE
-    else
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        -w /ngen/ngen/data --entrypoint /bin/bash $NIGAB_TAG \
-        -c "python3 -m nwm_routing -f -V4 ./config/troute.yaml""
-    fi
+    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS" local $PIPE
 else
-    if [ "$ROUTING_ONLY" == "False" ]; then
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS local $PIPE
-    else
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":/ngen/ngen/data \
-            -u $(id -u):$(id -g) \
-            -w /ngen/ngen/data --entrypoint /bin/bash $NIGAB_TAG \
-            -c "python -m nwm_routing -f -V4 ./config/troute.yaml"
-    fi
+    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $NIGAB_TAG "$DOCKER_MOUNT" auto $NPROCS local $PIPE
     NGIAB_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $NIGAB_TAG --format "{{.ID}}") | tr -d '"')
 
     PARTITION_FILES=$(find "$NGEN_RUN" -type f -name "*partitions*")
