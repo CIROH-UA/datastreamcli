@@ -108,7 +108,7 @@ def gen_noah_owp_confs_from_pkl(pkl_file : str,
 def generate_troute_conf(out_dir : str,
                          start : datetime,
                          max_loop_size : int,
-                         geo_file_path : str
+                         geo_file_path : str,
                          routing_only : bool) -> None:
     """
     Generate troute config file from template by matching the
