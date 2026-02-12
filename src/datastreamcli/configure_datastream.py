@@ -293,6 +293,7 @@ def create_conf_fp(args,start_real):
         "forcing" : {
             "nwm_file"     : f"{args.docker_mount}/datastream-metadata/{filename}",
             "gpkg_file"    : gpkg_file,
+            "map_file"     : map_file
         },
         "storage" : {
             "output_path"      : output_path,
