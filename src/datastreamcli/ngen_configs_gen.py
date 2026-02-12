@@ -33,8 +33,8 @@ LSTM_TEMPLATE = data = {
     "basin_name": "cat-1",
     "elev_mean": 0,
     "initial_state": "zero",
-    "lat": None,  
-    "lon": None,  
+    "lat": None,
+    "lon": None,
     "slope_mean": 0,
     "train_cfg_file": [
         "/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_7/config.yml",
@@ -60,14 +60,14 @@ def get_hf(hf_file : str) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, pd.DataFr
             v2.2 -> divide-attributes
     """
 
-    hf: gpd.GeoDataFrame = gpd.read_file(hf_file, layer="divides") 
+    hf: gpd.GeoDataFrame = gpd.read_file(hf_file, layer="divides")
     layers = gpd.list_layers(hf_file)
     if "model-attributes" in list(layers.name):
         attrs: pd.DataFrame = gpd.read_file(hf_file,layer="model-attributes")
     elif "divide-attributes" in list(layers.name):
         attrs: pd.DataFrame = gpd.read_file(hf_file,layer="divide-attributes")
     else:
-        raise Exception(f"Can't find attributes!")        
+        raise Exception(f"Can't find attributes!")
 
     return hf, layers, attrs
 
@@ -108,17 +108,18 @@ def gen_noah_owp_confs_from_pkl(pkl_file : str,
 def generate_troute_conf(out_dir : str,
                          start : datetime,
                          max_loop_size : int,
-                         geo_file_path : str
-                         ) -> None:
+                         geo_file_path : str,
+                         routing_only : bool=False) -> None:
     """
-    Generate troute config file from template by matching the 
+    Generate troute config file from template by matching the
     start_datetime, max_loop_size, nts, and geopackage path
-    to that specified in the NextGen realization. 
-    
+    to that specified in the NextGen realization.
+
     out_dir (str) :  path to write file to
     start (datetime) : start datetime of routing simulation
     nts (int) :  max_loop_size * qts_subdivisions
     geo_file_path (str) : path to geopackage
+    routing_only (bool) : routing only run or not
     """
 
     template = Path(__file__).parent.parent.parent/"configs/ngen/troute.yaml"
@@ -131,16 +132,16 @@ def generate_troute_conf(out_dir : str,
             qts_subdivisions = int(jline.strip().split(': ')[-1])
 
     nts = max_loop_size * qts_subdivisions
-      
+
     troute_conf_str = conf_template
     for j,jline in enumerate(conf_template):
         if "start_datetime" in jline:
             pattern = r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
-            troute_conf_str[j] = re.sub(pattern, start.strftime('%Y-%m-%d %H:%M:%S'), jline)   
+            troute_conf_str[j] = re.sub(pattern, start.strftime('%Y-%m-%d %H:%M:%S'), jline)
 
         pattern = r'^\s*max_loop_size\s*:\s*\d+\.\d+'
         if re.search(pattern,jline):
-            troute_conf_str[j] = re.sub(pattern,  f"    max_loop_size: {max_loop_size}      ", jline)                    
+            troute_conf_str[j] = re.sub(pattern,  f"    max_loop_size: {max_loop_size}      ", jline)
 
         pattern = r'^\s*nts\s*:\s*\d+\.\d+'
         if re.search(pattern,jline):
@@ -148,15 +149,20 @@ def generate_troute_conf(out_dir : str,
 
         pattern = r'(geo_file_path:).*'
         if re.search(pattern,jline):
-            troute_conf_str[j] = re.sub(pattern,  f'\\1 {geo_file_path}', jline)            
+            troute_conf_str[j] = re.sub(pattern,  f'\\1 {geo_file_path}', jline)
+
+        if routing_only:
+            pattern = r'^(.*binary_nexus_file_folder.*)$' # this is commented out for speed
+            if re.search(pattern, jline):
+                troute_conf_str[j] = re.sub(pattern, r'# \1', jline)
 
     with open(Path(out_dir,"troute.yaml"),'w') as fp:
-        fp.writelines(troute_conf_str)  
+        fp.writelines(troute_conf_str)
 
 def gen_lstm(
         hf : gpd.GeoDataFrame,
         attrs : gpd.GeoDataFrame,
-        out : str, 
+        out : str,
         real : NgenRealization,
         lstm_ensembles : List[int]
         ):
@@ -165,7 +171,7 @@ def gen_lstm(
 
     hf (gpd.GeoDataFrame) : divides layer of hydrofabric,
     attrs (gpd.GeoDataFrame) : attributes of the divides,
-    out (str): path to write configs out to, 
+    out (str): path to write configs out to,
     real (NgenRealization): NextGen realization,
     lstm_ensembles (list): list of indices to pick lstm training files (ensembles)
 
@@ -187,19 +193,19 @@ def gen_lstm(
     from pyproj import Transformer
     import yaml
     count = 0
-    source_crs = 'EPSG:5070' 
+    source_crs = 'EPSG:5070'
     target_crs = 'EPSG:4326'
-    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)    
-    for x, y in zip(hf.sort_values(by="divide_id").iterrows(),attrs.sort_values(by="divide_id").iterrows()) :   
+    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    for x, y in zip(hf.sort_values(by="divide_id").iterrows(),attrs.sort_values(by="divide_id").iterrows()) :
         count += 1
-        j, hf_row = x    
+        j, hf_row = x
         k, attrs_row =y
         lstm_config_jcat = copy.copy(lstm_config)
         jcat = attrs_row['divide_id']
         x_coord = attrs_row['centroid_x']
-        y_coord = attrs_row['centroid_y']      
-        lon, lat = transformer.transform(x_coord,y_coord)    
-        # variable transformations taken from 
+        y_coord = attrs_row['centroid_y']
+        lon, lat = transformer.transform(x_coord,y_coord)
+        # variable transformations taken from
         # https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/36b8f0a8dd77462aae3d33c9e93385103637cf98/modules/data_processing/create_realization.py#L149C5-L172C14
         # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
         # flip 0 and 90 degree values
@@ -209,12 +215,12 @@ def gen_lstm(
             np.tan(np.radians(attrs_row["flipped_mean_slope"])) * 1000
         )
         lstm_config_jcat['area_sqkm'] = hf_row['areasqkm']
-        lstm_config_jcat['basin_id'] = jcat  
-        lstm_config_jcat['basin_name'] = jcat    
+        lstm_config_jcat['basin_id'] = jcat
+        lstm_config_jcat['basin_name'] = jcat
         lstm_config_jcat['elev_mean'] = attrs_row['mean.elevation'] / 100,  # convert cm in hf to m
         lstm_config_jcat['lat'] = lat
         lstm_config_jcat['lon'] = lon
-        lstm_config_jcat['slope_mean'] = attrs_row['mean_slope_mpkm']   
+        lstm_config_jcat['slope_mean'] = attrs_row['mean_slope_mpkm']
         filename = Path(lstm_config_dir, jcat + ".yml")
         yaml = ruamel.yaml.YAML()
         yaml.indent(mapping=2, sequence=4, offset=2)
@@ -244,7 +250,7 @@ def gen_petAORcfe(hf_file : str,
     if 'PET' in include:
         models.append(Pet)
     if 'CFE' in include:
-        models.append(Cfe)        
+        models.append(Cfe)
     for j, jmodel in enumerate(include):
         hf: gpd.GeoDataFrame = gpd.read_file(hf_file, layer="divides")
         layers = gpd.list_layers(hf_file)
@@ -289,7 +295,7 @@ def get_table_crs_short(gpkg : str, table: str) -> str:
         crs = result[0]
     return crs
 
-def fix_v2_2_units(df:pd.DataFrame, 
+def fix_v2_2_units(df:pd.DataFrame,
                    gpkg :str
                    ) -> gpd.GeoDataFrame:
     """
@@ -301,14 +307,14 @@ def fix_v2_2_units(df:pd.DataFrame,
     """
     df["mean.Zmax"] = df["mean.Zmax"]/ 1000 # this changed to mm in hf v2.2
     df["mean.elevation"] = df["mean.elevation"] / 100 # incorrectly labelled as meters in data_model.html but it's in cm
-    # min elevation is -8447 aka -85m in death valley, max is 395320 so likely cm 
+    # min elevation is -8447 aka -85m in death valley, max is 395320 so likely cm
     source_crs = get_table_crs_short(gpkg, "divides")
     # centroids are in 5070 in hf2.2
     transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(df["centroid_x"].values, df["centroid_y"].values)
     df["centroid_x"] = lon
     df["centroid_y"] = lat
-    
+
     # no idea how to modify ngen-cal to do this, but lstm needs meters per km
     # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
     # flip 0 and 90 degree values
@@ -351,48 +357,48 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--hf_file",
-        dest="hf_file", 
+        dest="hf_file",
         type=str,
-        help="Path to the .gpkg", 
+        help="Path to the .gpkg",
         required=False
     )
     parser.add_argument(
         "--outdir",
-        dest="outdir", 
+        dest="outdir",
         type=str,
-        help="Path to write ngen configs", 
+        help="Path to write ngen configs",
         required=False
-    )    
+    )
     parser.add_argument(
         "--pkl_file",
-        dest="pkl_file", 
+        dest="pkl_file",
         type=str,
-        help="Path to the noahowp pkl", 
+        help="Path to the noahowp pkl",
         required=False
-    )      
+    )
     parser.add_argument(
         "--realization",
-        dest="realization", 
+        dest="realization",
         type=str,
-        help="Path to the ngen realization", 
+        help="Path to the ngen realization",
         required=False
-    )     
+    )
 
     parser.add_argument(
         "--lstm_ensembles",
-        dest="lstm_ensembles", 
+        dest="lstm_ensembles",
         type=list,
-        help="List of integers corresponding to lstm ensemble members", 
+        help="List of integers corresponding to lstm ensemble members",
         required=False,
         default="012345"
-    )    
+    )
 
     args = parser.parse_args()
 
     global start,end
     serialized_realization = NgenRealization.parse_file(args.realization)
     start = serialized_realization.time.start_time
-    end   = serialized_realization.time.end_time    
+    end   = serialized_realization.time.end_time
     max_loop_size = (end - start + datetime.timedelta(hours=1)).total_seconds() / (serialized_realization.time.output_interval)
     models = []
     ii_cfe_or_pet = False
@@ -414,7 +420,7 @@ if __name__ == "__main__":
         config_path = Path(args.outdir,"cat_config",dir_dict[jmodel])
         if config_path.exists(): ignore.append(jmodel)
     routing_path = Path(args.outdir,"troute.yaml")
-    if routing_path.exists(): ignore.append("routing")       
+    if routing_path.exists(): ignore.append("routing")
 
     hf, layers, attrs = get_hf(args.hf_file)
 
@@ -430,16 +436,16 @@ if __name__ == "__main__":
                 os.system(f'mkdir -p {noah_dir}')
                 gen_noah_owp_confs_from_pkl(args.pkl_file, noah_dir, start, end)
             else:
-                raise Exception(f"Generating NoahOWP configs manually not implemented, create pkl.")            
+                raise Exception(f"Generating NoahOWP configs manually not implemented, create pkl.")
 
-    if "CFE" in model_names: 
+    if "CFE" in model_names:
         if "CFE" in ignore:
             print(f'ignoring CFE')
         else:
             print(f'Generating CFE configs from pydantic models',flush = True)
             gen_petAORcfe(args.hf_file,args.outdir,["CFE"])
 
-    if "PET" in model_names: 
+    if "PET" in model_names:
         if "PET" in ignore:
             print(f'ignoring PET')
         else:
@@ -452,7 +458,7 @@ if __name__ == "__main__":
         else:
             lstm_ensembles = [0]
             print(f'Generating LSTM configs from pydantic models',flush = True)
-            gen_lstm(hf,attrs,args.outdir,serialized_realization,args.lstm_ensembles)        
+            gen_lstm(hf,attrs,args.outdir,serialized_realization,args.lstm_ensembles)
 
     globals = [x[0] for x in serialized_realization]
     if serialized_realization.routing is not None:
@@ -460,6 +466,10 @@ if __name__ == "__main__":
             print(f'ignoring routing')
         else:
             print(f'Generating t-route config from template',flush = True)
-            generate_troute_conf(args.outdir,start,max_loop_size,geo_file_path) 
+            routing_only = False
+
+            if not any(model in model_names for model in ["NoahOWP", "CFE", "PET", "bmi_rust"]):
+                routing_only = True
+            generate_troute_conf(args.outdir,start,max_loop_size,geo_file_path,routing_only)
 
     print(f'Done!',flush = True)
