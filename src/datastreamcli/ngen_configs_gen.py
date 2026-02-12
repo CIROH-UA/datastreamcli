@@ -108,9 +108,8 @@ def gen_noah_owp_confs_from_pkl(pkl_file : str,
 def generate_troute_conf(out_dir : str,
                          start : datetime,
                          max_loop_size : int,
-                         geo_file_path : str,
-                         forcing_source : str
-                         ) -> None:
+                         geo_file_path : str
+                         routing_only : bool) -> None:
     """
     Generate troute config file from template by matching the
     start_datetime, max_loop_size, nts, and geopackage path
@@ -120,7 +119,7 @@ def generate_troute_conf(out_dir : str,
     start (datetime) : start datetime of routing simulation
     nts (int) :  max_loop_size * qts_subdivisions
     geo_file_path (str) : path to geopackage
-    forcing_source (str) : used to determine if it's a routing only run or not
+    routing_only (bool) : routing only run or not
     """
 
     template = Path(__file__).parent.parent.parent/"configs/ngen/troute.yaml"
@@ -152,7 +151,7 @@ def generate_troute_conf(out_dir : str,
         if re.search(pattern,jline):
             troute_conf_str[j] = re.sub(pattern,  f'\\1 {geo_file_path}', jline)
 
-        if "CHRT" in forcing_source:
+        if routing_only:
             pattern = r'^(.*binary_nexus_file_folder.*)$' # this is commented out for speed
             if re.search(pattern, jline):
                 troute_conf_str[j] = re.sub(pattern, r'# \1', jline)
@@ -467,6 +466,10 @@ if __name__ == "__main__":
             print(f'ignoring routing')
         else:
             print(f'Generating t-route config from template',flush = True)
-            generate_troute_conf(args.outdir,start,max_loop_size,geo_file_path, args.forcing_source)
+            routing_only = False
+
+            if not any(model in model_names for model in ["NoahOWP", "CFE", "PET", "bmi_rust"]):
+                routing_only = True
+            generate_troute_conf(args.outdir,start,max_loop_size,geo_file_path,routing_only)
 
     print(f'Done!',flush = True)
