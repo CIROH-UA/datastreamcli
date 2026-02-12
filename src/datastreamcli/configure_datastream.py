@@ -380,10 +380,8 @@ def create_confs(args):
 
     # routing-only changes, points forcing path to a dummy file to appease sloth
     if "CHRT" in args.forcing_source:
-        if "file_pattern" in data['global']['forcing']:
-            del data['global']['forcing']['file_pattern']
-        if "provider" in data['global']['forcing']:
-            del data['global']['forcing']['provider']
+        del forcing_dict['file_pattern']
+        del forcing_dict['provider']
         forcing_dict['path'] = "./config/troute.yaml"
 
     data['global']['forcing'] = forcing_dict
