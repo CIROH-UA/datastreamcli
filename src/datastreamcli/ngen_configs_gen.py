@@ -109,7 +109,7 @@ def generate_troute_conf(out_dir : str,
                          start : datetime,
                          max_loop_size : int,
                          geo_file_path : str,
-                         routing_only : bool) -> None:
+                         routing_only : bool=False) -> None:
     """
     Generate troute config file from template by matching the
     start_datetime, max_loop_size, nts, and geopackage path
