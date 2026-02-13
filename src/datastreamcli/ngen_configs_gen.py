@@ -407,7 +407,7 @@ if __name__ == "__main__":
                 "PET":"PET",
                 "NoahOWP":"NOAH-OWP-M",
                 "SLOTH":"",
-                "bmi_rust":"lstm"}
+                "bmi_rust":"LSTM"}
 
     ignore = []
     for jmodel in model_names:
