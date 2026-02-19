@@ -37,13 +37,13 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "deps=true" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "docker/Dockerfile.datastream-deps"; then
+            if git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | grep -q "docker/Dockerfile.datastream-deps"; then
               echo "deps=true" >> $GITHUB_OUTPUT
             else
               echo "deps=false" >> $GITHUB_OUTPUT
             fi
           else
-            if git diff --name-only HEAD~1 | grep -q "docker/Dockerfile.datastream-deps"; then
+            if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "docker/Dockerfile.datastream-deps"; then
               echo "deps=true" >> $GITHUB_OUTPUT
             else
               echo "deps=false" >> $GITHUB_OUTPUT
@@ -82,7 +82,7 @@ jobs:
         run: |
           cd docker
           TAG="latest-arm64" \
-            docker compose -f docker-compose.yml build datastream --build-arg TAG_NAME="latest-arm64"
+            docker compose -f docker-compose.yml build datastream
 
       - name: List built images
         run: docker images | grep datastream
