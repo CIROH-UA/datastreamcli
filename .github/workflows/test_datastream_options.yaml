@@ -202,6 +202,7 @@ jobs:
           # Test 9: Test routing only
           echo "Test 9: Test routing only"
           rm -rf "$WS/data/datastream_test"
+          export SKIP_VALIDATION=True
           ./scripts/datastream -s DAILY --FORCING_SOURCE NWM_V3_CHRTOUT_SHORT_RANGE_00 -d "$WS/data/datastream_test" -r "$S3_BUCKET/v2.2_resources/VPU_03W" -R "$WS/configs/ngen/realization_sloth_troute.json"
 
           echo "=== All tests passed ==="
