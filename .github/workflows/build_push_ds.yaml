@@ -370,7 +370,7 @@ jobs:
       - name: Download build logs from S3
         if: always()
         run: |
-          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
           if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
             cat $GITHUB_WORKSPACE/docker_build_log.txt >> $GITHUB_STEP_SUMMARY
           fi
@@ -378,7 +378,7 @@ jobs:
       - name: Download login logs from S3
         if: always()
         run: |
-          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/docker_login_log.txt $GITHUB_WORKSPACE/docker_login_log.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_login_log.txt $GITHUB_WORKSPACE/docker_login_log.txt || true
           if [ -f $GITHUB_WORKSPACE/docker_login_log.txt ]; then
             cat $GITHUB_WORKSPACE/docker_login_log.txt >> $GITHUB_STEP_SUMMARY
           fi

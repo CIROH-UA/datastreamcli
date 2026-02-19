@@ -55,4 +55,5 @@ jobs:
     - name: Base test and NWM_RETRO_V3
       run: |        
         sudo rm -rf $(pwd)/data/datastream_test        
-        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/v2.2_resources/VPU_09/config/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json
+        export DS_TAG=latest
+        ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d $(pwd)/data/datastream_test -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/nextgen_VPU_09.gpkg -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet.json

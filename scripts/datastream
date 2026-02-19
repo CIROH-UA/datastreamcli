@@ -7,7 +7,7 @@ set -e
 #   Jordan Laser <jlaser@lynker.com>
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-PACAKGE_DIR=$(dirname $SCRIPT_DIR)
+PACKAGE_DIR=$(dirname $SCRIPT_DIR)
 START_TIME_UTC=$(date -u +'%Y%m%d%H%M%S')
 START_DATE_UTC=$(date -u +'%Y%m%d')
 run_date=$START_DATE_UTC
@@ -156,9 +156,17 @@ NGIAB_HASH="N/A"
 MERK_HASH="N/A"
 STREAM_HASH="sha256:"$(sha256sum $SCRIPT_DIR"/datastream" | awk '{ print $1 }')
 
-DS_TAG=${DS_TAG:-"latest"}
-FP_TAG=${FP_TAG:-"latest"}
-NGIAB_TAG=${NGIAB_TAG:-"latest"}
+VERSIONS_FILE=$PACKAGE_DIR/versions.yml
+VERSIONS_INTEGRATIONS_FILE=$PACKAGE_DIR/versions_integrations.yml
+DS_TAG=${DS_TAG:-$(sed -n 's/^datastream: *"\([^"]*\)".*/\1/p' "$VERSIONS_FILE")}
+FP_TAG=${FP_TAG:-$(sed -n 's/^forcingprocessor: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
+NGIAB_TAG=${NGIAB_TAG:-$(sed -n 's/^ciroh-ngen-image: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
+TEEHR_TAG=${TEEHR_TAG:-$(sed -n 's/^ngiab-teehr: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
+echo "Image Tags:"
+echo "  DS_TAG:     $DS_TAG"
+echo "  FP_TAG:     $FP_TAG"
+echo "  NGIAB_TAG:  $NGIAB_TAG"
+echo "  TEEHR_TAG:  $TEEHR_TAG"
 
 FORCING_SOURCE_OPTIONS=("NWM_RETRO_V2" "NWM_RETRO_V3" "NWM_OPERATIONAL_V3" "NOMADS_OPERATIONAL")
 if is_in_list "$FORCING_SOURCE" "${FORCING_SOURCE_OPTIONS[@]}"; then
@@ -197,7 +205,7 @@ while [ "$#" -gt 0 ]; do
         -n|--NPROCS) NPROCS="$2"; shift 2;;
         -y|--DRYRUN) DRYRUN="$2"; shift 2;;
         -E|--EVAL) EVAL="$2"; shift 2;;
-        -V|--VERBOSE) EVAL="$2"; shift 2;;
+        -V|--VERBOSE) VERBOSE="$2"; shift 2;;
         -L|--LSTM_ENS_MEMBERS) LSTM_ENS_MEMBERS="$2"; shift 2;;
         *) usage;;
     esac
@@ -277,11 +285,15 @@ if [[ "$START_DATE" == *"DAILY"* ]]; then
         elif [[ "$FORCING_SOURCE" == *"ANALYSIS_ASSIM_EXTEND"* ]]; then
             INIT="16"
         elif [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
-            INIT=$(echo "$FORCING_SOURCE" | grep -oP '[0-9]{2}(?=_[0-9]$)')
+            INIT=$(echo "$FORCING_SOURCE" | grep -oE '[0-9]{2}_[0-9]$' | grep -oE '^[0-9]{2}')
         fi
         HOUR=$(date -u +%H)
-        if [[ $INIT > $HOUR ]]; then
-            run_date=$(date -u -d "$START_DATE_UTC -1 day" +'%Y%m%d')
+        if [[ $INIT -gt $HOUR ]]; then
+            if [[ "$(uname)" == "Darwin" ]]; then
+                run_date=$(date -u -v-1d -j -f "%Y%m%d" "$START_DATE_UTC" +'%Y%m%d')
+            else
+                run_date=$(date -u -d "$START_DATE_UTC -1 day" +'%Y%m%d')
+            fi
         fi
     fi
 fi
@@ -573,7 +585,7 @@ else
         FP_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
         # mv $DATASTREAM_RESOURCES/profile_fp.txt $DATASTREAM_META 
         log_time "FORCINGPROCESSOR_END"
-        if [ ! -e $$DATASTREAM_RESOURCES_NGENFORCINGS ]; then
+        if [ ! -e $DATASTREAM_RESOURCES_NGENFORCINGS ]; then
             mkdir -p $DATASTREAM_RESOURCES_NGENFORCINGS
         fi
         FORCINGS_BASE=$(basename $(find "$NGENRUN_FORCINGS" -type f -name "*forcing*"))
@@ -583,7 +595,7 @@ else
 fi    
 
 if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* ]]; then
-    ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oP '(?<=_)[0-9]$')
+    ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oE '[0-9]$' | tail -1)
     if [[ "$ENS_MEM" -gt 1 ]]; then
         echo "Applying lag to forcings for medium range ensemble members > 1"
         log_time "LAG_FORCINGS_START"
@@ -636,6 +648,35 @@ else
 fi
 log_time "NGEN_END"
 
+log_time "CONVERT_TROUTE_NC2PARQUET_START"
+NC2PARQUET_CONVERTER=$DOCKER_PY"nc2parquet.py"
+DOCKER_TROUTE_DIR=$DOCKER_MOUNT/outputs/troute/
+if [ "$DRYRUN" == "True" ]; then
+    echo "DRYRUN - CONVERT_TROUTE_NC2PARQUET SKIPPED"
+    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $NC2PARQUET_CONVERTER \
+        --nc_file $DOCKER_TROUTE_DIR \
+        --out_dir $DOCKER_TROUTE_DIR"
+else
+    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        $DOCKER_TAG python3 $NC2PARQUET_CONVERTER \
+        --nc_file $DOCKER_TROUTE_DIR \
+        --out_dir $DOCKER_TROUTE_DIR
+    find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" -delete
+
+    if [ -n "$S3_BUCKET" ]; then
+        NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.parquet" | wc -l)
+        if [ ${NTROUTE} -gt 0 ]; then
+            TROUTE_TMP=$DATA_DIR/troute_tmp
+            mkdir $TROUTE_TMP
+            mv $NGENRUN_OUTPUT_TROUTE/*.parquet $TROUTE_TMP
+        fi
+    fi
+fi
+log_time "CONVERT_TROUTE_NC2PARQUET_END"
+
 log_time "MERKLE_START"
 if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - MERKDIR EXECUTION SKIPPED"
@@ -650,20 +691,13 @@ log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
 if [ -n "$S3_BUCKET" ]; then
-    TROUTE_OUTPUT_NC=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc")
-    TROUTE_OUTPUT_NC_BASENAME=$(basename $TROUTE_OUTPUT_NC)
-    NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" | wc -l)
-    if [ ${NTROUTE} -gt 0 ]; then
-        mv $TROUTE_OUTPUT_NC ./$TROUTE_OUTPUT_NC_BASENAME
-    fi
-fi
 log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
 log_time "TAR_END"
+fi
 
 if [ "$EVAL" == "True" ]; then
     log_time "EVAL_START"
     TEEHR_DOCKER=awiciroh/ngiab-teehr
-    TEEHR_TAG="latest"
     log_n_run_steps docker run -v "$NGEN_RUN:/app/data" "$TEEHR_DOCKER:$TEEHR_TAG"
     TEEHR_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$TEEHR_DOCKER:$TEEHR_TAG" --format "{{.ID}}") | tr -d '"')
     log_time "EVAL_END"
@@ -696,7 +730,8 @@ if [ -n "$S3_BUCKET" ]; then
     aws s3 cp $DATA_DIR/merkdir.file "s3://$S3_BUCKET/${S3_PREFIX%/}/merkdir.file"
     aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"    
     if [ ${NTROUTE} -gt 0 ]; then
-        aws s3 cp ./$TROUTE_OUTPUT_NC_BASENAME "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/$TROUTE_OUTPUT_NC_BASENAME"
+        aws s3 sync $TROUTE_TMP "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/"
+        rm -rf $TROUTE_TMP
     fi
 
     log_time "S3_MOVE_END"
@@ -707,5 +742,3 @@ fi
 echo "Data exists here: $DATA_DIR"
 
 echo "DataStreamCLI run complete! Goodbye!"
-
-    

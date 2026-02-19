@@ -50,8 +50,9 @@ jobs:
       
     - name: TEEHR integration test
       if: always()
-      run: |        
-        ./scripts/datastream -s 202008080100 -e 202008080200 -C NWM_V3_RETRO -d ./data/outputs -E True -r s3://ciroh-community-ngen-datastream/v2.2_resources/VPU_09 -R https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/realizations/realization_VPU_09.json
+      run: |   
+        export DS_TAG=latest     
+        ./scripts/datastream -s 202008080100 -e 202008080200 -C NWM_V3_RETRO -d ./data/outputs -E True -r s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/datastream-resources/VPU_09 -R https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/realizations/realization_VPU_09.json
 
         
            

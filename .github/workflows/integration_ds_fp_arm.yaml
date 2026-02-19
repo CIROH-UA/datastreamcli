@@ -163,10 +163,10 @@ jobs:
         if: always()
         run: |
           # Download general build log
-          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
           
           # Download datastream test output
-          aws s3 cp s3://ciroh-community-ngen-datastream/datastream/test/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
           
           if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
             echo "## Docker Build Log" >> $GITHUB_STEP_SUMMARY

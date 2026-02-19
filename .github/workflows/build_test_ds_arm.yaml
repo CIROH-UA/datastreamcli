@@ -54,6 +54,9 @@ jobs:
     needs: detect-changes
     runs-on: ubuntu-22.04-arm-aws
     steps:
+      - name: Fix workspace permissions
+        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -153,6 +156,10 @@ jobs:
     name: "${{ matrix.test-suite.name }}"
 
     steps:
+      - name: Fix workspace permissions
+        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
+
+
       - name: Checkout code
         uses: actions/checkout@v4
 
