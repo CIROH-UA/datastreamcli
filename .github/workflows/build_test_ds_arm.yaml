@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   detect-changes:
-    runs-on: ubuntu-22.04-arm-aws
+    runs-on: ubuntu-latest
     outputs:
       deps-changed: ${{ steps.changes.outputs.deps }}
     steps:
@@ -101,7 +101,7 @@ jobs:
 
 
   test-arm64:
-    needs: [detect-changes, build-arm64]
+    needs: build-arm64
     runs-on: ubuntu-22.04-arm-aws
     timeout-minutes: 30
     strategy:
@@ -201,21 +201,3 @@ jobs:
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             awiciroh/${{ matrix.test-suite.image }}:latest-arm64 \
             ${{ matrix.test-suite.command }}
-
-
-  cleanup-artifacts:
-    needs: [detect-changes, test-arm64]
-    runs-on: ubuntu-22.04-arm-aws
-    if: always()
-    steps:
-      - name: Clean up Docker images
-        continue-on-error: true
-        run: |
-          docker rmi awiciroh/datastream:latest-arm64 || true
-          docker rmi awiciroh/datastream-deps:latest-arm64 || true
-          docker system prune -af --volumes
-
-      - name: Delete artifacts
-        uses: geekyeggo/delete-artifact@v5
-        with:
-          name: datastream-arm64
