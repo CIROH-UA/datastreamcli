@@ -34,20 +34,19 @@ jobs:
       - name: Check for deps Dockerfile changes
         id: changes
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "deps=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            if git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | grep -q "docker/Dockerfile.datastream-deps"; then
-              echo "deps=true" >> $GITHUB_OUTPUT
-            else
-              echo "deps=false" >> $GITHUB_OUTPUT
-            fi
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
           else
-            if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "docker/Dockerfile.datastream-deps"; then
-              echo "deps=true" >> $GITHUB_OUTPUT
-            else
-              echo "deps=false" >> $GITHUB_OUTPUT
-            fi
+            # workflow_dispatch: compare against main
+            DIFF=$(git diff --name-only origin/main...HEAD)
+          fi
+
+          if echo "$DIFF" | grep -q "docker/Dockerfile.datastream-deps"; then
+            echo "deps=true" >> $GITHUB_OUTPUT
+          else
+            echo "deps=false" >> $GITHUB_OUTPUT
           fi
 
   build-arm64:
