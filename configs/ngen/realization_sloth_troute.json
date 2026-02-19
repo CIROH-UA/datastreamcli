@@ -1,0 +1,50 @@
+{
+    "global": {
+        "formulations": [{
+                "name": "bmi_multi",
+                "params": {
+                    "name": "bmi_multi",
+                    "model_type_name": "bmi_multi",
+                    "main_output_variable": "Q_OUT",
+                    "forcing_file": "",
+                    "init_config": "",
+                    "allow_exceed_end_time": true,
+                    "modules": [
+                        {
+                            "name": "bmi_c++",
+                            "params": {
+                                "name": "bmi_c++",
+                                "model_type_name": "SLOTH",
+                                "main_output_variable": "z",
+                                "init_config": "/dev/null",
+                                "allow_exceed_end_time": true,
+                                "fixed_time_step": false,
+                                "uses_forcing_file": false,
+                                "model_params": {
+                                    "sloth_ice_fraction_schaake(1,double,m,node)": 0.0,
+                                    "sloth_ice_fraction_xinanjiang(1,double,1,node)": 0.0,
+                                    "sloth_soil_moisture_profile(1,double,1,node)": 0.0
+                                },
+                                "library_file": "/dmod/shared_libs/libslothmodel.so",
+                                "registration_function": "none"
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "forcing": {
+            "path": "./config/troute.yaml"
+        }
+    },
+    "time": {
+        "start_time": "2010-01-01 00:00:00",
+        "end_time": "2010-01-02 00:00:00",
+        "output_interval": 3600
+    },
+    "routing": {
+        "t_route_config_file_with_path": "./config/troute.yaml"
+    },
+    "remotes_enabled": false,
+    "output_root": "./outputs/ngen"
+}
