@@ -297,7 +297,7 @@ def test_conf_daily_assim_split_vpu_s3out():
     inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM"
     inputs.forcing_split_vpu = "01,02,03W,16"
     inputs.s3_bucket = "ciroh-community-ngen-datastream"
-    inputs.s3_prefix = "pytest"
+    inputs.s3_prefix = "test/cicd/datastream/pytest"
     create_confs(inputs)
     check_paths()
 
@@ -319,8 +319,7 @@ def test_conf_daily_assim_split_vpu_s3out():
     with open(CONF_FP,'r') as fp:
         data = json.load(fp)
     assert len(data['forcing']['gpkg_file']) == 4
-    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/pytest")
-
+    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest")
 
 def test_conf_daily_assim_extend_split_vpu_s3out():
     inputs.start_date = "DAILY"
@@ -328,7 +327,7 @@ def test_conf_daily_assim_extend_split_vpu_s3out():
     inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM_EXTEND_16"
     inputs.forcing_split_vpu = "01,02,03W,16"
     inputs.s3_bucket = "ciroh-community-ngen-datastream"
-    inputs.s3_prefix = "pytest"
+    inputs.s3_prefix = "test/cicd/datastream/pytest"
     create_confs(inputs)
     check_paths()
 
@@ -351,7 +350,7 @@ def test_conf_daily_assim_extend_split_vpu_s3out():
     with open(CONF_FP,'r') as fp:
         data = json.load(fp)
     assert len(data['forcing']['gpkg_file']) == 4
-    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/pytest")
+    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest")
 
 def test_conf_forcings_provided():
     inputs.start_date = "202410300100"
