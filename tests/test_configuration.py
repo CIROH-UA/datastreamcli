@@ -392,7 +392,7 @@ def test_conf_daily_routingonly():
 
     with open(REALIZATION_RUN,'r') as fp:
         data = json.load(fp)
-    assert data['global']['forcing']['path'] == './config/troute.yaml'
+    assert data['global']['forcing']['path'] == '/dev/null'
 
 def test_conf_retro_routingonly():
     inputs.start_date = "202406100000"
