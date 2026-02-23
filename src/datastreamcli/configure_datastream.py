@@ -382,7 +382,7 @@ def create_confs(args):
     if "CHRT" in args.forcing_source:
         if 'file_pattern' in forcing_dict: del forcing_dict['file_pattern']
         if 'provider' in forcing_dict: del forcing_dict['provider']
-        forcing_dict['path'] = "/dev/null"
+        forcing_dict['path'] = "./config/troute.yaml"
 
     data['global']['forcing'] = forcing_dict
     if "catchments" in data:

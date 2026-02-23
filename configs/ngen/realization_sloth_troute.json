@@ -34,7 +34,7 @@
             }
         ],
         "forcing": {
-            "path": "/dev/null"
+            "path": "./config/troute.yaml"
         }
     },
     "time": {
