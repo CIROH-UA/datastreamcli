@@ -153,7 +153,7 @@ def validate_data_dir(data_dir : str) -> None:
 
     print(f'Done\nValidating required individual catchment paths',flush = True)
 
-    if serialized_realization.global_config.forcing.path is not '/dev/null':
+    if serialized_realization.global_config.forcing.path != '/dev/null':
         # Forcing path is only /dev/null for the routing-only run
         forcing_dir    = os.path.join(relative_dir,serialized_realization.global_config.forcing.path)
         config_dir     = os.path.join(data_dir,"config","cat_config")
@@ -196,7 +196,7 @@ def validate_data_dir(data_dir : str) -> None:
         troute_path = os.path.join(data_dir,serialized_realization.routing.config)
         assert os.path.exists(troute_path), "t-route specified in config, but not found"
 
-    if serialized_realization.global_config.forcing.path is not '/dev/null':
+    if serialized_realization.global_config.forcing.path != '/dev/null':
         # Forcing path is only /dev/null for the routing-only run
         # in which case validate_catchment_files won't work, since there are no
         # catchment files
