@@ -15,17 +15,15 @@ TEST_DATA_DIR = TEST_DIR / "ngen-run"
 
 @pytest.fixture(autouse=True)
 def ready_test_folder():
-    # download tarred file once only
-    if not ORIGINAL_TAR_PATH.exists():
-        response = requests.get(DATA_PACKAGE, stream=True, timeout=10)
-        response.raise_for_status()
-        with open(ORIGINAL_TAR_PATH, 'wb') as f:
-            for chunk in response.iter_content():
-                f.write(chunk)
-
     if TEST_DIR.exists():
         shutil.rmtree(TEST_DIR)
     TEST_DIR.mkdir(parents=True, exist_ok=True)
+
+    response = requests.get(DATA_PACKAGE, stream=True, timeout=10)
+    response.raise_for_status()
+    with open(ORIGINAL_TAR_PATH, 'wb') as f:
+        for chunk in response.iter_content():
+            f.write(chunk)
 
     with tarfile.open(ORIGINAL_TAR_PATH, 'r:gz') as tar:
         tar.extractall(path=TEST_DIR)
