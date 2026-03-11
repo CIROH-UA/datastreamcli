@@ -1,5 +1,6 @@
 import pytest, os
 import requests
+import tarfile
 from datastreamcli.run_validator import validate_data_dir
 import shutil
 import subprocess
@@ -13,19 +14,36 @@ ORIGINAL_TAR_PATH = DATA_DIR / ORIGINAL_TAR
 TEST_DIR = DATA_DIR / "test_dir"
 TEST_DATA_DIR = TEST_DIR / "ngen-run"
 
-@pytest.fixture(autouse=True, )
+# @pytest.fixture(autouse=True, )
+# def ready_test_folder():
+#     if TEST_DIR.exists():
+#         shutil.rmtree(TEST_DIR)
+#     TEST_DIR.mkdir(parents=True, exist_ok=True)
+#     subprocess.run(
+#         ["curl", "-L", "-o", str(ORIGINAL_TAR_PATH), DATA_PACKAGE],
+#         check=True
+#     )
+#     subprocess.run(
+#         ["tar", "xfz", str(ORIGINAL_TAR_PATH), "-C", str(TEST_DIR)],
+#         check=True
+#     )
+
+@pytest.fixture(autouse=True)
 def ready_test_folder():
+    # download tarred file once only
+    if not ORIGINAL_TAR_PATH.exists():
+        response = requests.get(DATA_PACKAGE, stream=True, timeout=10)
+        response.raise_for_status()
+        with open(ORIGINAL_TAR_PATH, 'wb') as f:
+            for chunk in response.iter_content():
+                f.write(chunk)
+
     if TEST_DIR.exists():
         shutil.rmtree(TEST_DIR)
     TEST_DIR.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        ["curl", "-L", "-o", str(ORIGINAL_TAR_PATH), DATA_PACKAGE],
-        check=True
-    )
-    subprocess.run(
-        ["tar", "xfz", str(ORIGINAL_TAR_PATH), "-C", str(TEST_DIR)],
-        check=True
-    )
+
+    with tarfile.open(ORIGINAL_TAR_PATH, 'r:gz') as tar:
+        tar.extractall(path=TEST_DIR)
 
 def test_missing_geopackage():
     # del_file = str(TEST_DATA_DIR) + '/config/*.gpkg'
