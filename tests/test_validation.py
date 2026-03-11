@@ -1,9 +1,8 @@
-import pytest, os
+import pytest
 import requests
 import tarfile
 from datastreamcli.run_validator import validate_data_dir
 import shutil
-import subprocess
 from pathlib import Path
 
 SCRIPT_DIR   = Path(__file__).resolve().parent
