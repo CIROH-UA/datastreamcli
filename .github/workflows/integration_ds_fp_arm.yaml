@@ -44,6 +44,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
       - name: Configure AWS
@@ -67,11 +69,20 @@ jobs:
           sed -i "s|\${BRANCH_NAME}|$BRANCH_NAME|g" .github/executions/fp_ds_test_execution_arm.json
           sed -i "s|\${DS_TAG}|$DS_TAG|g" .github/executions/fp_ds_test_execution_arm.json
           sed -i "s|\${FP_TAG}|$FP_TAG|g" .github/executions/fp_ds_test_execution_arm.json
-          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! git diff --name-only HEAD~1 HEAD | grep -q '^docker/Dockerfile\.datastream-deps$'; then
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          else
+            DIFF=$(git diff --name-only origin/main...HEAD)
+          fi
+
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! echo "$DIFF" | grep -q '^docker/Dockerfile\.datastream-deps$'; then
             sed -i "/docker-compose\.yml build datastream-deps/d" .github/executions/fp_ds_test_execution_arm.json
           fi
-          
-          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! git diff --name-only HEAD~1 HEAD | grep -q '^docker/Dockerfile\.datastream$'; then
+
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! echo "$DIFF" | grep -q '^docker/Dockerfile\.datastream$'; then
             sed -i "/docker-compose\.yml build datastream/d" .github/executions/fp_ds_test_execution_arm.json
           fi
 
