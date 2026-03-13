@@ -62,6 +62,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.branch_name }}" ]; then
             BRANCH_NAME="${{ inputs.branch_name }}"
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            BRANCH_NAME="${{ github.head_ref }}"
           else
             BRANCH_NAME="${{ github.ref_name }}"
           fi
