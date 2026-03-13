@@ -34,10 +34,18 @@ jobs:
         echo $AWS_ACCESS_KEY_ID
         echo $AWS_SECRET_ACCESS_KEY
 
-    - name: Build docker containers
-      run : |
-        docker compose -f docker/docker-compose.yml build datastream-deps
-        docker compose -f docker/docker-compose.yml build datastream
+    - name: Build or pull datastream-deps
+      run: |
+        if git diff --name-only origin/main...HEAD 2>/dev/null | grep -q "docker/Dockerfile.datastream-deps"; then
+          echo "Deps Dockerfile changed, building..."
+          docker compose -f docker/docker-compose.yml build datastream-deps
+        else
+          echo "Deps Dockerfile unchanged, pulling from Docker Hub..."
+          docker pull awiciroh/datastream-deps:latest
+        fi
+
+    - name: Build datastream
+      run: docker compose -f docker/docker-compose.yml build datastream
         
     - name: Get geopackage 
       run: |

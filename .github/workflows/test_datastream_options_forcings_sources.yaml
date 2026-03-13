@@ -30,10 +30,18 @@ jobs:
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
 
-      - name: Build docker containers
+      - name: Build or pull datastream-deps
         run: |
-          docker compose -f docker/docker-compose.yml build datastream-deps
-          docker compose -f docker/docker-compose.yml build datastream
+          if git diff --name-only origin/main...HEAD 2>/dev/null | grep -q "docker/Dockerfile.datastream-deps"; then
+            echo "Deps Dockerfile changed, building..."
+            docker compose -f docker/docker-compose.yml build datastream-deps
+          else
+            echo "Deps Dockerfile unchanged, pulling from Docker Hub..."
+            docker pull awiciroh/datastream-deps:latest
+          fi
+
+      - name: Build datastream
+        run: docker compose -f docker/docker-compose.yml build datastream
 
       - name: Setup and run forcings tests
         run: |

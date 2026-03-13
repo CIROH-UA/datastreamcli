@@ -42,10 +42,18 @@ jobs:
         export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
         export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         
-    - name: Build docker containers
-      run : |
-        docker compose -f docker/docker-compose.yml build datastream-deps
-        docker compose -f docker/docker-compose.yml build datastream
+    - name: Build or pull datastream-deps
+      run: |
+        if git diff --name-only origin/main...HEAD | grep -q "docker/Dockerfile.datastream-deps"; then
+          echo "Deps Dockerfile changed, building..."
+          docker compose -f docker/docker-compose.yml build datastream-deps
+        else
+          echo "Deps Dockerfile unchanged, pulling from Docker Hub..."
+          docker pull awiciroh/datastream-deps:latest
+        fi
+
+    - name: Build datastream
+      run: docker compose -f docker/docker-compose.yml build datastream
  
     - name: Base test and NWM_RETRO_V3
       run: |        

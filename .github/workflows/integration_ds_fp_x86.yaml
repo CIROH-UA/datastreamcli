@@ -51,10 +51,16 @@ jobs:
         aws configure set region us-east-1
         
     - name: Build docker containers
-      run : |        
+      run : |
         if [ -z "${{ inputs.fp_tag }}" ]; then
           echo "FP_TAG input not provided, building datastream containers..."
-          TAG=latest-x86 docker compose -f docker/docker-compose.yml build datastream-deps
+          if git diff --name-only origin/main...HEAD 2>/dev/null | grep -q "docker/Dockerfile.datastream-deps"; then
+            echo "Deps Dockerfile changed, building deps..."
+            TAG=latest-x86 docker compose -f docker/docker-compose.yml build datastream-deps
+          else
+            echo "Deps Dockerfile unchanged, pulling from Docker Hub..."
+            docker pull awiciroh/datastream-deps:latest-x86
+          fi
           TAG=latest-x86 docker compose -f docker/docker-compose.yml build datastream
         else
           echo "FP_TAG input provided (${{ inputs.fp_tag }}), skipping datastream build and using existing images..."
