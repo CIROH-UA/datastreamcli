@@ -36,6 +36,7 @@ jobs:
 
     - name: Build docker containers
       run : |
+        docker compose -f docker/docker-compose.yml build datastream-deps
         docker compose -f docker/docker-compose.yml build datastream
         
     - name: Get geopackage 

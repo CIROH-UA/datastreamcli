@@ -31,7 +31,9 @@ jobs:
           aws configure set region us-east-1
 
       - name: Build docker containers
-        run: docker compose -f docker/docker-compose.yml build datastream
+        run: |
+          docker compose -f docker/docker-compose.yml build datastream-deps
+          docker compose -f docker/docker-compose.yml build datastream
 
       - name: Setup and run forcings tests
         run: |

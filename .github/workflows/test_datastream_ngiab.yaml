@@ -43,7 +43,8 @@ jobs:
         export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         
     - name: Build docker containers
-      run : |        
+      run : |
+        docker compose -f docker/docker-compose.yml build datastream-deps
         docker compose -f docker/docker-compose.yml build datastream
  
     - name: Base test and NWM_RETRO_V3
