@@ -22,7 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2  
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Configure AWS
       run: |
@@ -36,7 +38,14 @@ jobs:
 
     - name: Build or pull datastream-deps
       run: |
-        if git diff --name-only origin/main...HEAD 2>/dev/null | grep -q "docker/Dockerfile.datastream-deps"; then
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+        elif [ "${{ github.event_name }}" == "push" ]; then
+          DIFF=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+        else
+          DIFF=$(git diff --name-only origin/main...HEAD)
+        fi
+        if echo "$DIFF" | grep -q "docker/Dockerfile.datastream-deps"; then
           echo "Deps Dockerfile changed, building..."
           docker compose -f docker/docker-compose.yml build datastream-deps
         else
