@@ -133,6 +133,8 @@ def generate_troute_conf(out_dir : str,
 
     nts = max_loop_size * qts_subdivisions
 
+    cpus = os.cpu_count()
+
     troute_conf_str = conf_template
     for j,jline in enumerate(conf_template):
         if "start_datetime" in jline:
@@ -150,6 +152,11 @@ def generate_troute_conf(out_dir : str,
         pattern = r'(geo_file_path:).*'
         if re.search(pattern,jline):
             troute_conf_str[j] = re.sub(pattern,  f'\\1 {geo_file_path}', jline)
+
+        pattern = r'^\s*cpu_pool\s*:\s*\d+'
+        if re.search(pattern, jline):
+            if cpus is not None: # set to cpus-2 for some wiggle room
+                troute_conf_str[j] = re.sub(pattern, f"  cpu_pool: {cpus - 2}", jline)
 
         if routing_only:
             pattern = r'^(.*binary_nexus_file_folder.*)$' # this is commented out for speed
