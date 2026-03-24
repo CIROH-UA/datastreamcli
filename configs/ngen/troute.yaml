@@ -26,6 +26,8 @@ compute_parameters:
   parallel_compute_method: by-subnetwork-jit-clustered
   restart_parameters:
     start_datetime: '2025-04-21 01:00:00'
+    wrf_hydro_channel_restart_file: ./restart/restart.nc
+    wrf_hydro_channel_ID_crosswalk_file: ./restart/crosswalk.nc
   subnetwork_target_size: 1000
 log_parameters:
   log_level: INFO
