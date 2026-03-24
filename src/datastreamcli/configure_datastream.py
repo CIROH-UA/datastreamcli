@@ -166,7 +166,6 @@ def create_conf_nwm(args):
         "write_to_file"        : True
         }
     else:
-        varinput = 5
         if "CHRT" in args.forcing_source:
             varinput = 1
         else:
@@ -222,6 +221,10 @@ def create_conf_nwm(args):
                 end_dt = end_dt + timedelta(hours=15)
                 start_str_real = start_dt.strftime('%Y-%m-%d %H:%M:%S')
                 end_str_real = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+            elif "RESTART" in args.forcing_source: # don't need the 3 hr lookback for a restart file
+                runinput=5
+                num_hrs=1
+                dt=0
             else:
                 start_dt = start_dt - timedelta(hours=3)
                 start_str_real = start_dt.strftime('%Y-%m-%d %H:%M:%S')
