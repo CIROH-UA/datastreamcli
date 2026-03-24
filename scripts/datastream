@@ -674,12 +674,14 @@ if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT"
+        --data_dir $DOCKER_MOUNT \
+        --troute_restart $TROUTE_RESTART"
 else
     log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT
+        --data_dir $DOCKER_MOUNT \
+        --troute_restart "$TROUTE_RESTART"
 fi
 log_time "VALIDATION_END"
 
