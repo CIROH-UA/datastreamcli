@@ -64,6 +64,7 @@ def config_class2dict(args):
             "realization"    : args.realization_provided, # this makes sure the realization in the output is the one the user provided directly
             "forcing_source" : args.forcing_source,
             "ngen_forcings"  : args.forcings,
+            "troute_restart" : args.troute_restart,
             "s3_bucket"      : args.s3_bucket,
             "s3_prefix"      : args.s3_prefix
         },
@@ -334,7 +335,7 @@ def create_confs(args):
         fp_conf  = create_conf_fp(args,start_real)
 
     conf['nwmurl'] = nwm_conf
-    conf['forcingprocessor'] = nwm_conf
+    conf['forcingprocessor'] = fp_conf
 
     if os.path.exists(args.docker_mount):
         data_dir = Path(args.docker_mount)
@@ -418,6 +419,7 @@ if __name__ == "__main__":
     parser.add_argument("--united_conus", type=bool,help="boolean to process entire conus from local weights file",default=False, required=False)
     parser.add_argument("--realization", type=str,help="local ngen realization file",required=True)
     parser.add_argument("--realization_provided", type=str,help="The exact path the user provided to their realization file",required=True)
+    parser.add_argument("--troute_restart", type=str, help="t-route restart file", default="", required=False)
     parser.add_argument("--s3_bucket", type=str,help="s3 bucket to write to",default="", required=False)
     parser.add_argument("--s3_prefix", type=str,help="s3 prefix to prepend to files", required=False)
     parser.add_argument("--ngen_bmi_confs", type=str,help="Path for user provided ngen bmi configs", required=False)
