@@ -110,6 +110,7 @@ usage() {
     echo "  -f, --NWM_FORCINGS_DIR    <Path to nwm forcings directory> "
     echo "  -N, --NGEN_BMI_CONFS      <Path to ngen BMI config directory> "
     echo "  -F, --NGEN_FORCINGS       <Path to ngen forcings directory, tarball, or netcdf> "
+    echo "  -t, --TROUTE_RESTART      <Path to t-route restart file> "
     echo "  -S, --S3_BUCKET           <s3 bucket to write output to>  "
     echo "  -o, --S3_PREFIX           <File prefix within s3 bucket> "
     echo "  -n, --NPROCS              <Process limit> "
@@ -133,6 +134,7 @@ DATA_DIR=""
 RESOURCE_DIR=""
 NWM_FORCINGS_DIR=""
 NGEN_FORCINGS=""
+TROUTE_RESTART=""
 NGEN_BMI_CONFS=""
 S3_BUCKET=""
 S3_PREFIX=""
@@ -198,6 +200,7 @@ while [ "$#" -gt 0 ]; do
         -r|--RESOURCE_DIR) RESOURCE_DIR="$2"; shift 2;;
         -f|--NWM_FORCINGS_DIR) NWM_FORCINGS_DIR="$2"; shift 2;;
         -F|--NGEN_FORCINGS) NGEN_FORCINGS="$2"; shift 2;;
+        -t|--TROUTE_RESTART) TROUTE_RESTART="$2"; shift 2;;
         -N|--NGEN_BMI_CONFS) NGEN_BMI_CONFS="$2"; shift 2;;
         -S|--S3_BUCKET) S3_BUCKET="$2"; shift 2;;
         -o|--S3_PREFIX) S3_PREFIX="$2"; shift 2;;
@@ -242,6 +245,7 @@ DATASTREAM_RESOURCES="${DATA_DIR%/}/datastream-resources"
 DATASTREAM_RESOURCES_NGENCONF="${DATASTREAM_RESOURCES%/}/config/"
 DATASTREAM_RESOURCES_NWMFORCINGS="${DATASTREAM_RESOURCES%/}/nwm-forcings/"
 DATASTREAM_RESOURCES_NGENFORCINGS="${DATASTREAM_RESOURCES%/}/ngen-forcings/"
+DATASTREAM_RESOURCES_RESTART="${DATASTREAM_RESOURCES%/}/restart/"
 DATASTREAM_PROFILING="${DATASTREAM_META%/}/profile.txt"
 DATASTREAM_STEPS="${DATASTREAM_META%/}/datastream_steps.txt"
 mkdir -p $DATASTREAM_RESOURCES
@@ -430,6 +434,14 @@ else
 
     if [ ! -z $NWM_FORCINGS_DIR ]; then
         NWM_FORCINGS=$(find "$NWM_FORCINGS_DIR" -type f -name "*.nc")
+    fi
+
+    if [ ! -z "$TROUTE_RESTART" ]; then
+        echo "Using" $TROUTE_RESTART
+        RESTART_BASE=$(basename $TROUTE_RESTART)
+        get_file "$TROUTE_RESTART" "$NGENRUN_RESTART"/$RESTART_BASE
+    else
+        echo "Not using t-route restarts"
     fi
 
     if [ ! -z $SUBSET_ID ]; then
