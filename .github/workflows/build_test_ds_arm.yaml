@@ -53,8 +53,12 @@ jobs:
     needs: detect-changes
     runs-on: ubuntu-22.04-arm-aws
     steps:
-      - name: Fix workspace permissions
-        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
+      - name: Pre-cleanup workspace and Docker
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+          docker system prune -af || true
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -88,18 +92,18 @@ jobs:
 
       - name: Save Docker images
         run: |
-          docker save awiciroh/datastream:latest-arm64 | gzip > /tmp/datastream-arm64.tar.gz
+          docker save awiciroh/datastream:latest-arm64 | gzip > ${{ runner.temp }}/datastream-arm64.tar.gz
 
       - name: Upload datastream image
         uses: actions/upload-artifact@v4
         with:
           name: datastream-arm64
-          path: /tmp/datastream-arm64.tar.gz
+          path: ${{ runner.temp }}/datastream-arm64.tar.gz
           retention-days: 1
 
       - name: Clean up local tar files
         if: always()
-        run: rm -f /tmp/datastream-arm64.tar.gz
+        run: rm -f ${{ runner.temp }}/datastream-arm64.tar.gz
 
 
   test-arm64:
@@ -155,33 +159,30 @@ jobs:
     name: "${{ matrix.test-suite.name }}"
 
     steps:
-      - name: Fix workspace permissions
-        run: docker run --rm -v ${{ github.workspace }}:/workspace alpine chown -R $(id -u):$(id -g) /workspace || true
-
+      - name: Pre-cleanup workspace and Docker
+        continue-on-error: true
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.* || true
+          docker system prune -af || true
 
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Configure AWS
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1
 
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
           name: datastream-arm64
-          path: /tmp/artifacts
+          path: ${{ runner.temp }}/artifacts
 
       - name: Verify artifact and load
         run: |
           set -euo pipefail
-          ls -lh /tmp/artifacts
+          ls -lh ${{ runner.temp }}/artifacts
 
           # Load gzipped image
           for i in 1 2 3; do
-            if gunzip -c /tmp/artifacts/datastream-arm64.tar.gz | docker load; then
+            if gunzip -c ${{ runner.temp }}/artifacts/datastream-arm64.tar.gz | docker load; then
               echo "Successfully loaded image on attempt $i"
               docker images | grep datastream
               break

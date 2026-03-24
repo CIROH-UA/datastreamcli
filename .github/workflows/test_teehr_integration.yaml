@@ -22,13 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2  
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3 
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Configure AWS
       run: |
@@ -40,9 +36,25 @@ jobs:
         echo $AWS_ACCESS_KEY_ID
         echo $AWS_SECRET_ACCESS_KEY
 
-    - name: Build docker containers
-      run : |
-        docker compose -f docker/docker-compose.yml build datastream
+    - name: Build or pull datastream-deps
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+        elif [ "${{ github.event_name }}" == "push" ]; then
+          DIFF=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+        else
+          DIFF=$(git diff --name-only origin/main...HEAD)
+        fi
+        if echo "$DIFF" | grep -q "docker/Dockerfile.datastream-deps"; then
+          echo "Deps Dockerfile changed, building..."
+          docker compose -f docker/docker-compose.yml build datastream-deps
+        else
+          echo "Deps Dockerfile unchanged, pulling from Docker Hub..."
+          docker pull awiciroh/datastream-deps:latest
+        fi
+
+    - name: Build datastream
+      run: docker compose -f docker/docker-compose.yml build datastream
         
     - name: Get geopackage 
       run: |

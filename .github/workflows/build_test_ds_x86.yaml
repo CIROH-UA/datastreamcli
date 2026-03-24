@@ -22,7 +22,35 @@ permissions:
   security-events: write
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      deps-changed: ${{ steps.changes.outputs.deps }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for deps Dockerfile changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          else
+            DIFF=$(git diff --name-only origin/main...HEAD)
+          fi
+
+          if echo "$DIFF" | grep -q "docker/Dockerfile.datastream-deps"; then
+            echo "deps=true" >> $GITHUB_OUTPUT
+          else
+            echo "deps=false" >> $GITHUB_OUTPUT
+          fi
+
   build-x86:
+    needs: detect-changes
     runs-on: ubuntu-latest
     steps:
       - name: Pre-cleanup workspace
@@ -30,30 +58,31 @@ jobs:
         run: |
           sudo rm -rf ${{ github.workspace }}/* || true
           sudo rm -rf ${{ github.workspace }}/.* || true
-          
+
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
-          
-      - name: Build datastream-deps
+
+      - name: Build datastream-deps (only if Dockerfile changed)
+        if: needs.detect-changes.outputs.deps-changed == 'true'
         run: |
           cd docker
-          export TAG=latest-x86
-          docker compose -f docker-compose.yml build datastream-deps
-            
+          TAG=latest-x86 docker compose -f docker-compose.yml build datastream-deps
+
+      - name: Pull datastream-deps from Docker Hub (if not built)
+        if: needs.detect-changes.outputs.deps-changed != 'true'
+        run: |
+          docker pull awiciroh/datastream-deps:latest-x86
+
       - name: Build datastream
         run: |
           cd docker
-          export TAG=latest-x86
-          docker compose -f docker-compose.yml build datastream
+          TAG=latest-x86 docker compose -f docker-compose.yml build datastream
             
       - name: List built images
         run: docker images | grep datastream

@@ -24,16 +24,32 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-
+        with:
+          fetch-depth: 0
       - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set region us-east-1
 
-      - name: Build docker containers
+      - name: Build or pull datastream-deps
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            DIFF=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          else
+            DIFF=$(git diff --name-only origin/main...HEAD)
+          fi
+          if echo "$DIFF" | grep -q "docker/Dockerfile.datastream-deps"; then
+            echo "Deps Dockerfile changed, building..."
+            docker compose -f docker/docker-compose.yml build datastream-deps
+          else
+            echo "Deps Dockerfile unchanged, pulling from Docker Hub..."
+            docker pull awiciroh/datastream-deps:latest
+          fi
+
+      - name: Build datastream
         run: docker compose -f docker/docker-compose.yml build datastream
 
       - name: Setup and run forcings tests
