@@ -286,7 +286,7 @@ jobs:
       - name: clone ngen
         if: steps.prep_config.outputs.skip_arm_build != 'true'
         run: |
-          git clone --single-branch --branch main --depth 1 https://github.com/CIROH-UA/ngen-datastream.git
+          git clone --single-branch --branch v2.2.0 --depth 1 https://github.com/CIROH-UA/ngen-datastream.git
 
       - name: Build AWS Infra
         if: steps.prep_config.outputs.skip_arm_build != 'true'
