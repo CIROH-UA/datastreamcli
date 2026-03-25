@@ -212,15 +212,17 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
       - name: Configure AWS
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1        
+          aws configure set region us-east-1
 
       # Dynamically configures the test execution JSON by setting the branch name and conditionally removing Docker build commands for containers whose Dockerfiles haven't changed (optimization only applies to push events, not manual triggers)
       - name: Prepare execution config
-        id: prep_config 
+        id: prep_config
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.branch_name }}" ]; then
             BRANCH_NAME="${{ inputs.branch_name }}"
@@ -284,7 +286,7 @@ jobs:
       - name: clone ngen
         if: steps.prep_config.outputs.skip_arm_build != 'true'
         run: |
-          git clone --single-branch --branch main --depth 1 https://github.com/CIROH-UA/ngen-datastream.git
+          git clone --single-branch --branch v2.2.0 --depth 1 https://github.com/CIROH-UA/ngen-datastream.git
 
       - name: Build AWS Infra
         if: steps.prep_config.outputs.skip_arm_build != 'true'
@@ -310,7 +312,7 @@ jobs:
         id: stepfunction_execution
         run : |
           cd ngen-datastream/infra/aws/terraform/modules/orchestration
-          execution_arn=$(aws stepfunctions start-execution --state-machine-arn $(cat ./sm_ARN.txt) --name docker_builder_$(env TZ=US/Eastern date +'%Y%m%d%H%M%S') --input "file://$GITHUB_WORKSPACE/.github/executions/ds_push_execution_arm.json" --region us-east-1 --query 'executionArn' --output text)
+          execution_arn=$(aws stepfunctions start-execution --state-machine-arn $(terraform output -raw datastream_arn) --name docker_builder_$(env TZ=US/Eastern date +'%Y%m%d%H%M%S') --input "file://$GITHUB_WORKSPACE/.github/executions/ds_push_execution_arm.json" --region us-east-1 --query 'executionArn' --output text)
           echo "Execution ARN: $execution_arn"
           echo "execution_arn=$execution_arn" >> $GITHUB_OUTPUT
           echo "$execution_arn" > $GITHUB_WORKSPACE/execution_arn.txt
