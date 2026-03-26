@@ -1,7 +1,7 @@
 # DataStreamCLI
 DataStreamCLI is a stand alone tool that automates the complete workflow from preprocessing input data for [NextGen](https://github.com/NOAA-OWP/ngen) to execution of the NextGen simulation through [NextGen In a Box](https://github.com/CIROH-UA/NGIAB-CloudInfra) (NGIAB). 
 
-DataStreamCLI serves as the workflow tooling for the [NextGen Research DataStream](https://github.com/CIROH-UA/ngen-datastream). This software allows users to run NextGen in an efficient, _relatively_ painless, and reproducible fashion while providing flexibility and integrations like hfsubset, NextGen In A Box, and TEEHR.
+DataStreamCLI serves as the workflow tooling for the [NextGen Research DataStream](https://github.com/CIROH-UA/ngen-datastream). This software allows users to run NextGen in an efficient, _relatively_ painless, and reproducible fashion while providing flexibility and integrations like forcingprocessor hfsubset, NextGen In A Box, and TEEHR.
 
 ![datastream](docs/images/datastreamcli.jpg)
 
