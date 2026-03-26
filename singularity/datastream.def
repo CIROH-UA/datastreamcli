@@ -1,0 +1,20 @@
+Bootstrap: docker
+From: awiciroh/datastream-deps:latest
+
+%files
+    ../configs/ /datastreamcli/configs/
+    ../src/ /datastreamcli/src/
+    ../setup.cfg /datastreamcli/setup.cfg
+    ../pyproject.toml /datastreamcli/pyproject.toml
+    ../ /datastreamcli
+
+%post
+    pip3 install -e /datastreamcli && \
+    pip3 install pytest && \
+    groupadd -r mygroup && \
+    useradd -r -g mygroup myuser && \
+    chown -R myuser:mygroup /datastreamcli
+
+%runscript
+    exec "$@"
+
