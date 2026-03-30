@@ -513,7 +513,7 @@ if __name__ == "__main__":
 
             troute_restart_file = args.troute_restart_file
             troute_crosswalk_file = args.troute_crosswalk_file
-            if troute_restart_file != "" and troute_crosswalk_file != "":
+            if troute_restart_file is not None and troute_crosswalk_file is not None:
                 RESTART = True
 
             generate_troute_conf(
