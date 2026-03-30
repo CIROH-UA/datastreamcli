@@ -174,10 +174,10 @@ def generate_troute_conf(out_dir : str,
             if re.search(pattern, jline):
                 troute_conf_str[j] = re.sub(pattern, r'# \1', jline)
         else:
-            pattern = r'^(.*wrf_hydro_channel_restart_file.*)$'
+            pattern = r'(wrf_hydro_channel_restart_file:).*'
             if re.search(pattern,jline):
                 troute_conf_str[j] = re.sub(pattern,  f'\\1 {restart_file}', jline)
-            pattern = r'^(.*wrf_hydro_channel_ID_crosswalk_file.*)$'
+            pattern = r'(wrf_hydro_channel_ID_crosswalk_file:).*'
             if re.search(pattern, jline):
                 troute_conf_str[j] = re.sub(pattern,  f'\\1 {crosswalk_file}', jline)
 
