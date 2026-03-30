@@ -441,6 +441,8 @@ else
 
     if [ ! -z "$TROUTE_RESTART" ]; then
         if [ -z "$TROUTE_CROSSWALK" ]; then
+            RESTART_BASE=""
+            CROSSWALK_BASE=""
             echo "Using troute restarts requires a crosswalk file"
         else
             echo "Using" "$TROUTE_RESTART"
@@ -450,6 +452,8 @@ else
             get_file "$TROUTE_CROSSWALK" "$NGENRUN_RESTART"/"$CROSSWALK_BASE"
         fi
     else
+        RESTART_BASE=""
+        CROSSWALK_BASE=""
         echo "Not using t-route restarts"
     fi
 
@@ -531,15 +535,29 @@ echo "Generating NGEN configs"
 NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
 if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
     echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
-    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+    if [ "$RESTART_BASE" == "" ]; then
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $NGEN_CONFGEN \
-        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
+        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS
+    else
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
+    fi
 else
-    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        $DOCKER_TAG python3 $NGEN_CONFGEN \
-        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
+    if [ "$RESTART_BASE" == "" ]; then
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
+    else
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
+    fi
     TAR_NAME="ngen-bmi-configs.tar.gz"
     NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
     tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
