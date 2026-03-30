@@ -110,3 +110,17 @@ def test_missing_troute_config():
         assert False
     except Exception as inst:
         assert inst.__str__() == "t-route specified in config, but not found"
+
+def test_missing_troute_restart():
+    try:
+        validate_data_dir(TEST_DATA_DIR, troute_restart="testrestart.nc")
+        assert False
+    except Exception as inst:
+        assert inst.__str__() == "Did not find t-route restart file testrestart.nc in ngen-run/restart!!!"
+
+def test_missing_troute_crosswalk():
+    try:
+        validate_data_dir(TEST_DATA_DIR, troute_crosswalk="testcrosswalk.nc")
+        assert False
+    except Exception as inst:
+        assert inst.__str__() == "Did not find t-route crosswalk file testcrosswalk.nc in ngen-run/restart!!!"

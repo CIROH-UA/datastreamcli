@@ -116,7 +116,7 @@ def validate_catchment_files(validations : Dict[str, List[str]],
                     forcings_end   = datetime.strptime(df['time'].iloc[-1],'%Y-%m-%d %H:%M:%S')
                     check_forcings(forcings_start,forcings_end,len(df['time']))
 
-def validate_data_dir(data_dir : str) -> None:
+def validate_data_dir(data_dir : str, troute_restart : str="", troute_crosswalk : str="") -> None:
     """
     Top level validation function for a datastreamcli (NextGen) execution
 
@@ -302,6 +302,6 @@ if __name__ == "__main__":
 
     troute_restart = args.troute_restart
     troute_crosswalk = args.troute_crosswalk
-    validate_data_dir(data_dir)
+    validate_data_dir(data_dir, troute_restart=troute_restart, troute_crosswalk=troute_crosswalk)
 
     if ii_delete_folder: os.system('rm -rf /tmp/ngen_data_dir')

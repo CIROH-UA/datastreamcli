@@ -399,7 +399,7 @@ def create_confs(args):
         raise Exception(f'Forcing file {args.forcings} not understood, must be .nc or .tar.gz')
 
     # routing-only changes, points forcing path to a dummy file to appease sloth
-    if "CHRT" in args.forcing_source:
+    if "CHRT" in args.forcing_source and "RESTART" not in args.forcing_source:
         if 'file_pattern' in forcing_dict: del forcing_dict['file_pattern']
         if 'provider' in forcing_dict: del forcing_dict['provider']
         forcing_dict['path'] = "./config/troute.yaml"
