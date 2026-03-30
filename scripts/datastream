@@ -640,6 +640,9 @@ if [ ! -z "$TROUTE_RESTART" ]; then
         get_file "$TROUTE_CROSSWALK" "$DATASTREAM_RESOURCES_RESTART"/"$TROUTE_CROSSWALK"
     fi
     log_time "GET_RESTART_END"
+else
+    RESTART_BASE=""
+    CROSSWALK_BASE=""
 fi
 
 if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* && "$FORCING_SOURCE" != *"CHRTOUT"* ]]; then
@@ -675,13 +678,15 @@ if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $VALIDATOR \
         --data_dir $DOCKER_MOUNT \
-        --troute_restart $TROUTE_RESTART"
+        --troute_restart $RESTART_BASE \
+        --troute_crosswalk $CROSSWALK_BASE"
 else
     log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $VALIDATOR \
         --data_dir $DOCKER_MOUNT \
-        --troute_restart "$TROUTE_RESTART"
+        --troute_restart "$RESTART_BASE" \
+        --troute_crosswalk "$CROSSWALK_BASE"
 fi
 log_time "VALIDATION_END"
 

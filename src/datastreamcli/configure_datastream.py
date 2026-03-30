@@ -292,7 +292,9 @@ def create_conf_fp(args,start_real):
     if "CHRT" in args.forcing_source:
         if "RESTART" in args.forcing_source:
             map_file = None
-            pass # TODO find S3 path to the catchment map, crosswalk file, routelink file
+            restart_map_file = "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json"
+            crosswalk_file = "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc"
+            routelink_file = "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
         else:
             map_file = "s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"
             restart_map_file = None
