@@ -158,7 +158,7 @@ def generate_troute_conf(out_dir : str,
 
         pattern = r'^\s*cpu_pool\s*:\s*\d+'
         if re.search(pattern, jline):
-            if cpus is not None: # set to cpus-2 for some wiggle room
+            if cpus is not None and cpus > 2: # set to cpus-2 for some wiggle room
                 troute_conf_str[j] = re.sub(pattern, f"  cpu_pool: {cpus - 2}", jline)
 
         if routing_only:

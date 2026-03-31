@@ -227,6 +227,7 @@ def create_conf_nwm(args):
                 runinput=5
                 num_hrs=1
                 dt=0
+                fcst_cycle = int(args.forcing_source[-2:])
             else:
                 start_dt = start_dt - timedelta(hours=3)
                 start_str_real = start_dt.strftime('%Y-%m-%d %H:%M:%S')

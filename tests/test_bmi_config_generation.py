@@ -143,7 +143,7 @@ def test_routing_cpu_count():
         troute_config = yaml.load(troute_config_file)
 
     cpus = os.cpu_count()
-    if cpus is not None:
+    if cpus is not None and cpus > 2:
         expected_cpus = cpus - 2
     else:
         expected_cpus = 1

@@ -415,7 +415,7 @@ def test_conf_retro_routingonly():
 def test_conf_routing_restart():
     inputs.start_date = "202406100000"
     inputs.end_date = "202406100000"
-    inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM_RESTART_CHRT"
+    inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM_RESTART_CHRT_00"
     create_confs(inputs)
     check_paths()
 
