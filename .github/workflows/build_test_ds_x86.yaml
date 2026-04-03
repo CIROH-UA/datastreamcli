@@ -66,7 +66,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::879381264451:role/github-actions-terraform-oidc
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Build datastream-deps (only if Dockerfile changed)
@@ -197,7 +197,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::879381264451:role/github-actions-terraform-oidc
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Run ${{ matrix.test-suite.name }}
@@ -206,9 +206,9 @@ jobs:
             -v ${{ github.workspace }}:/datastreamcli \
             -w /datastreamcli \
             -e AWS_REGION=us-east-1 \
-            -e AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-            -e AWS_SESSION_TOKEN=${{ env.AWS_SESSION_TOKEN }} \
+            -e "AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }}" \
+            -e "AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }}" \
+            -e "AWS_SESSION_TOKEN=${{ env.AWS_SESSION_TOKEN }}" \
             awiciroh/${{ matrix.test-suite.image }}:latest-x86 \
             ${{ matrix.test-suite.command }}
           
