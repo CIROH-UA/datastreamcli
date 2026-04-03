@@ -128,7 +128,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        role-to-assume: ${{ vars.AWS_ROLE_ARN }}
         aws-region: us-east-1
 
     - name: Build docker containers
@@ -212,7 +212,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       # Dynamically configures the test execution JSON by setting the branch name and conditionally removing Docker build commands for containers whose Dockerfiles haven't changed (optimization only applies to push events, not manual triggers)
