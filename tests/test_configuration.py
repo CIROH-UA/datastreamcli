@@ -39,6 +39,8 @@ class Inputs:
                  forcing_split_vpu="",
                  realization="",
                  realization_provided="",
+                 troute_restart = "",
+                 troute_crosswalk = "",
                  s3_bucket="",
                  s3_prefix="",
                  ngen_bmi_confs=""):
@@ -61,6 +63,8 @@ class Inputs:
         self.forcing_split_vpu = forcing_split_vpu
         self.realization = realization
         self.realization_provided = realization_provided
+        self.troute_restart = troute_restart,
+        self.troute_crosswalk = troute_crosswalk,
         self.s3_bucket = s3_bucket
         self.s3_prefix = s3_prefix
         self.ngen_bmi_confs = ngen_bmi_confs
@@ -85,6 +89,8 @@ inputs = Inputs(
     forcing_split_vpu = "",
     realization = str(REALIZATION_ORIG),
     realization_provided = str(REALIZATION_ORIG),
+    troute_restart = "",
+    troute_crosswalk = "",
     s3_bucket="",
     s3_prefix="",
     ngen_bmi_confs=""
@@ -405,3 +411,26 @@ def test_conf_retro_routingonly():
         data = json.load(fp)
     assert data['selected_object_type'] == [2]
     assert data['selected_var_types'] == [1]
+
+def test_conf_routing_restart():
+    inputs.start_date = "202406100000"
+    inputs.end_date = "202406100000"
+    inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM_RESTART_CHRT_00"
+    create_confs(inputs)
+    check_paths()
+
+    with open(CONF_NWM,'r') as fp:
+        data = json.load(fp)
+    assert data['varinput'] == 1
+    assert data['urlbaseinput'] == 7
+    assert data['runinput'] == 5
+    assert data['fcst_cycle'][0]   == 0
+    assert len(data['lead_time'] ) == 1
+
+    with open(CONF_FP,'r') as fp:
+        data = json.load(fp)
+    assert data['storage']['output_file_type'] == ["netcdf"]
+    assert data['forcing']['restart_map_file'] == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json"
+    assert data['forcing']['crosswalk_file'] == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc"
+    assert data['forcing']['routelink_file'] == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
+

@@ -143,9 +143,28 @@ def test_routing_cpu_count():
         troute_config = yaml.load(troute_config_file)
 
     cpus = os.cpu_count()
-    if cpus is not None:
+    if cpus is not None and cpus > 2:
         expected_cpus = cpus - 2
     else:
         expected_cpus = 1
 
     assert troute_config['compute_parameters']['cpu_pool'] == expected_cpus
+
+def test_routing_restart():
+    max_loop_size = (END - START + dt.timedelta(hours=1)).total_seconds() / 3600
+    generate_troute_conf(
+        DATA_DIR,
+        START,
+        max_loop_size,
+        GEOPACKAGE_PATH_v22,
+        restart_file="testrestart.nc",
+        crosswalk_file="testcrosswalk.nc",
+        restart=True)
+    yml_example = DATA_DIR / "troute.yaml"
+    yaml = YAML()
+
+    with open(yml_example, 'r', encoding="utf-8") as troute_config_file:
+        troute_config = yaml.load(troute_config_file)
+
+    assert troute_config['compute_parameters']['restart_parameters']['wrf_hydro_channel_restart_file'] == "testrestart.nc"
+    assert troute_config['compute_parameters']['restart_parameters']['wrf_hydro_channel_ID_crosswalk_file'] == "testcrosswalk.nc"
