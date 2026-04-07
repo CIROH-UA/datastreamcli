@@ -28,8 +28,9 @@ on:
       - '!src/datastreamcli/README.md'
   
 permissions:
+  id-token: write
   contents: read
-  security-events: write 
+  security-events: write
 
 jobs:
   build-test-docker-x86:
@@ -46,12 +47,12 @@ jobs:
         username: ${{secrets.DOCKERHUB_USERNAME}}
         password: ${{secrets.DOCKERHUB_TOKEN}}        
 
-    - name: Configure AWS
-      run: |
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws configure set region us-east-1
-        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+        aws-region: us-east-1
+
     - name: Build docker containers
       run : |
         if [ -z "${{ inputs.fp_tag }}" ]; then
