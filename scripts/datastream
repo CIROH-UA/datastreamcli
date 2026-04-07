@@ -648,6 +648,10 @@ else
 fi
 
 if [ ! -z "$TROUTE_RESTART" ]; then
+    if [[ "$TROUTE_RESTART" == *"DAILY"* ]]; then
+        TROUTE_RESTART="${TROUTE_RESTART//DAILY/$run_date}"
+        echo "Updated TROUTE_RESTART: $TROUTE_RESTART"
+    fi
     log_time "GET_RESTART_START"
     echo "Using $TROUTE_RESTART"
     RESTART_BASE=$(basename "$TROUTE_RESTART")
