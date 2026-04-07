@@ -765,13 +765,13 @@ else
 fi
 log_time "MERKLE_END"
 
-log_time "TAR_START"
-TAR_NAME="ngen-run.tar.gz"
-NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
-if [ -n "$S3_BUCKET" ]; then
-  log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
-  log_time "TAR_END"
-fi
+# log_time "TAR_START"
+# TAR_NAME="ngen-run.tar.gz"
+# NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
+# if [ -n "$S3_BUCKET" ]; then
+#   log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
+#   log_time "TAR_END"
+# fi
 
 if [ "$EVAL" == "True" ]; then
     log_time "EVAL_START"
@@ -804,7 +804,7 @@ if [ -n "$S3_BUCKET" ]; then
     log_time "S3_MOVE_START"
 
     echo "Writing data to S3" $S3_OUT $S3_BUCKET $S3_PREFIX
-    aws s3 cp $NGENRUN_TAR "s3://$S3_BUCKET/${S3_PREFIX%/}/$TAR_NAME"
+#    aws s3 cp $NGENRUN_TAR "s3://$S3_BUCKET/${S3_PREFIX%/}/$TAR_NAME"
     aws s3 cp $DATA_DIR/merkdir.file "s3://$S3_BUCKET/${S3_PREFIX%/}/merkdir.file"
     aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"
     if [ ${NTROUTE} -gt 0 ]; then
