@@ -1,7 +1,7 @@
 # DataStreamCLI
 DataStreamCLI is a stand alone tool that automates the complete workflow from preprocessing input data for [NextGen](https://github.com/NOAA-OWP/ngen) to execution of the NextGen simulation through [NextGen In a Box](https://github.com/CIROH-UA/NGIAB-CloudInfra) (NGIAB). 
 
-DataStreamCLI serves as the workflow tooling for the [NextGen Research DataStream](https://github.com/CIROH-UA/ngen-datastream). This software allows users to run NextGen in an efficient, _relatively_ painless, and reproducible fashion while providing flexibility and integrations like hfsubset, NextGen In A Box, and TEEHR.
+DataStreamCLI serves as the workflow tooling for the [NextGen Research DataStream](https://github.com/CIROH-UA/ngen-datastream). This software allows users to run NextGen in an efficient, _relatively_ painless, and reproducible fashion while providing flexibility and integrations like forcingprocessor hfsubset, NextGen In A Box, and TEEHR.
 
 ![datastream](docs/images/datastreamcli.jpg)
 
@@ -22,15 +22,17 @@ This example will execute a 24 hour NextGen simulation over the Palisade, Colora
 
 First, obtain a hydrofabric file for the gage you wish to model. There are several tooling options to use to obtain a geopackage. One of which, [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI), is maintained by Lynker and is integrated in DataStreamCLI. 
 
-For Palisade, Colorado:
-```
-hfsubset -w medium_range \
-          -s nextgen \
-          -v 2.1.1 \
-          -l divides,flowlines,network,nexus,forcing-weights,flowpath-attributes,model-attributes \
-          -o palisade.gpkg \
-          -t hl "Gages-09106150"
-```
+❗`hfsubset` is currently down. To obtain a test geopackage, use this [geopackage](https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg) of the upstream watershed of Palisade, Colorado. 
+
+> For Palisade, Colorado:
+>```
+> hfsubset -w medium_range \
+>          -s nextgen \
+>          -v 2.1.1 \
+>          -l divides,flowlines,network,nexus,forcing-weights,flowpath-attributes,model-attributes \
+>          -o palisade.gpkg \
+>          -t hl "Gages-09106150"
+>```
 
 Then feed the hydrofabric file to DataStreamCLI along with a few cli args to define the time domain and NextGen configuration
 ```

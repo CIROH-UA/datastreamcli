@@ -13,8 +13,8 @@ options:
   --outdir OUTDIR            Path to write ngen configs
   --pkl_file PKL_FILE        Path to the noahowp pkl
   --realization REALIZATION  Path to the ngen realization
+  --lstm_ensembles           List of integers corresponding to lstm ensemble members
 ```
-
 
 ## `noahowp_pkl.py`
 Generate .pkl file read by `ngen_configs_gen.py`, from which noahowp configs will be generated for each catchment present in the attributes file.

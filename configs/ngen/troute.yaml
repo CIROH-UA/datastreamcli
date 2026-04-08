@@ -18,15 +18,21 @@ compute_parameters:
   forcing_parameters:
     binary_nexus_file_folder: ./outputs/parquet/
     dt: 300
-    max_loop_size: 18.0      
-    nts: 216.0      
+    max_loop_size: 18.0
+    nts: 216.0
     qlat_file_pattern_filter: nex-*
     qlat_input_folder: ./outputs/ngen/
     qts_subdivisions: 12
   parallel_compute_method: by-subnetwork-jit-clustered
   restart_parameters:
     start_datetime: '2025-04-21 01:00:00'
-  subnetwork_target_size: 10000
+    wrf_hydro_channel_restart_file: ./restart/restart.nc
+    wrf_hydro_channel_ID_crosswalk_file: ./restart/crosswalk.nc
+    wrf_hydro_channel_ID_crosswalk_file_field_name: 'link'
+    wrf_hydro_channel_restart_upstream_flow_field_name: 'qlink1'
+    wrf_hydro_channel_restart_downstream_flow_field_name: 'qlink2'
+    wrf_hydro_channel_restart_depth_flow_field_name: 'hlink'
+  subnetwork_target_size: 1000
 log_parameters:
   log_level: INFO
   showtiming: true

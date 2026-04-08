@@ -16,7 +16,7 @@ This script is what is referred to as by DataStreamCLI. There are numerous ways 
                         -e 202006210000 \
                         -C NWM_RETRO_V3 \
                         -d ./data/datastream_test_1 \
-                        -g https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/v2.2_resources/VPU_09/config/nextgen_VPU_09.gpkg \
+                        -g https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/nextgen_VPU_09.gpkg \
                         -R ./configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
                         -n 4
     ```
@@ -53,7 +53,7 @@ Daily short range for VPU 16 forecast cycle 12 on 20250730.
     -n 3 \
     -F s3://ciroh-community-ngen-datastream/v2.2/ngen.20250730/forcing_short_range/12/ngen.t12z.short_range.forcing.f001_f018.VPU_16.nc \
     -d /home/ec2-user/outputs \
-    -r s3://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/v2.2_resources/VPU_16 \
+    -r s3://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/resources/v2.2_hydrofabric/datastream-resources/VPU_16 \
     -R https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/realizations/realization_VPU_16.json \
     --FORCING_SOURCE NWM_V3_SHORT_RANGE_12 \
     --S3_BUCKET ciroh-community-ngen-datastream \

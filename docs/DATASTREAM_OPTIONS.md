@@ -24,6 +24,8 @@ or run with cli args
   -n, --NPROCS              <Process limit> 
   -y, --DRYRUN              <True to skip calculations> 
   -E, --EVAL                <True to run TEEHR evaluation service> 
+  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> 
+
   ```
 
 ### Explanation of cli args (or variables in defined in `CONF_FILE`)
@@ -50,6 +52,17 @@ or run with cli args
 | CONF_FILE            | `-c` | Store CLI args as env variables in a file. |  |
 | EVAL | `-E` | Set to "True" to run the TEEHR automated evaluation service on NextGen outputs. |  |
 | VERBOSE | `-V` | Set to "True" to output all of forcingprocessor and NGIAB outputs |  |
+| LSTM_ENS_MEMBERS |`-L` |  List of integers corresponding to the LSTM ens members bewlow, for example 025| |
+
+#### LSTM Enesmble Member Mapping
+```    
+0:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_7/config.yml",
+1:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_8/config.yml",
+2:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_9/config.yml",
+3:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed101_0701_143442/config.yml",
+4:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_seq999_seed103_2701_171540/config.yml",
+5:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_slope_elev_precip_temp_seq999_seed101_2801_191806/config.yml"
+```
 
 ### Note for supplying file(s) paths
 DataStreamCLI is designed to pick up files or folder whether they are local, public, or in AWS s3 object storage.
@@ -58,12 +71,12 @@ DataStreamCLI can accept local or non-local paths. The following are all allowed
 ``` 
 For file like paths (i.e. providing explicit geopackage path)
 1. A local absolute (or relative) path : /home/user/data/nextgen_VPU_09.gpkg
-2. A URL : https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/v2.2_resources/VPU_09/config/nextgen_VPU_09.gpkg
-3. A s3 URI: s3://ciroh-community-ngen-datastream/v2.2_resources/VPU_09/config/nextgen_VPU_09.gpkg
+2. A URL : https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/nextgen_VPU_09.gpkg
+3. A s3 URI: s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/nextgen_VPU_09.gpkg
 
 For folder like paths (i.e. providing a resource directory)
-1. A local absolute (or relative) folder : /home/user/data/v2.2_resources/VPU_09
-2. A s3 URI prefix : s3://ciroh-community-ngen-datastream/v2.2_resources/VPU_09
+1. A local absolute (or relative) folder : /home/user/data/resources/v2.2_hydrofabric/datastream-resources/VPU_09
+2. A s3 URI prefix : s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/datastream-resources/VPU_09
 ```
 
 Note here that DataStreamCLI will treat a s3 URI prefix like a directory.

@@ -1,11 +1,14 @@
 FROM amazonlinux:2023 AS datastream-base
 
-RUN dnf -y install pigz tar git python3.9 python3-pip
+RUN dnf -y install pigz tar git python3.11 python3.11-pip
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
 
 ARG ARCH="x86"
 RUN if [ "${ARCH}" = "aarch64" ]; then \
-        dnf -y install wget gcc-c++ cpp sqlite-devel libtiff cmake python3-devel openssl-devel tcl libtiff-devel libcurl-devel swig libpng-devel libjpeg-turbo-devel expat-devel && \
-        pip3 install setuptools numpy; \
+        dnf -y install wget gcc-c++ cpp sqlite-devel libtiff cmake python3.11-devel openssl-devel tcl libtiff-devel libcurl-devel swig libpng-devel libjpeg-turbo-devel expat-devel && \
+        uv pip install --system --python python3.11 setuptools numpy; \
     fi
 
 # --- PROJ Install ---
@@ -45,7 +48,7 @@ RUN if [ "${ARCH}" = "aarch64" ]; then \
         make install && \
         cd .. && \
         rm -rf hdf5-1.14.3 hdf5-1.14.3.tar.gz && \
-        HDF5_DIR=/usr pip3 install --no-binary=h5py h5py; \
+        HDF5_DIR=/usr uv pip install --system --python python3.11 --no-binary h5py h5py; \
     fi
 
 
@@ -66,7 +69,7 @@ fi
 
 # --- exactextract Install ---
 RUN if [ "${ARCH}" = "aarch64" ]; then \
-    pip install pybind11 && \
+    uv pip install --system --python python3.11 pybind11 && \
     git clone https://github.com/isciences/exactextract && \
     cd exactextract && \
     mkdir cmake-build-release && cd cmake-build-release && \
@@ -76,7 +79,7 @@ RUN if [ "${ARCH}" = "aarch64" ]; then \
     make install && \
     cd .. && \
     dnf clean all && \
-    pip install -e .; \
+    uv pip install --system --python python3.11 -e .; \
 fi
 
 # --- Runtime linker fix ---
