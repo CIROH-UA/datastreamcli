@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: awiciroh/datastream:latest
+
+%files
+    ../ /datastreamcli
+
+%post
+    python3 -m pip install -e /datastreamcli && \
+    python3 -m pip install pytest
+
+
+%runscript
+    exec /datastreamcli/scripts/datastream "$@"
