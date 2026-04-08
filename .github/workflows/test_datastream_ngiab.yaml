@@ -8,21 +8,23 @@ on:
     paths:
       - .github/workflow/test_datastream_options.yaml
       - 'docker/**'
-      - '!docker/README.md'      
-      - 'scripts/datastream'  
-      - 'src/datastreamcli/**'  
-      - '!src/datastreamcli/README.md'      
+      - '!docker/README.md'
+      - 'scripts/datastream'
+      - 'src/datastreamcli/**'
+      - '!src/datastreamcli/README.md'
+      - 'versions.yml'
 
   pull_request:
     branches:
-      - main  
+      - main
     paths:
       - .github/workflow/test_datastream_options.yaml
       - 'docker/**'
-      - '!docker/README.md'      
-      - 'scripts/datastream'  
-      - 'src/datastreamcli/**'  
-      - '!src/datastreamcli/README.md'            
+      - '!docker/README.md'
+      - 'scripts/datastream'
+      - 'src/datastreamcli/**'
+      - '!src/datastreamcli/README.md'
+      - 'versions.yml'            
 
 permissions:
   contents: read      
@@ -47,17 +49,30 @@ jobs:
     - name: Build or pull datastream-deps
       run: |
         if [ "${{ github.event_name }}" == "pull_request" ]; then
-          DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
         elif [ "${{ github.event_name }}" == "push" ]; then
-          DIFF=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          BASE=${{ github.event.before }}
+          HEAD=${{ github.sha }}
         else
-          DIFF=$(git diff --name-only origin/main...HEAD)
+          BASE=origin/main
+          HEAD=HEAD
         fi
+        DIFF=$(git diff --name-only $BASE...$HEAD)
+        BUILD_DEPS=false
         if echo "$DIFF" | grep -q "docker/Dockerfile.datastream-deps"; then
-          echo "Deps Dockerfile changed, building..."
+          BUILD_DEPS=true
+        fi
+        if echo "$DIFF" | grep -q "versions.yml"; then
+          if git diff -U0 $BASE...$HEAD -- versions.yml | grep -q "datastream-deps"; then
+            BUILD_DEPS=true
+          fi
+        fi
+        if [ "$BUILD_DEPS" = true ]; then
+          echo "Deps changed, building..."
           docker compose -f docker/docker-compose.yml build datastream-deps
         else
-          echo "Deps Dockerfile unchanged, pulling from Docker Hub..."
+          echo "Deps unchanged, pulling from Docker Hub..."
           docker pull awiciroh/datastream-deps:latest
         fi
 
