@@ -118,6 +118,7 @@ usage() {
     echo "  -y, --DRYRUN              <True to skip calculations> "
     echo "  -E, --EVAL                <True to run TEEHR evaluation service> "
     echo "  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> "
+    exit 0
 }
 
 # init variables
@@ -188,6 +189,7 @@ fi
 # read cli args
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        -h|--help) usage;;
         -c|--CONF_FILE) CONF_FILE="$2"; shift 2;;
         -s|--START_DATE) START_DATE="$2"; shift 2;;
         -e|--END_DATE) END_DATE="$2"; shift 2;;
