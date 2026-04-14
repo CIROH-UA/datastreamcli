@@ -12,6 +12,21 @@ START_TIME_UTC=$(date -u +'%Y%m%d%H%M%S')
 START_DATE_UTC=$(date -u +'%Y%m%d')
 run_date=$START_DATE_UTC
 
+# Check required dependencies
+for cmd in docker jq aws tar; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "Error: required command '$cmd' not found. Please install it before running datastream." >&2
+        exit 1
+    fi
+done
+
+# Use pigz if available, otherwise fall back to gzip
+if command -v pigz &> /dev/null; then
+    COMPRESS=pigz
+else
+    COMPRESS=gzip
+fi
+
 is_s3_key() {
   [[ "$1" =~ ^s3:// ]]
 }
@@ -560,7 +575,7 @@ else
     fi
     TAR_NAME="ngen-bmi-configs.tar.gz"
     NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
-    tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
+    tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | $COMPRESS > $NGENCON_TAR
 fi
 
 log_time "NGENCONFGEN_END"
@@ -773,7 +788,7 @@ log_time "TAR_START"
 TAR_NAME="ngen-run.tar.gz"
 NGENRUN_TAR="${DATA_DIR%/}/$TAR_NAME"
 if [ -n "$S3_BUCKET" ]; then
-  log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | pigz > "$NGENRUN_TAR"
+  log_n_run_steps tar -cf - -C "$(dirname "$NGEN_RUN")" "$(basename "$NGEN_RUN")" | $COMPRESS > "$NGENRUN_TAR"
   log_time "TAR_END"
 fi
 
