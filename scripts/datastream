@@ -13,7 +13,7 @@ START_DATE_UTC=$(date -u +'%Y%m%d')
 run_date=$START_DATE_UTC
 
 # Check required dependencies
-for cmd in docker jq aws tar; do
+for cmd in docker tar; do
     if ! command -v $cmd &> /dev/null; then
         echo "Error: required command '$cmd' not found. Please install it before running datastream." >&2
         exit 1
