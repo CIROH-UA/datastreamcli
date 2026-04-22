@@ -445,6 +445,10 @@ else
             CROSSWALK_BASE=""
             echo "Using troute restarts requires a crosswalk file"
         else
+            if [[ "$TROUTE_RESTART" == *"DAILY"* ]]; then
+                TROUTE_RESTART="${TROUTE_RESTART//DAILY/$run_date}"
+                echo "Updated TROUTE_RESTART: $TROUTE_RESTART"
+            fi
             echo "Using" "$TROUTE_RESTART"
             RESTART_BASE=$(basename "$TROUTE_RESTART")
             get_file "$TROUTE_RESTART" "$NGENRUN_RESTART"/"$RESTART_BASE"
