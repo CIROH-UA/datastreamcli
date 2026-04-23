@@ -26,6 +26,7 @@ on:
       - 'versions.yml'
 
 permissions:
+  id-token: write
   contents: read
   security-events: write
 
@@ -124,12 +125,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Configure AWS
-      run: |
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws configure set region us-east-1
-         
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+        aws-region: us-east-1
+
     - name: Build docker containers
       run: |
           if [ "${{ needs.detect-changes.outputs.build_deps }}" == "true" ]; then
@@ -208,11 +209,11 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-      - name: Configure AWS
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
 
       # Dynamically configures the test execution JSON by setting the branch name and conditionally removing Docker build commands for containers whose Dockerfiles haven't changed (optimization only applies to push events, not manual triggers)
       - name: Prepare execution config
