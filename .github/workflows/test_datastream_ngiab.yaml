@@ -12,6 +12,7 @@ on:
       - 'scripts/datastream'  
       - 'src/datastreamcli/**'  
       - '!src/datastreamcli/README.md'      
+      - '.github/workflows/test_datastream_ngiab.yaml'
 
   pull_request:
     branches:
@@ -23,6 +24,7 @@ on:
       - 'scripts/datastream'  
       - 'src/datastreamcli/**'  
       - '!src/datastreamcli/README.md'            
+      - '.github/workflows/test_datastream_ngiab.yaml'
 
 permissions:
   contents: read      

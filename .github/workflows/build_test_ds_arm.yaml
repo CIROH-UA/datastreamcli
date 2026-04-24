@@ -10,12 +10,14 @@ on:
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/build_test_ds_arm.yaml'
   pull_request:
     paths:
       - 'docker/**'
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/build_test_ds_arm.yaml'
 permissions:
   contents: read
   security-events: write

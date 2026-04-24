@@ -27,12 +27,14 @@ on:
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/integration_ds_fp_arm.yaml'
   pull_request:
     paths:
       - 'docker/**' 
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/integration_ds_fp_arm.yaml'
   
 permissions:
   contents: read

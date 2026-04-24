@@ -155,7 +155,7 @@ jobs:
 
           # Download geopackage
           echo "=== Downloading geopackage ==="
-          curl -L -O https://ngen-datastream.s3.us-east-2.amazonaws.com/$GPKG_TEST
+          curl -L -O https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/$GPKG_TEST
 
           # Test with the local `latest` container that is built in previous step
           export DS_TAG=latest

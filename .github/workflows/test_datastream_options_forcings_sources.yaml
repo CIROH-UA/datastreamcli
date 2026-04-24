@@ -67,7 +67,7 @@ jobs:
           
           # Download geopackage
           echo "=== Downloading geopackage ==="
-          curl -L -O https://ngen-datastream.s3.us-east-2.amazonaws.com/$GPKG
+          curl -L -O https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/$GPKG
           
           # Test 1: Base test with NWM_RETRO_V3
           echo "=== Test 1: Base test NWM_RETRO_V3 ==="

@@ -7,12 +7,14 @@ on:
       - main
     paths:
       - 'scripts/datastream'    
+      - '.github/workflows/test_teehr_integration.yaml'
       
   push:
     branches:
       - main
     paths:
       - 'scripts/datastream'      
+      - '.github/workflows/test_teehr_integration.yaml'
 
 permissions:
   contents: read  

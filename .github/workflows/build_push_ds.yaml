@@ -24,6 +24,7 @@ on:
 
     paths:
       - 'versions.yml'
+      - '.github/workflows/build_push_ds.yaml'
 
 permissions:
   contents: read

@@ -14,6 +14,7 @@ on:
       - '!docs/**'
       - '!.github/workflows/**'
       - '.github/workflows/test_datastream_model_realizations.yaml'
+      - '.github/workflows/test_datastream_python_model_realizations.yaml'
 
   pull_request:
     branches:
@@ -24,6 +25,7 @@ on:
       - '!docs/**'
       - '!.github/workflows/**'
       - '.github/workflows/test_datastream_model_realizations.yaml'
+      - '.github/workflows/test_datastream_python_model_realizations.yaml'
       
 permissions:
   contents: read
