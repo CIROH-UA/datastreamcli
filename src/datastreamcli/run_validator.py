@@ -116,7 +116,7 @@ def validate_catchment_files(validations : Dict[str, List[str]],
                     forcings_end   = datetime.strptime(df['time'].iloc[-1],'%Y-%m-%d %H:%M:%S')
                     check_forcings(forcings_start,forcings_end,len(df['time']))
 
-def validate_data_dir(data_dir : str) -> None:
+def validate_data_dir(data_dir : str, troute_restart : str="", troute_crosswalk : str="") -> None:
     """
     Top level validation function for a datastreamcli (NextGen) execution
 
@@ -125,6 +125,8 @@ def validate_data_dir(data_dir : str) -> None:
 
     realization_file = None
     geopackage_file  = None
+    troute_restart_file = None
+    troute_crosswalk_file = None
     for path, _, files in os.walk(data_dir):
         for jfile in files:
             jfile_path = os.path.join(path,jfile)
@@ -138,9 +140,25 @@ def validate_data_dir(data_dir : str) -> None:
                     geopackage_file = jfile_path
                 else:
                     raise Exception('This run directory contains more than a single geopackage file, remove all but one.')
-
+            if troute_restart != "":
+                if jfile_path.find(troute_restart) >= 0:
+                    if troute_restart_file is None:
+                        troute_restart_file = jfile_path
+            if troute_crosswalk_file != "":
+                if jfile_path.find(troute_crosswalk) >= 0:
+                    if troute_crosswalk_file is None:
+                        troute_crosswalk_file = jfile_path
     if realization_file is None:
         raise Exception(f"Did not find realization file in ngen-run/config!!!")
+
+    if troute_restart != "" and troute_restart_file is None:
+        raise Exception(
+            f"Did not find t-route restart file {troute_restart} in ngen-run/restart!!!"
+        )
+    if troute_crosswalk != "" and troute_crosswalk_file is None:
+        raise Exception(
+            f"Did not find t-route crosswalk file {troute_crosswalk} in ngen-run/restart!!!"
+        )
     print(f'Realization found! Retrieving catchment data...',flush = True)
 
     if geopackage_file is None:
@@ -249,6 +267,20 @@ if __name__ == "__main__":
         help="Path to tarball to be validated as ngen input data folder",
         required=False
     )
+    parser.add_argument(
+        "--troute_restart",
+        dest="troute_restart",
+        type=str,
+        help="Path to the t-route restart file",
+        required=False
+    )
+    parser.add_argument(
+        "--troute_crosswalk",
+        dest="troute_crosswalk",
+        type=str,
+        help="Path to the t-route crosswalk file",
+        required=False
+    )
     args = parser.parse_args()
 
     if args.data_dir:
@@ -268,6 +300,8 @@ if __name__ == "__main__":
 
     assert os.path.exists(data_dir), f"{data_dir} is an invalid directory"
 
-    validate_data_dir(data_dir)
+    troute_restart = args.troute_restart
+    troute_crosswalk = args.troute_crosswalk
+    validate_data_dir(data_dir, troute_restart=troute_restart, troute_crosswalk=troute_crosswalk)
 
     if ii_delete_folder: os.system('rm -rf /tmp/ngen_data_dir')

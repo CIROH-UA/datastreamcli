@@ -64,6 +64,8 @@ def config_class2dict(args):
             "realization"    : args.realization_provided, # this makes sure the realization in the output is the one the user provided directly
             "forcing_source" : args.forcing_source,
             "ngen_forcings"  : args.forcings,
+            "troute_restart" : args.troute_restart,
+            "troute_crosswalk" : args.troute_crosswalk,
             "s3_bucket"      : args.s3_bucket,
             "s3_prefix"      : args.s3_prefix
         },
@@ -166,7 +168,6 @@ def create_conf_nwm(args):
         "write_to_file"        : True
         }
     else:
-        varinput = 5
         if "CHRT" in args.forcing_source:
             varinput = 1
         else:
@@ -222,6 +223,11 @@ def create_conf_nwm(args):
                 end_dt = end_dt + timedelta(hours=15)
                 start_str_real = start_dt.strftime('%Y-%m-%d %H:%M:%S')
                 end_str_real = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+            elif "RESTART" in args.forcing_source: # don't need the 3 hr lookback for a restart file
+                runinput=5
+                num_hrs=1
+                dt=0
+                fcst_cycle = int(args.forcing_source[-2:])
             else:
                 start_dt = start_dt - timedelta(hours=3)
                 start_str_real = start_dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -260,7 +266,7 @@ def create_conf_fp(args,start_real):
     else:
         filename = "filenamelist.txt"
 
-    if "CHRT" in args.forcing_source:
+    if "CHRT" in args.forcing_source and "RESTART" not in args.forcing_source:
         output_file_type = ["csv"]
     else:
         output_file_type = ["netcdf"]
@@ -285,15 +291,30 @@ def create_conf_fp(args,start_real):
         gpkg_file = [f"{args.docker_mount}/datastream-resources/config/{geo_base}"]
 
     if "CHRT" in args.forcing_source:
-        map_file = "s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"
+        if "RESTART" in args.forcing_source:
+            map_file = None
+            restart_map_file = "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json"
+            crosswalk_file = "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc"
+            routelink_file = "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
+        else:
+            map_file = "s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"
+            restart_map_file = None
+            crosswalk_file = None
+            routelink_file = None
     else:
         map_file = None
+        restart_map_file = None
+        crosswalk_file = None
+        routelink_file = None
 
     fp_conf = {
         "forcing" : {
             "nwm_file"     : f"{args.docker_mount}/datastream-metadata/{filename}",
             "gpkg_file"    : gpkg_file,
-            "map_file"     : map_file
+            "map_file"     : map_file,
+            "restart_map_file" : restart_map_file,
+            "crosswalk_file" : crosswalk_file,
+            "routelink_file" : routelink_file
         },
         "storage" : {
             "output_path"      : output_path,
@@ -331,7 +352,7 @@ def create_confs(args):
         fp_conf  = create_conf_fp(args,start_real)
 
     conf['nwmurl'] = nwm_conf
-    conf['forcingprocessor'] = nwm_conf
+    conf['forcingprocessor'] = fp_conf
 
     if os.path.exists(args.docker_mount):
         data_dir = Path(args.docker_mount)
@@ -379,7 +400,7 @@ def create_confs(args):
         raise Exception(f'Forcing file {args.forcings} not understood, must be .nc or .tar.gz')
 
     # routing-only changes, points forcing path to a dummy file to appease sloth
-    if "CHRT" in args.forcing_source:
+    if "CHRT" in args.forcing_source and "RESTART" not in args.forcing_source:
         if 'file_pattern' in forcing_dict: del forcing_dict['file_pattern']
         if 'provider' in forcing_dict: del forcing_dict['provider']
         forcing_dict['path'] = "./config/troute.yaml"
@@ -415,6 +436,8 @@ if __name__ == "__main__":
     parser.add_argument("--united_conus", type=bool,help="boolean to process entire conus from local weights file",default=False, required=False)
     parser.add_argument("--realization", type=str,help="local ngen realization file",required=True)
     parser.add_argument("--realization_provided", type=str,help="The exact path the user provided to their realization file",required=True)
+    parser.add_argument("--troute_restart", type=str, help="t-route restart file", default="", required=False)
+    parser.add_argument("--troute_crosswalk", type=str, help="t-route crosswalk file", default="", required=False)
     parser.add_argument("--s3_bucket", type=str,help="s3 bucket to write to",default="", required=False)
     parser.add_argument("--s3_prefix", type=str,help="s3 prefix to prepend to files", required=False)
     parser.add_argument("--ngen_bmi_confs", type=str,help="Path for user provided ngen bmi configs", required=False)

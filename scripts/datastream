@@ -110,12 +110,15 @@ usage() {
     echo "  -f, --NWM_FORCINGS_DIR    <Path to nwm forcings directory> "
     echo "  -N, --NGEN_BMI_CONFS      <Path to ngen BMI config directory> "
     echo "  -F, --NGEN_FORCINGS       <Path to ngen forcings directory, tarball, or netcdf> "
+    echo "  -t, --TROUTE_RESTART      <Path to t-route restart file> "
+    echo "  -w, --TROUTE_CROSSWALK    <Path to t-route restart crosswalk file>"
     echo "  -S, --S3_BUCKET           <s3 bucket to write output to>  "
     echo "  -o, --S3_PREFIX           <File prefix within s3 bucket> "
     echo "  -n, --NPROCS              <Process limit> "
     echo "  -y, --DRYRUN              <True to skip calculations> "
     echo "  -E, --EVAL                <True to run TEEHR evaluation service> "
     echo "  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> "
+    exit 0
 }
 
 # init variables
@@ -133,6 +136,8 @@ DATA_DIR=""
 RESOURCE_DIR=""
 NWM_FORCINGS_DIR=""
 NGEN_FORCINGS=""
+TROUTE_RESTART=""
+TROUTE_CROSSWALK=""
 NGEN_BMI_CONFS=""
 S3_BUCKET=""
 S3_PREFIX=""
@@ -184,6 +189,7 @@ fi
 # read cli args
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        -h|--help) usage;;
         -c|--CONF_FILE) CONF_FILE="$2"; shift 2;;
         -s|--START_DATE) START_DATE="$2"; shift 2;;
         -e|--END_DATE) END_DATE="$2"; shift 2;;
@@ -198,6 +204,8 @@ while [ "$#" -gt 0 ]; do
         -r|--RESOURCE_DIR) RESOURCE_DIR="$2"; shift 2;;
         -f|--NWM_FORCINGS_DIR) NWM_FORCINGS_DIR="$2"; shift 2;;
         -F|--NGEN_FORCINGS) NGEN_FORCINGS="$2"; shift 2;;
+        -t|--TROUTE_RESTART) TROUTE_RESTART="$2"; shift 2;;
+        -w|--TROUTE_CROSSWALK) TROUTE_CROSSWALK="$2"; shift 2;;
         -N|--NGEN_BMI_CONFS) NGEN_BMI_CONFS="$2"; shift 2;;
         -S|--S3_BUCKET) S3_BUCKET="$2"; shift 2;;
         -o|--S3_PREFIX) S3_PREFIX="$2"; shift 2;;
@@ -242,6 +250,7 @@ DATASTREAM_RESOURCES="${DATA_DIR%/}/datastream-resources"
 DATASTREAM_RESOURCES_NGENCONF="${DATASTREAM_RESOURCES%/}/config/"
 DATASTREAM_RESOURCES_NWMFORCINGS="${DATASTREAM_RESOURCES%/}/nwm-forcings/"
 DATASTREAM_RESOURCES_NGENFORCINGS="${DATASTREAM_RESOURCES%/}/ngen-forcings/"
+DATASTREAM_RESOURCES_RESTART="${DATASTREAM_RESOURCES%/}/restart/"
 DATASTREAM_PROFILING="${DATASTREAM_META%/}/profile.txt"
 DATASTREAM_STEPS="${DATASTREAM_META%/}/datastream_steps.txt"
 mkdir -p $DATASTREAM_RESOURCES
@@ -432,6 +441,28 @@ else
         NWM_FORCINGS=$(find "$NWM_FORCINGS_DIR" -type f -name "*.nc")
     fi
 
+    if [ ! -z "$TROUTE_RESTART" ]; then
+        if [ -z "$TROUTE_CROSSWALK" ]; then
+            RESTART_BASE=""
+            CROSSWALK_BASE=""
+            echo "Using troute restarts requires a crosswalk file"
+        else
+            if [[ "$TROUTE_RESTART" == *"DAILY"* ]]; then
+                TROUTE_RESTART="${TROUTE_RESTART//DAILY/$run_date}"
+                echo "Updated TROUTE_RESTART: $TROUTE_RESTART"
+            fi
+            echo "Using" "$TROUTE_RESTART"
+            RESTART_BASE=$(basename "$TROUTE_RESTART")
+            get_file "$TROUTE_RESTART" "$NGENRUN_RESTART"/"$RESTART_BASE"
+            CROSSWALK_BASE=$(basename "$TROUTE_CROSSWALK")
+            get_file "$TROUTE_CROSSWALK" "$NGENRUN_RESTART"/"$CROSSWALK_BASE"
+        fi
+    else
+        RESTART_BASE=""
+        CROSSWALK_BASE=""
+        echo "Not using t-route restarts"
+    fi
+
     if [ ! -z $SUBSET_ID ]; then
         echo "aquiring geospatial data from hfsubset"
     else
@@ -478,7 +509,7 @@ echo "Generating DataStreamCLI metadata"
 CONFIGURER=$DOCKER_PY"configure_datastream.py"
 log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
     python3 $CONFIGURER \
-    --docker_mount $DOCKER_MOUNT --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DOCKER_MOUNT}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE"
+    --docker_mount $DOCKER_MOUNT --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DOCKER_MOUNT}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE" --troute_restart "$TROUTE_RESTART" --troute_crosswalk "$TROUTE_CROSSWALK"
 DS_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
 DATASTREAM_ENV="${DATASTREAM_META%/}/datastream.env"
 echo "FP_TAG=$FP_TAG" >> $DATASTREAM_ENV
@@ -510,15 +541,29 @@ echo "Generating NGEN configs"
 NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
 if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
     echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
-    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+    if [ "$RESTART_BASE" == "" ]; then
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $NGEN_CONFGEN \
         --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS
+    else
+        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
+    fi
 else
-    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-        -u $(id -u):$(id -g) \
-        $DOCKER_TAG python3 $NGEN_CONFGEN \
-        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
+    if [ "$RESTART_BASE" == "" ]; then
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
+    else
+        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+            -u $(id -u):$(id -g) \
+            $DOCKER_TAG python3 $NGEN_CONFGEN \
+            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
+    fi
     TAR_NAME="ngen-bmi-configs.tar.gz"
     NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
     tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
@@ -608,6 +653,26 @@ else
     fi
 fi
 
+if [ ! -z "$TROUTE_RESTART" ]; then
+    if [[ "$TROUTE_RESTART" == *"DAILY"* ]]; then
+        TROUTE_RESTART="${TROUTE_RESTART//DAILY/$run_date}"
+        echo "Updated TROUTE_RESTART: $TROUTE_RESTART"
+    fi
+    log_time "GET_RESTART_START"
+    echo "Using $TROUTE_RESTART"
+    RESTART_BASE=$(basename "$TROUTE_RESTART")
+    CROSSWALK_BASE=$(basename "$TROUTE_CROSSWALK")
+    if [ ! -e "$DATASTREAM_RESOURCES_RESTART" ]; then
+        mkdir -p "$DATASTREAM_RESOURCES_RESTART"
+        get_file "$TROUTE_RESTART" "$DATASTREAM_RESOURCES_RESTART"/"$RESTART_BASE"
+        get_file "$TROUTE_CROSSWALK" "$DATASTREAM_RESOURCES_RESTART"/"$CROSSWALK_BASE"
+    fi
+    log_time "GET_RESTART_END"
+else
+    RESTART_BASE=""
+    CROSSWALK_BASE=""
+fi
+
 if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* && "$FORCING_SOURCE" != *"CHRTOUT"* ]]; then
     ENS_MEM=$(echo "$FORCING_SOURCE" | grep -oE '[0-9]$' | tail -1)
     if [[ "$ENS_MEM" -gt 1 ]]; then
@@ -640,12 +705,16 @@ if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT"
+        --data_dir $DOCKER_MOUNT \
+        --troute_restart $RESTART_BASE \
+        --troute_crosswalk $CROSSWALK_BASE"
 else
     log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT
+        --data_dir $DOCKER_MOUNT \
+        --troute_restart "$RESTART_BASE" \
+        --troute_crosswalk "$CROSSWALK_BASE"
 fi
 log_time "VALIDATION_END"
 

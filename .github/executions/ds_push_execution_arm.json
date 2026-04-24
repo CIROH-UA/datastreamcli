@@ -36,7 +36,11 @@
         "Tags": [
             {
                 "Key"   : "Name",
-                "Value" : "arm_docker_buildNtester"
+                "Value" : "ci_ds_build_push_arm"
+            },
+            {
+                "Key"   : "Project",
+                "Value" : "ci_ds_build_push_arm"
             }
         ]
     }
