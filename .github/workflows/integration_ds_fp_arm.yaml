@@ -23,16 +23,20 @@ on:
       - main
       - dev
     paths:
-      - 'docker/**' 
+      - 'docker/**'
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/integration_ds_fp_arm.yaml'
+      - '.github/executions/fp_ds_test_execution_arm.json'
   pull_request:
     paths:
-      - 'docker/**' 
+      - 'docker/**'
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/integration_ds_fp_arm.yaml'
+      - '.github/executions/fp_ds_test_execution_arm.json'
   
 permissions:
   id-token: write

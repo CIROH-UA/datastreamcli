@@ -6,16 +6,18 @@ on:
       - main
       - dev
     paths:
-      - 'docker/**' 
+      - 'docker/**'
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/build_test_ds_x86.yaml'
   pull_request:
     paths:
-      - 'docker/**' 
+      - 'docker/**'
       - 'src/datastreamcli/**'
       - 'tests/**'
       - '!src/datastreamcli/README.md'
+      - '.github/workflows/build_test_ds_x86.yaml'
 
 permissions:
   id-token: write

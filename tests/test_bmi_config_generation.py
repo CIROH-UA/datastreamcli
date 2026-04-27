@@ -36,7 +36,7 @@ GEOPACKAGE_PATH_v22 = DATA_DIR / GEOPACKAGE_NAME_v22
 
 subprocess.run([
     "curl", "-L", "-o", str(GEOPACKAGE_PATH_v21),
-    f"https://ngen-datastream.s3.us-east-2.amazonaws.com/{GEOPACKAGE_NAME_v21}"
+    f"https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/{GEOPACKAGE_NAME_v21}"
 ], check=True)
 
 subprocess.run([

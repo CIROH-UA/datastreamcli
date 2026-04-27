@@ -24,6 +24,8 @@ on:
 
     paths:
       - 'versions.yml'
+      - '.github/workflows/build_push_ds.yaml'
+      - '.github/executions/ds_push_execution_arm.json'
 
 permissions:
   id-token: write
