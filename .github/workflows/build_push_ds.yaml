@@ -31,6 +31,7 @@ permissions:
   id-token: write
   contents: read
   security-events: write
+  packages: write
 
 jobs:
   detect-changes:
@@ -183,6 +184,14 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Login to GHCR
+      if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != ''))
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Push docker containers
       if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.force_build_deps != '' || inputs.force_build_ds != ''))
       run: |
@@ -191,12 +200,22 @@ jobs:
           docker tag awiciroh/datastream-deps:latest-x86 awiciroh/datastream-deps:${VERSION_TAG}-x86
           docker push awiciroh/datastream-deps:${VERSION_TAG}-x86
           docker push awiciroh/datastream-deps:latest-x86
+
+          docker tag awiciroh/datastream-deps:latest-x86 ghcr.io/ciroh-ua/datastream-deps:${VERSION_TAG}-x86
+          docker tag awiciroh/datastream-deps:latest-x86 ghcr.io/ciroh-ua/datastream-deps:latest-x86
+          docker push ghcr.io/ciroh-ua/datastream-deps:${VERSION_TAG}-x86
+          docker push ghcr.io/ciroh-ua/datastream-deps:latest-x86
         fi
         if [ "${{ needs.detect-changes.outputs.build_ds }}" == "true" ]; then
           VERSION_TAG="${{ needs.detect-changes.outputs.ds_version }}"
           docker tag awiciroh/datastream:latest-x86 awiciroh/datastream:${VERSION_TAG}-x86
           docker push awiciroh/datastream:${VERSION_TAG}-x86
           docker push awiciroh/datastream:latest-x86
+
+          docker tag awiciroh/datastream:latest-x86 ghcr.io/ciroh-ua/datastream:${VERSION_TAG}-x86
+          docker tag awiciroh/datastream:latest-x86 ghcr.io/ciroh-ua/datastream:latest-x86
+          docker push ghcr.io/ciroh-ua/datastream:${VERSION_TAG}-x86
+          docker push ghcr.io/ciroh-ua/datastream:latest-x86
         fi
 
 
@@ -424,6 +443,35 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror ARM images to GHCR
+        run: |
+          if [ "${{ needs.detect-changes.outputs.build_deps }}" == "true" ]; then
+            docker pull awiciroh/datastream-deps:${{ needs.detect-changes.outputs.deps_version }}-arm64
+            docker tag awiciroh/datastream-deps:${{ needs.detect-changes.outputs.deps_version }}-arm64 ghcr.io/ciroh-ua/datastream-deps:${{ needs.detect-changes.outputs.deps_version }}-arm64
+            docker push ghcr.io/ciroh-ua/datastream-deps:${{ needs.detect-changes.outputs.deps_version }}-arm64
+
+            docker pull awiciroh/datastream-deps:latest-arm64
+            docker tag awiciroh/datastream-deps:latest-arm64 ghcr.io/ciroh-ua/datastream-deps:latest-arm64
+            docker push ghcr.io/ciroh-ua/datastream-deps:latest-arm64
+          fi
+
+          if [ "${{ needs.detect-changes.outputs.build_ds }}" == "true" ]; then
+            docker pull awiciroh/datastream:${{ needs.detect-changes.outputs.ds_version }}-arm64
+            docker tag awiciroh/datastream:${{ needs.detect-changes.outputs.ds_version }}-arm64 ghcr.io/ciroh-ua/datastream:${{ needs.detect-changes.outputs.ds_version }}-arm64
+            docker push ghcr.io/ciroh-ua/datastream:${{ needs.detect-changes.outputs.ds_version }}-arm64
+
+            docker pull awiciroh/datastream:latest-arm64
+            docker tag awiciroh/datastream:latest-arm64 ghcr.io/ciroh-ua/datastream:latest-arm64
+            docker push ghcr.io/ciroh-ua/datastream:latest-arm64
+          fi
+
       - name: Create and push manifest datastream-deps
         if: needs.detect-changes.outputs.build_deps == 'true'
         run: |
@@ -436,6 +484,16 @@ jobs:
             --amend awiciroh/datastream-deps:latest-x86 \
             --amend awiciroh/datastream-deps:latest-arm64
           docker manifest push awiciroh/datastream-deps:latest
+
+          docker manifest create ghcr.io/ciroh-ua/datastream-deps:${{ needs.detect-changes.outputs.deps_version }} \
+            --amend ghcr.io/ciroh-ua/datastream-deps:${{ needs.detect-changes.outputs.deps_version }}-x86 \
+            --amend ghcr.io/ciroh-ua/datastream-deps:${{ needs.detect-changes.outputs.deps_version }}-arm64
+          docker manifest push ghcr.io/ciroh-ua/datastream-deps:${{ needs.detect-changes.outputs.deps_version }}
+
+          docker manifest create ghcr.io/ciroh-ua/datastream-deps:latest \
+            --amend ghcr.io/ciroh-ua/datastream-deps:latest-x86 \
+            --amend ghcr.io/ciroh-ua/datastream-deps:latest-arm64
+          docker manifest push ghcr.io/ciroh-ua/datastream-deps:latest
  
 
       - name: Create and push manifest datastream
@@ -450,3 +508,13 @@ jobs:
             --amend awiciroh/datastream:latest-x86 \
             --amend awiciroh/datastream:latest-arm64
           docker manifest push awiciroh/datastream:latest
+
+          docker manifest create ghcr.io/ciroh-ua/datastream:${{ needs.detect-changes.outputs.ds_version }} \
+            --amend ghcr.io/ciroh-ua/datastream:${{ needs.detect-changes.outputs.ds_version }}-x86 \
+            --amend ghcr.io/ciroh-ua/datastream:${{ needs.detect-changes.outputs.ds_version }}-arm64
+          docker manifest push ghcr.io/ciroh-ua/datastream:${{ needs.detect-changes.outputs.ds_version }}
+
+          docker manifest create ghcr.io/ciroh-ua/datastream:latest \
+            --amend ghcr.io/ciroh-ua/datastream:latest-x86 \
+            --amend ghcr.io/ciroh-ua/datastream:latest-arm64
+          docker manifest push ghcr.io/ciroh-ua/datastream:latest
