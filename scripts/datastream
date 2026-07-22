@@ -692,21 +692,20 @@ log_time "VALIDATION_START"
 VALIDATOR=$DOCKER_PY"run_validator.py"
 DOCKER_TAG="awiciroh/datastream:$DS_TAG"
 echo "Validating " $NGEN_RUN
+# pass troute restart/crosswalk via env so older containers ignore unknown args (#103)
 if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
     echo "DRYRUN - VALIDATION SKIPPED"
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
+        -e TROUTE_RESTART=$RESTART_BASE -e TROUTE_CROSSWALK=$CROSSWALK_BASE \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT \
-        --troute_restart $RESTART_BASE \
-        --troute_crosswalk $CROSSWALK_BASE"
+        --data_dir $DOCKER_MOUNT"
 else
     log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
+        -e TROUTE_RESTART="$RESTART_BASE" -e TROUTE_CROSSWALK="$CROSSWALK_BASE" \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT \
-        --troute_restart "$RESTART_BASE" \
-        --troute_crosswalk "$CROSSWALK_BASE"
+        --data_dir $DOCKER_MOUNT
 fi
 log_time "VALIDATION_END"
 

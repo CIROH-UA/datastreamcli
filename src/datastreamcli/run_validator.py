@@ -272,14 +272,16 @@ if __name__ == "__main__":
         dest="troute_restart",
         type=str,
         help="Path to the t-route restart file",
-        required=False
+        required=False,
+        default=os.environ.get("TROUTE_RESTART", "")
     )
     parser.add_argument(
         "--troute_crosswalk",
         dest="troute_crosswalk",
         type=str,
         help="Path to the t-route crosswalk file",
-        required=False
+        required=False,
+        default=os.environ.get("TROUTE_CROSSWALK", "")
     )
     args = parser.parse_args()
 
