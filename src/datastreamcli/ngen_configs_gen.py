@@ -392,14 +392,16 @@ if __name__ == "__main__":
         dest="troute_restart_file",
         type=str,
         help="Path to the troute restart file",
-        required=False
+        required=False,
+        default=os.environ.get("TROUTE_RESTART_FILE") or None
     )
     parser.add_argument(
         "--troute_crosswalk_file",
         dest="troute_crosswalk_file",
         type=str,
         help="Path to the troute crosswalk file",
-        required=False
+        required=False,
+        default=os.environ.get("TROUTE_CROSSWALK_FILE") or None
     )
     parser.add_argument(
         "--outdir",
