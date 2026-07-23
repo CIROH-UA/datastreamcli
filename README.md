@@ -7,6 +7,7 @@ DataStreamCLI serves as the workflow tooling for the [NextGen Research DataStrea
 
 ## Getting Started
 * **Installation:** Follow the [Installation Guide](https://github.com/CIROH-UA/datastreamcli/blob/main/INSTALL.md) to prepare your environment for `DataStreamCLI`.
+* **Getting started:** New to `DataStreamCLI`? The [Getting Started guide](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/GETTING_STARTED.md) walks through running your first NextGen simulation one command at a time, adding a single argument per example.
 * **Guide:** Start by running the [DataStreamCLI guide](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream_guide)! It is an interactive script that will provide a tour of the repo as well as help you form a command with `DataStreamCLI`.
 * **Status:** Check the [status page](https://github.com/CIROH-UA/datastreamcli/blob/main/STATUS.md) for availability of tooling/integrations.
 * **Docs**: Make sure to review the [documentation](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/) for
