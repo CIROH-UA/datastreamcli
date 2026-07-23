@@ -7,9 +7,11 @@ DataStreamCLI serves as the workflow tooling for the [NextGen Research DataStrea
 
 ## Getting Started
 * **Installation:** Follow the [Installation Guide](https://github.com/CIROH-UA/datastreamcli/blob/main/INSTALL.md) to prepare your environment for `DataStreamCLI`.
+* **Tutorial:** New to `DataStreamCLI`? Work through the [Getting Started guide](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/GETTING_STARTED.md) — progressive, explained examples that build from the minimal command up to reproducing a Research DataStream simulation.
 * **Guide:** Start by running the [DataStreamCLI guide](https://github.com/CIROH-UA/datastreamcli/blob/main/scripts/datastream_guide)! It is an interactive script that will provide a tour of the repo as well as help you form a command with `DataStreamCLI`.
 * **Status:** Check the [status page](https://github.com/CIROH-UA/datastreamcli/blob/main/STATUS.md) for availability of tooling/integrations.
 * **Docs**: Make sure to review the [documentation](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/) for
+  * A [getting started guide](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/GETTING_STARTED.md) with explained, runnable examples
   * Available [NextGen models](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/NGEN_MODELS.md) and automated BMI configuration generation
   * [Datastream options](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/DATASTREAM_OPTIONS.md)
   * Input and output [directory structure](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md)
