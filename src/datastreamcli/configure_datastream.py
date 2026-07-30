@@ -85,31 +85,30 @@ def config_class2dict(args):
 
 def config_class2envs(args, filename='config.env'):
     """
-    Extracts values from args and writes them to a file in a format that can be sourced in a shell script.
+    Write set config values to a file that can be sourced in a shell script.
 
-    Parameters:
-    args: The argparse Namespace object containing the configuration values.
-    filename: The name of the file to write the environment variables to (default: 'config.env').
-    use_export: If True, includes 'export' keyword for variables (default: True).
+    Unset/blank values are skipped, and DATA_DIR is omitted so a reproduction must pass it at the CLI (-d).
+
+    args: argparse Namespace with the configuration values.
+    filename: file to write the environment variables to (default: 'config.env').
     """
     config = config_class2dict(args)  # Reuse the dict function to get structured config
 
-    with open(filename, 'w') as f:
-        # Write globals
-        for key, value in config['globals'].items():
-            env_key = key.upper()
-            if value is not None:
-                f.write(f'{env_key}="{value}"\n')
-            else:
-                f.write(f'{env_key}=\n')
+    skip_globals = {"data_dir"}  # machine-specific, not reproducible
 
-        # Write subset
+    def is_set(value):
+        return value is not None and not (isinstance(value, str) and value.strip() == "")
+
+    with open(filename, 'w') as f:
+        for key, value in config['globals'].items():
+            if key in skip_globals or not is_set(value):
+                continue
+            f.write(f'{key.upper()}="{value}"\n')
+
         for key, value in config['subset'].items():
-            env_key = f'SUBSET_{key.upper()}'
-            if value is not None:
-                f.write(f'{env_key}="{value}"\n')
-            else:
-                f.write(f'{env_key}=\n')
+            if not is_set(value):
+                continue
+            f.write(f'SUBSET_{key.upper()}="{value}"\n')
 
 def write_json(conf, out_dir, name):
     conf_path = Path(out_dir,name)
