@@ -507,9 +507,12 @@ log_time "DATASTREAMCONFGEN_START"
 DOCKER_TAG="awiciroh/datastream:$DS_TAG"
 echo "Generating DataStreamCLI metadata"
 CONFIGURER=$DOCKER_PY"configure_datastream.py"
-log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) $DOCKER_TAG \
+# pass troute restart/crosswalk via env so older containers ignore unknown args (#103)
+log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) \
+    -e TROUTE_RESTART="$TROUTE_RESTART" -e TROUTE_CROSSWALK="$TROUTE_CROSSWALK" \
+    $DOCKER_TAG \
     python3 $CONFIGURER \
-    --docker_mount $DOCKER_MOUNT --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DOCKER_MOUNT}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE" --troute_restart "$TROUTE_RESTART" --troute_crosswalk "$TROUTE_CROSSWALK"
+    --docker_mount $DOCKER_MOUNT --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DOCKER_MOUNT}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE"
 DS_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls $DOCKER_TAG --format "{{.ID}}") | tr -d '"')
 DATASTREAM_ENV="${DATASTREAM_META%/}/datastream.env"
 echo "FP_TAG=$FP_TAG" >> $DATASTREAM_ENV
@@ -539,31 +542,20 @@ fi
 
 echo "Generating NGEN configs"
 NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
+# pass troute restart/crosswalk via env so older containers ignore unknown args (#103)
 if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
     echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
-    if [ "$RESTART_BASE" == "" ]; then
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+    echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
+        -e TROUTE_RESTART_FILE="${RESTART_BASE:+$DOCKER_MOUNT/restart/$RESTART_BASE}" -e TROUTE_CROSSWALK_FILE="${CROSSWALK_BASE:+$DOCKER_MOUNT/restart/$CROSSWALK_BASE}" \
         $DOCKER_TAG python3 $NGEN_CONFGEN \
         --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS
-    else
-        echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $NGEN_CONFGEN \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json"" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
-    fi
 else
-    if [ "$RESTART_BASE" == "" ]; then
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $NGEN_CONFGEN \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
-    else
-        log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
-            -u $(id -u):$(id -g) \
-            $DOCKER_TAG python3 $NGEN_CONFGEN \
-            --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS --troute_restart_file "$DOCKER_MOUNT/restart/$RESTART_BASE" --troute_crosswalk_file "$DOCKER_MOUNT/restart/$CROSSWALK_BASE"
-    fi
+    log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
+        -u $(id -u):$(id -g) \
+        -e TROUTE_RESTART_FILE="${RESTART_BASE:+$DOCKER_MOUNT/restart/$RESTART_BASE}" -e TROUTE_CROSSWALK_FILE="${CROSSWALK_BASE:+$DOCKER_MOUNT/restart/$CROSSWALK_BASE}" \
+        $DOCKER_TAG python3 $NGEN_CONFGEN \
+        --hf_file "$DOCKER_MOUNT/config/$GEO_BASE" --outdir "$DOCKER_MOUNT/config" --pkl_file "$DOCKER_MOUNT/config"/$PKL_NAME --realization "$DOCKER_MOUNT/config/realization.json" --lstm_ensembles $LSTM_ENS_MEMBERS
     TAR_NAME="ngen-bmi-configs.tar.gz"
     NGENCON_TAR="${DATASTREAM_RESOURCES_NGENCONF%/}/$TAR_NAME"
     tar -cf - --exclude="*realization*" --exclude="*.gpkg" --exclude="*.parquet" -C $NGENRUN_CONFIG . | pigz > $NGENCON_TAR
@@ -700,21 +692,20 @@ log_time "VALIDATION_START"
 VALIDATOR=$DOCKER_PY"run_validator.py"
 DOCKER_TAG="awiciroh/datastream:$DS_TAG"
 echo "Validating " $NGEN_RUN
+# pass troute restart/crosswalk via env so older containers ignore unknown args (#103)
 if [ "$DRYRUN" == "True" ] || [ "$SKIP_VALIDATION" == "True" ]; then
     echo "DRYRUN - VALIDATION SKIPPED"
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
+        -e TROUTE_RESTART=$RESTART_BASE -e TROUTE_CROSSWALK=$CROSSWALK_BASE \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT \
-        --troute_restart $RESTART_BASE \
-        --troute_crosswalk $CROSSWALK_BASE"
+        --data_dir $DOCKER_MOUNT"
 else
     log_n_run_steps docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
+        -e TROUTE_RESTART="$RESTART_BASE" -e TROUTE_CROSSWALK="$CROSSWALK_BASE" \
         $DOCKER_TAG python3 $VALIDATOR \
-        --data_dir $DOCKER_MOUNT \
-        --troute_restart "$RESTART_BASE" \
-        --troute_crosswalk "$CROSSWALK_BASE"
+        --data_dir $DOCKER_MOUNT
 fi
 log_time "VALIDATION_END"
 
