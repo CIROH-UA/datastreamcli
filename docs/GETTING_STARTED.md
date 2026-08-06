@@ -2,28 +2,27 @@
 
 This document is a hands-on introduction to `DataStreamCLI`. It builds up one concrete command at a time: we start with the bare minimum required to run a NextGen simulation, then add a single new argument in each example and explain what it does. Along the way you'll see every argument, the Docker image environment variables, a full retrospective example, and a worked example that reproduces a NextGen Research DataStream (NRDS) simulation.
 
-**The examples are meant to be run in order.** Each one uses a small test domain (the upstream watershed of Palisade, Colorado) and writes to its own output directory, and later examples reuse files produced by earlier ones. If you copy them top to bottom, they should all succeed. The two exceptions are called out explicitly: [Example 3](#example-3--subset-your-own-domain-with-ngiab-data-preprocess) uses a separate tool to subset a custom domain, and [Example 12](#example-12--warm-start-t-route-with-a-restart-file--t--w) is a template that needs restart files for your own domain.
+**The examples are meant to be run in order.** They all share the same small test domain — the Provo River near Woodland, Utah — which you'll download in [Step 1](#step-1--get-a-hydrofabric-geopackage). Each example writes to its own output directory, and later examples reuse files produced by earlier ones. If you copy them top to bottom, they should all succeed. The one exception [Example 11](#example-11--warm-start-t-route-with-a-restart-file--t--w) is a template that needs restart files for your own domain.
  
 > **How this relates to the interactive guide.** The [`datastream_guide`](../scripts/datastream_guide) script is an *interactive* tour that asks you questions and assembles a command for you. This document covers the same concepts through *fixed, explained examples* you can copy, run, and modify. 
 
 ## Contents
 - [What DataStreamCLI does](#what-datastreamcli-does)
 - [Before you begin](#before-you-begin)
+- [Step 1 — Get a hydrofabric geopackage](#step-1--get-a-hydrofabric-geopackage)
 - [The anatomy of a command: the required arguments](#the-anatomy-of-a-command-the-required-arguments)
 - [Example 1 — The minimal run](#example-1--the-minimal-run)
 - [Example 2 — Controlling compute with `-n`](#example-2--controlling-compute-with--n)
-- [Example 3 — Subset your own domain with NGIAB Data Preprocess](#example-3--subset-your-own-domain-with-ngiab-data-preprocess)
-- [Example 4 — Name the domain (`-D`)](#example-4--name-the-domain--d)
-- [Example 5 — Preview a run without computing (`-y`, `-V`)](#example-5--preview-a-run-without-computing--y--v)
-- [Example 6 — Reuse work with a resource directory (`-r`)](#example-6--reuse-work-with-a-resource-directory--r)
-- [Example 7 — Bring your own inputs (`-F`, `-f`, `-N`)](#example-7--bring-your-own-inputs--f--f--n)
-- [Example 8 — A retrospective simulation, in depth (`-E`)](#example-8--a-retrospective-simulation-in-depth--e)
-- [Example 9 — Operational forecasts and `DAILY` mode](#example-9--operational-forecasts-and-daily-mode)
-- [Example 10 — Reproduce a NextGen Research DataStream (NRDS) simulation (`-c`)](#example-10--reproduce-a-nextgen-research-datastream-nrds-simulation--c)
-- [Example 11 — Run an LSTM ensemble (`-L`)](#example-11--run-an-lstm-ensemble--l)
-- [Example 12 — Warm-start t-route with a restart file (`-t`, `-w`)](#example-12--warm-start-t-route-with-a-restart-file--t--w)
+- [Example 3 — Name the domain (`-D`)](#example-3--name-the-domain--d)
+- [Example 4 — Preview a run without computing (`-y`, `-V`)](#example-4--preview-a-run-without-computing--y--v)
+- [Example 5 — Reuse files with a resource directory (`-r`)](#example-5--reuse-files-with-a-resource-directory--r)
+- [Example 6 — Bring your own inputs (`-F`, `-f`, `-N`)](#example-6--bring-your-own-inputs--f--f--n)
+- [Example 7 — A retrospective simulation, in depth (`-E`)](#example-7--a-retrospective-simulation-in-depth--e)
+- [Example 8 — Operational forecasts and `DAILY` mode](#example-8--operational-forecasts-and-daily-mode)
+- [Example 9 — Reproduce a NextGen Research DataStream (NRDS) simulation (`-c`)](#example-9--reproduce-a-nextgen-research-datastream-nrds-simulation--c)
+- [Example 10 — Run an LSTM ensemble (`-L`)](#example-10--run-an-lstm-ensemble--l)
+- [Example 11 — Warm-start t-route with a restart file (`-t`, `-w`)](#example-11--warm-start-t-route-with-a-restart-file--t--w)
 - [Docker image versions and environment variables](#docker-image-versions-and-environment-variables)
-- [Where your outputs go](#where-your-outputs-go)
 - [Where to go next](#where-to-go-next)
 
 ---
@@ -32,7 +31,7 @@ This document is a hands-on introduction to `DataStreamCLI`. It builds up one co
 
 `DataStreamCLI` is a single command-line tool that automates the entire workflow of running a [NextGen](https://github.com/NOAA-OWP/ngen) water-model simulation:
 
-1. **Collects the spatial domain** — a hydrofabric geopackage you provide with `-g` (subset one for your own area of interest with [NGIAB Data Preprocess](https://github.com/CIROH-UA/NGIAB_data_preprocess); see [Example 3](#example-3--subset-your-own-domain-with-ngiab-data-preprocess)).
+1. **Collects the spatial domain** — a hydrofabric geopackage you provide with `-g` (see [Step 1](#step-1--get-a-hydrofabric-geopackage)).
 2. **Builds the forcings** — it turns gridded National Water Model forcings into per-catchment NextGen forcings with [forcingprocessor](https://github.com/CIROH-UA/forcingprocessor).
 3. **Generates the NextGen model configuration files** — the per-catchment BMI config files implied by your realization file.
 4. **Validates** the assembled input package.
@@ -45,7 +44,7 @@ Each step runs inside a Docker container, so most of what you install is `docker
 
 ## Before you begin
 
-**Install the prerequisites** in [INSTALL.md](../INSTALL.md): `docker`, `git`, `pigz`, `tar`, and `awscli` (only for the S3 options). To subset a hydrofabric for your own domain you'll also want [NGIAB Data Preprocess](https://github.com/CIROH-UA/NGIAB_data_preprocess) (introduced in [Example 3](#example-3--subset-your-own-domain-with-ngiab-data-preprocess)); it isn't needed for the core sequence below.
+**Install the prerequisites** in [INSTALL.md](../INSTALL.md): `docker`, `git`, `pigz`, `tar`, and `awscli` (only for the S3 options).
 
 **Clone the repository** and work from its root folder — every command below assumes that:
 ```bash
@@ -57,7 +56,27 @@ Three things to keep in mind:
 
 - **`DATA_DIR` must not already exist.** DataStreamCLI refuses to overwrite an output directory. If it exists, delete it or choose a new path. This is deliberate — it prevents you from silently clobbering a previous run.
 - **Use absolute paths** (e.g. `$(pwd)/data/my_run`). The workflow mounts these directories into Docker containers, which require absolute paths.
-- **All dates are UTC**, in `YYYYMMDDHHMM` format (or the literal string `DAILY`, covered in [Example 9](#example-9--operational-forecasts-and-daily-mode)).
+- **All dates are UTC**, in `YYYYMMDDHHMM` format (or the literal string `DAILY`, covered in [Example 8](#example-8--operational-forecasts-and-daily-mode)).
+
+---
+
+## Step 1 — Get a hydrofabric geopackage
+
+For this guide we'll use the geopackage from the **AWI sample data package** — the same NextGen input package referenced by [NGIAB-CloudInfra](https://github.com/CIROH-UA/NGIAB-CloudInfra), covering the Provo River near Woodland, Utah (USGS gage 10154200). 
+
+```bash
+curl -LO https://ciroh-ua-ngen-data.s3.us-east-2.amazonaws.com/AWI-009/AWI_16_10154200_009.tar.gz
+tar -xzf AWI_16_10154200_009.tar.gz
+cp AWI_16_10154200_009/config/gage-10154200_subset.gpkg .
+```
+
+The package is a complete NextGen run directory, so it also contains forcings, a realization, and BMI config files. You can ignore all of that here — the whole point of DataStreamCLI is that it generates those for you from the geopackage and a realization. (Later, [Example 6](#example-6--bring-your-own-inputs--f--f--n) shows how to supply  files yourself when you want to.)
+
+### Making a geopackage for your own domain
+
+To model a different domain, use your own geopackage or create one with [**NGIAB Data Preprocess**](https://github.com/CIROH-UA/NGIAB_data_preprocess).
+
+Complete v2.2 geopackages for each VPU are also published under `resources/v2.2_hydrofabric/geopackages/` in the [Research DataStream bucket](https://ciroh-ngen-community-datastream.ciroh.org) if you want to run a whole basin.
 
 ---
 
@@ -82,15 +101,15 @@ Those six answer the three fundamental questions of any simulation — **when** 
 
 ## Example 1 — The minimal run
 
-The smallest useful command. It runs a 24-hour **retrospective** NextGen simulation over the upstream watershed of Palisade, Colorado, using a prebuilt test geopackage and one of the repo's realization templates (CFE + SLoTH + PET + Noah-OWP-Modular + t-route).
+The smallest useful command. It runs a 24-hour **retrospective** NextGen simulation over the Provo River domain from [Step 1](#step-1--get-a-hydrofabric-geopackage), using one of the repo's realization templates (CFE + SLoTH + PET + Noah-OWP-Modular + t-route).
 
 ```bash
 ./scripts/datastream \
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_intro \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_intro \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json
 ```
 
@@ -99,13 +118,13 @@ Argument by argument:
 - **`-s 202006200100`** — start at 01:00 UTC on 2020-06-20. (Hourly NWM forcings conventionally start at hour 01.)
 - **`-e 202006210000`** — end at 00:00 UTC on 2020-06-21, i.e. 24 hourly steps.
 - **`-C NWM_RETRO_V3`** — use National Water Model **v3 Retrospective** forcings. "Retrospective" means a reanalysis dataset covering the past; it's the right choice for studying historical periods. (`NWM_RETRO_V2` is the older v2 reanalysis.)
-- **`-d $(pwd)/data/palisade_intro`** — build everything here. This path must not exist yet.
-- **`-g …/palisade.gpkg`** — the hydrofabric. We use the hosted test geopackage so you don't need to subset one yourself (see [Example 3](#example-3--subset-your-own-domain-with-ngiab-data-preprocess) for that).
+- **`-d $(pwd)/data/provo_intro`** — build everything here. This path must not exist yet.
+- **`-g $(pwd)/gage-10154200_subset.gpkg`** — the hydrofabric you downloaded in Step 1.
 - **`-R …/realization_sloth_nom_cfe_pet_troute.json`** — a realization template from this repo.
 
-**Note where the two inputs come from.** `-R` points to a **local file** in the repository you just cloned, while `-g` points to an **`https://` URL** (an S3 object served over https). DataStreamCLI resolves every file argument wherever it lives — a local path, an `https://` URL, or an `s3://` URI (the last requires `awscli` configured with credentials). That flexibility is what lets you reproduce someone else's run by pasting their URLs, without downloading anything first.
+**A note on paths.** Both `-g` and `-R` are **local files** here, but they don't have to be. DataStreamCLI resolves every file argument wherever it lives — a local path, an `https://` URL, or an `s3://` URI (the last requires `awscli` configured with credentials). That flexibility is what lets you reproduce someone else's run by pasting their URLs, without downloading anything first; you'll see it used in [Example 9](#example-9--reproduce-a-nextgen-research-datastream-nrds-simulation--c).
 
-When it finishes, your NextGen outputs are at `$(pwd)/data/palisade_intro/ngen-run/outputs/`. Everything below adds one capability at a time.
+When it finishes, your NextGen outputs are at `$(pwd)/data/provo_intro/ngen-run/outputs/`. Everything below adds one capability at a time.
 
 ---
 
@@ -118,8 +137,8 @@ NextGen and forcingprocessor parallelize across processes. Use `-n` / `--NPROCS`
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_n4 \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_n4 \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
   -n 4
 ```
@@ -130,28 +149,7 @@ Why you care: bigger domains and longer time periods need more memory, and each 
 
 ---
 
-## Example 3 — Subset your own domain with NGIAB Data Preprocess
-
-Examples 1 and 2 used the hosted Palisade test geopackage. To run over a domain of your choosing, you need a hydrofabric geopackage for it. Use [NGIAB Data Preprocess](https://github.com/CIROH-UA/NGIAB_data_preprocess) ("the preprocessor") to subset one — point it at a gage, catchment, or flowpath and it delineates everything upstream into a `.gpkg`. See its [documentation](https://github.com/CIROH-UA/NGIAB_data_preprocess#readme) to install the tool and produce a subset; you only need its subsetting step here, since DataStreamCLI builds the forcings and configs itself.
-
-The preprocessor writes the subset as a `<feature>_subset.gpkg` (e.g. `gage-09106150/config/gage-09106150_subset.gpkg`). Hand that file to DataStreamCLI with `-g`, exactly as in Example 1 — replace the `-g` path below with the one it produced:
-
-```bash
-./scripts/datastream \
-  -s 202006200100 \
-  -e 202006210000 \
-  -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_custom \
-  -g /path/to/gage-09106150/config/gage-09106150_subset.gpkg \
-  -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
-  -n 4
-```
-
-`-g` accepts the subset geopackage exactly like the hosted test file in Example 1 — nothing else changes.
-
----
-
-## Example 4 — Name the domain (`-D`)
+## Example 3 — Name the domain (`-D`)
 
 By default DataStreamCLI derives a domain name from the geopackage filename. Set it explicitly with `-D` when you want a clean label in the run metadata.
 
@@ -160,18 +158,18 @@ By default DataStreamCLI derives a domain name from the geopackage filename. Set
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_named \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_named \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
-  -D PALISADE_COLORADO \
+  -D PROVO_RIVER_WOODLAND \
   -n 4
 ```
 
-- **`-D PALISADE_COLORADO`** (`--DOMAIN_NAME`) — a human-readable label for the spatial domain. It's recorded in the run metadata and helps you tell runs apart later. Omit it and DataStreamCLI uses the geopackage's base filename. Adding this option does not impact the processing in any way.
+- **`-D PROVO_RIVER_WOODLAND`** (`--DOMAIN_NAME`) — a human-readable label for the spatial domain. It's recorded in the run metadata and helps you tell runs apart later. Omit it and DataStreamCLI uses the geopackage's base filename (here, `gage-10154200_subset`). Adding this option does not impact the processing in any way.
 
 ---
 
-## Example 5 — Preview a run without computing (`-y`, `-V`)
+## Example 4 — Preview a run without computing (`-y`, `-V`)
 
 Before committing to a long run, you can do a dry run: DataStreamCLI sets up the directories and **prints the Docker commands it would execute** instead of running the heavy compute steps.
 
@@ -180,8 +178,8 @@ Before committing to a long run, you can do a dry run: DataStreamCLI sets up the
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_dryrun \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_dryrun \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
   -y True \
   -V True
@@ -190,17 +188,17 @@ Before committing to a long run, you can do a dry run: DataStreamCLI sets up the
 - **`-y True`** (`--DRYRUN`) — skip the compute steps (forcingprocessor, BMI config generation, validation, NextGen, …). The metadata and configuration files are still generated, and the commands that *would* have run are echoed. Great for sanity-checking paths and understanding the pipeline.
 - **`-V True`** (`--VERBOSE`) — stream the full output of forcingprocessor and NGIAB to your terminal instead of keeping it quiet. Useful for debugging.
 
-Tip: after a dry run, look inside `data/palisade_dryrun/datastream-metadata/` to see the generated `conf_fp.json`, `conf_nwmurl.json`, and `datastream_steps.txt`.
+Tip: after a dry run, look inside `data/provo_dryrun/datastream-metadata/` to see the generated `conf_fp.json`, `conf_nwmurl.json`, and `datastream_steps.txt`.
 
 ---
 
-## Example 6 — Reuse files with a resource directory (`-r`)
+## Example 5 — Reuse files with a resource directory (`-r`)
 
 Every run produces a `datastream-resources/` folder — a cache of the (relatively expensive) inputs it built: the geopackage, the realization, the generated BMI configs, and the NextGen forcings. Feed that folder back in with `-r` and DataStreamCLI runs in **"lite mode"**, reusing whatever it finds instead of recomputing or re-downloading it.
 
 **Step 1 — copy the resources out of the Example 1 run:**
 ```bash
-cp -r $(pwd)/data/palisade_intro/datastream-resources $(pwd)/data/palisade_resources
+cp -r $(pwd)/data/provo_intro/datastream-resources $(pwd)/data/provo_resources
 ```
 
 **Step 2 — rerun using the cache.** Notice `-g` and `-R` are gone: DataStreamCLI finds them inside the resource directory.
@@ -209,12 +207,12 @@ cp -r $(pwd)/data/palisade_intro/datastream-resources $(pwd)/data/palisade_resou
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_reuse \
-  -r $(pwd)/data/palisade_resources \
+  -d $(pwd)/data/provo_reuse \
+  -r $(pwd)/data/provo_resources \
   -n 4
 ```
 
-- **`-r $(pwd)/data/palisade_resources`** (`--RESOURCE_DIR`) — read cached inputs from here. Anything present is reused; anything missing is regenerated from your other arguments.
+- **`-r $(pwd)/data/provo_resources`** (`--RESOURCE_DIR`) — read cached inputs from here. Anything present is reused; anything missing is regenerated from your other arguments.
 
 `-r` accepts a **folder-like** path: either a local directory (as here) or an `s3://` URI *prefix*, which DataStreamCLI treats like a directory and pulls the cached files from. (This mirrors the file-like paths from Example 1, but for whole directories — it's how the Research DataStream shares a common cache across many machines.)
 
@@ -227,13 +225,13 @@ This is the key to **fast, reproducible iteration**, and it's exactly how the Ne
 
 ---
 
-## Example 7 — Bring your own inputs (`-F`, `-f`, `-N`)
+## Example 6 — Bring your own inputs (`-F`, `-f`, `-N`)
 
 "Batteries included, but flexible" means you can override any input DataStreamCLI would otherwise build. This example supplies ready-made NextGen forcings and skips forcingprocessor entirely.
 
 **Step 1 — grab the forcings produced by the Example 1 run** (they already match our time window):
 ```bash
-cp $(pwd)/data/palisade_intro/datastream-resources/ngen-forcings/*.nc $(pwd)/palisade_forcings.nc
+cp $(pwd)/data/provo_intro/datastream-resources/ngen-forcings/*.nc $(pwd)/provo_forcings.nc
 ```
 
 **Step 2 — hand them to DataStreamCLI with `-F`:**
@@ -242,10 +240,10 @@ cp $(pwd)/data/palisade_intro/datastream-resources/ngen-forcings/*.nc $(pwd)/pal
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_byo \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_byo \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
-  -F $(pwd)/palisade_forcings.nc \
+  -F $(pwd)/provo_forcings.nc \
   -n 4
 ```
 
@@ -254,13 +252,13 @@ cp $(pwd)/data/palisade_intro/datastream-resources/ngen-forcings/*.nc $(pwd)/pal
 The same "bring your own" idea applies to two more arguments (not shown as standalone commands here, since they need files specific to your setup):
 
 - **`-f` (`--NWM_FORCINGS_DIR`)** — point at a local directory of *gridded* NWM NetCDF files. DataStreamCLI still runs forcingprocessor but reads these local files instead of downloading them — handy when you already have the NWM grids and want to avoid network transfer.
-- **`-N` (`--NGEN_BMI_CONFS`)** — supply your own per-catchment BMI configuration files (directory or tarball) instead of generating them from the realization.
+- **`-N` (`--NGEN_BMI_CONFS`)** — supply your own per-catchment BMI configuration files (directory or tarball) instead of generating them from the realization. The AWI package from [Step 1](#step-1--get-a-hydrofabric-geopackage) contains exactly this kind of folder at `AWI_16_10154200_009/config/cat_config/`.
 
 Each of these can also live inside a resource directory (`ngen-forcings/`, `nwm-forcings/`, `config/cat-config/`) — see [STANDARD_DIRECTORIES.md](STANDARD_DIRECTORIES.md).
 
 ---
 
-## Example 8 — A retrospective simulation, in depth (`-E`)
+## Example 7 — A retrospective simulation, in depth (`-E`)
 
 Example 1 was already retrospective; here we treat it as a real study. Retrospective (reanalysis) forcings are the right tool for evaluating model performance against history, because the period is fixed and the forcings are a consistent, quality-controlled dataset. This run covers a full week and turns on automated evaluation.
 
@@ -269,34 +267,34 @@ Example 1 was already retrospective; here we treat it as a real study. Retrospec
   -s 201906100100 \
   -e 201906170000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_2019_retro \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_2019_retro \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
-  -D PALISADE_COLORADO \
+  -D PROVO_RIVER_WOODLAND \
   -n 8 \
   -E True
 ```
 
 What's worth understanding:
 
-- **`-C NWM_RETRO_V3`** — the retrospective forcing source. Choose `NWM_RETRO_V3` for the v3 reanalysis or `NWM_RETRO_V2` for v2. Unlike the operational sources in [Example 9](#example-9--operational-forecasts-and-daily-mode), retrospective sources take your `-s`/`-e` window **literally** — there's no forecast cycle or ensemble suffix to specify.
+- **`-C NWM_RETRO_V3`** — the retrospective forcing source. Choose `NWM_RETRO_V3` for the v3 reanalysis or `NWM_RETRO_V2` for v2. Unlike the operational sources in [Example 8](#example-8--operational-forecasts-and-daily-mode), retrospective sources take your `-s`/`-e` window **literally** — there's no forecast cycle or ensemble suffix to specify.
 - **Time domain.** `-s 201906100100 -e 201906170000` is a 7-day window (168 hourly steps). Memory and runtime scale with **both** the number of catchments and the number of time steps, so a week costs meaningfully more than a day. Size `-n` and your host accordingly (see [USAGE.md](USAGE.md)).
-- **`-E True`** (`--EVAL`) — after NextGen finishes, run the [TEEHR](https://github.com/RTIInternational/teehr) evaluation service on the outputs, producing metrics that compare simulated streamflow against observations. This is what turns a retrospective run into something you can judge a configuration by.
+- **`-E True`** (`--EVAL`) — after NextGen finishes, run the [TEEHR](https://github.com/RTIInternational/teehr) evaluation service on the outputs, producing metrics that compare simulated streamflow against observations. This is what turns a retrospective run into something you can judge a configuration by. Our domain terminates at USGS gage 10154200, so there are observations to evaluate against.
 
-Outputs land in `data/palisade_2019_retro/ngen-run/outputs/`, with TEEHR evaluation artifacts alongside. For a fully manual, step-by-step version of a retrospective study (calling forcingprocessor, config generation, and NGIAB yourself), see [BREAKDOWN.md](BREAKDOWN.md).
+Outputs land in `data/provo_2019_retro/ngen-run/outputs/`, with TEEHR evaluation artifacts alongside. For a fully manual, step-by-step version of a retrospective study (calling forcingprocessor, config generation, and NGIAB yourself), see [BREAKDOWN.md](BREAKDOWN.md).
 
 ---
 
-## Example 9 — Operational forecasts and `DAILY` mode
+## Example 8 — Operational forecasts and `DAILY` mode
 
-To run against **operational** NWM products (short-range, medium-range, analysis-and-assimilation) rather than the retrospective archive, you use a structured `FORCING_SOURCE` string and, usually, `DAILY` mode. This example runs today's 06Z short-range forecast over Palisade.
+To run against **operational** NWM products (short-range, medium-range, analysis-and-assimilation) rather than the retrospective archive, you use a structured `FORCING_SOURCE` string and, usually, `DAILY` mode. This example runs today's 06Z short-range forecast.
 
 ```bash
 ./scripts/datastream \
   -s DAILY \
   -C NWM_V3_SHORT_RANGE_06 \
-  -d $(pwd)/data/palisade_short_range \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_short_range \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
   -n 4
 ```
@@ -318,9 +316,9 @@ New concepts:
 
 **Writing results to S3 (optional).** Add `-S` and `-o` to upload the run. This needs an S3 bucket you own and `awscli` credentials, so it's shown separately rather than in the runnable command above:
 ```bash
-  # add these flags to write to s3://YOUR_BUCKET/runs/palisade/<run-date>/short_range/
+  # add these flags to write to s3://YOUR_BUCKET/runs/provo/<run-date>/short_range/
   -S YOUR_BUCKET \
-  -o runs/palisade/DAILY/short_range
+  -o runs/provo/DAILY/short_range
 ```
 - **`-S`** (`--S3_BUCKET`) — the destination bucket.
 - **`-o`** (`--S3_PREFIX`) — the key prefix within it. If the prefix contains the literal token `DAILY`, it's replaced with the actual run date (e.g. `20240722`), so scheduled jobs write to dated folders automatically.
@@ -329,13 +327,13 @@ This command is essentially one VPU's slice of the operational Research DataStre
 
 ---
 
-## Example 10 — Reproduce a NextGen Research DataStream (NRDS) simulation (`-c`)
+## Example 9 — Reproduce a NextGen Research DataStream (NRDS) simulation (`-c`)
 
 The [NextGen Research DataStream](https://datastream.ciroh.org) publishes NextGen forcings and outputs for the whole CONUS every day, VPU by VPU, using this exact tool. Because DataStreamCLI versions everything and accepts remote inputs, you can reproduce any published run on your own machine.
 
-### 10a. Reproduce today's operational cycle
+### 9a. Reproduce today's operational cycle
 
-This reproduces today's **06Z short-range** simulation for **VPU 09**, pulling the same geopackage and realization the NRDS uses:
+This reproduces today's **06Z short-range** simulation for **VPU 09**, pulling the same geopackage and realization the NRDS uses — note that both are remote URLs, so there's nothing to download first:
 
 ```bash
 ./scripts/datastream \
@@ -347,9 +345,9 @@ This reproduces today's **06Z short-range** simulation for **VPU 09**, pulling t
   --NPROCS 8
 ```
 
-There's nothing new here — it's Examples 1, 4, and 9 combined — and that's the point: **an NRDS run is just a DataStreamCLI command.** (This example uses the long-form flag names, which are interchangeable with the short flags used elsewhere.) VPU 09 is ~11,000 catchments, so give it a capable host and a few minutes.
+There's nothing new here — it's Examples 1, 3, and 8 combined — and that's the point: **an NRDS run is just a DataStreamCLI command.** (This example uses the long-form flag names, which are interchangeable with the short flags used elsewhere.) VPU 09 is ~11,000 catchments, so give it a capable host and a few minutes.
 
-### 10b. Reproduce a *specific past* NRDS run exactly (`-c`)
+### 9b. Reproduce a *specific past* NRDS run exactly (`-c`)
 
 To reproduce a run from a particular date, you don't need to reconstruct the command by hand. Every DataStreamCLI run writes a **self-describing configuration file** to `datastream-metadata/datastream.env`, and the NRDS uploads it alongside its outputs. That file records the run options *and* the exact Docker image versions used — so handing it back to DataStreamCLI reproduces the run.
 
@@ -377,7 +375,7 @@ DataStreamCLI writes the SHA-256 hash of every container it used to `datastream-
 
 ---
 
-## Example 11 — Run an LSTM ensemble (`-L`)
+## Example 10 — Run an LSTM ensemble (`-L`)
 
 Some arguments only matter for specific models. The `-L` argument applies when your realization uses the **LSTM** model: it selects which pretrained ensemble members to run. This example uses the repo's Rust-LSTM realization template.
 
@@ -386,8 +384,8 @@ Some arguments only matter for specific models. The `-L` argument applies when y
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_lstm \
-  -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg \
+  -d $(pwd)/data/provo_lstm \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_rust_lstm.json \
   -L 025 \
   -n 4
@@ -400,7 +398,7 @@ The repo also includes `realization_python_lstm_troute.json` and `realization_ru
 
 ---
 
-## Example 12 — Warm-start t-route with a restart file (`-t`, `-w`)
+## Example 11 — Warm-start t-route with a restart file (`-t`, `-w`)
 
 This is a model-specific option for the **t-route** channel-routing model: instead of starting routing from a cold state, you can warm-start it from a prior run's state.
 
@@ -411,8 +409,8 @@ This is a model-specific option for the **t-route** channel-routing model: inste
   -s 202006200100 \
   -e 202006210000 \
   -C NWM_RETRO_V3 \
-  -d $(pwd)/data/palisade_restart \
-  -g $(pwd)/data/palisade_intro/datastream-resources/config/palisade.gpkg \
+  -d $(pwd)/data/provo_restart \
+  -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
   -t /path/to/troute_restart.nc \
   -w /path/to/crosswalk.nc \
@@ -457,7 +455,7 @@ export NGIAB_TAG=v1.7.0
 | `1.7.0` | `2.2.0` | `v1.7.0` |
 | `1.7.1` | `2.2.1` | `v1.8.0` |
 
-When you reproduce a run with its `datastream.env` ([Example 10b](#10b-reproduce-a-specific-past-nrds-run-exactly--c)), these tags come along automatically. To set them by hand, pick the row matching the deployment you're reproducing. (The current script passes newer options — like t-route restart files — to containers via environment variables specifically so older images ignore what they don't understand.)
+When you reproduce a run with its `datastream.env` ([Example 9b](#9b-reproduce-a-specific-past-nrds-run-exactly--c)), these tags come along automatically. To set them by hand, pick the row matching the deployment you're reproducing. (The current script passes newer options — like t-route restart files — to containers via environment variables specifically so older images ignore what they don't understand.)
 
 **Behavior toggles.** Two more environment variables skip steps, handy when you've already validated inputs or supplied your own configs:
 
