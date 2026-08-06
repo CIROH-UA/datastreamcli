@@ -167,7 +167,7 @@ By default DataStreamCLI derives a domain name from the geopackage filename. Set
   -n 4
 ```
 
-- **`-D PALISADE_COLORADO`** (`--DOMAIN_NAME`) — a human-readable label for the spatial domain. It's recorded in the run metadata and helps you tell runs apart later. Omit it and DataStreamCLI uses the geopackage's base filename. Adding this option does not impact the processing in anyway.
+- **`-D PALISADE_COLORADO`** (`--DOMAIN_NAME`) — a human-readable label for the spatial domain. It's recorded in the run metadata and helps you tell runs apart later. Omit it and DataStreamCLI uses the geopackage's base filename. Adding this option does not impact the processing in any way.
 
 ---
 
