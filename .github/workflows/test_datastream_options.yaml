@@ -187,7 +187,7 @@ jobs:
           cp ./data/datastream_test/datastream-metadata/datastream.env ./data/cache
           cp -r "$RESOURCES_RUN" ./data/cache
           rm -rf "$WS/data/datastream_test"
-          ./scripts/datastream -c ./data/cache/datastream.env
+          ./scripts/datastream -c ./data/cache/datastream.env -d "$WS/data/datastream_test"
 
           # Test 3: No resources (cached)
           echo "=== Test 3: No resources (cached) ==="

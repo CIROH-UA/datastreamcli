@@ -1,0 +1,97 @@
+name: Test Datastream Backward Compatibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      ds_tag:
+        description: "Custom DS_TAG (leave blank to test all deployed combinations)"
+        required: false
+        default: ""
+      fp_tag:
+        description: "Custom FP_TAG"
+        required: false
+        default: ""
+      ngiab_tag:
+        description: "Custom NGIAB_TAG"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # Choose the matrix: the custom combo from the dispatch inputs, otherwise every
+  # container combination deployed in the NRDS. Maintainers: update the list below.
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        env:
+          DS_IN: ${{ inputs.ds_tag }}
+          FP_IN: ${{ inputs.fp_tag }}
+          NG_IN: ${{ inputs.ngiab_tag }}
+        run: |
+          if [ -n "$DS_IN" ]; then
+            matrix="{\"include\":[{\"ds\":\"$DS_IN\",\"fp\":\"$FP_IN\",\"ngiab\":\"$NG_IN\"}]}"
+          else
+            matrix='{"include":[
+              {"ds":"1.3.0","fp":"2.0.0","ngiab":"v1.6.0"},
+              {"ds":"1.4.0","fp":"2.0.0","ngiab":"v1.6.0"},
+              {"ds":"1.5.0","fp":"2.0.1","ngiab":"v1.7.0"},
+              {"ds":"1.6.0","fp":"2.1.0","ngiab":"v1.7.0"},
+              {"ds":"1.7.0","fp":"2.2.0","ngiab":"v1.7.0"},
+              {"ds":"1.7.1","fp":"2.2.1","ngiab":"v1.8.0"}]}'
+            matrix=$(echo "$matrix" | tr -d '\n ')
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          docker system prune -af || true
+
+      - name: Test deployed combination
+        env:
+          DS_TAG: ${{ matrix.ds }}
+          FP_TAG: ${{ matrix.fp }}
+          NGIAB_TAG: ${{ matrix.ngiab }}
+        run: |
+          WS="${{ github.workspace }}"
+          DATA_DIR="$WS/data/ds_bwc_test"
+          HTTPS_BUCKET="https://ciroh-community-ngen-datastream.s3.amazonaws.com"
+          GPKG_VPU="nextgen_VPU_09.gpkg"
+          REALIZATION_VPU="realization_VPU_09.json"
+          GPKG_VPU_HTTPS="$HTTPS_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/$GPKG_VPU"
+          REALIZATION_HTTPS="$HTTPS_BUCKET/realizations/$REALIZATION_VPU"
+
+          echo "=== DS=$DS_TAG FP=$FP_TAG NGIAB=$NGIAB_TAG ==="
+          rm -rf "$DATA_DIR"
+          ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 \
+            -d "$DATA_DIR" -g "$GPKG_VPU_HTTPS" -R "$REALIZATION_HTTPS"
+
+          NGENRUN="$DATA_DIR/ngen-run"
+          for f in "$NGENRUN/config/realization.json" "$NGENRUN/config/$GPKG_VPU"; do
+            [ -f "$f" ] || { echo "Missing $f"; exit 1; }
+          done
+          [ "$(find "$NGENRUN/config/cat_config" -mindepth 1 -maxdepth 1 -type d | wc -l)" -gt 0 ] || { echo "No cat_config subdirs"; exit 1; }
+          [ -n "$(find "$NGENRUN/forcings" -type f)" ] || { echo "No forcings"; exit 1; }
+          [ -n "$(find "$NGENRUN/outputs/ngen" -type f)" ] || { echo "No ngen outputs"; exit 1; }
+          echo "=== PASSED DS=$DS_TAG FP=$FP_TAG NGIAB=$NGIAB_TAG ==="
