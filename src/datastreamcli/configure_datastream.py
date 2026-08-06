@@ -104,18 +104,21 @@ def config_class2envs(args, filename="config.env"):
     skip_globals = {"data_dir"}  # machine-specific, not reproducible
 
     def is_set(value):
-        return value is not None and not (isinstance(value, str) and value.strip() == "")
+        return value is not None and not (
+            isinstance(value, str) and value.strip() == ""
+        )
 
-    with open(filename, 'w') as f:
-        for key, value in config['globals'].items():
+    with open(filename, "w") as f:
+        for key, value in config["globals"].items():
             if key in skip_globals or not is_set(value):
                 continue
             f.write(f'{key.upper()}="{value}"\n')
 
-        for key, value in config['subset'].items():
+        for key, value in config["subset"].items():
             if not is_set(value):
                 continue
             f.write(f'SUBSET_{key.upper()}="{value}"\n')
+
 
 def write_json(conf, out_dir, name):
     conf_path = Path(out_dir, name)
@@ -483,31 +486,125 @@ def create_confs(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--docker_mount", help="Path to data_dir mount within docker container",default="", required=False)
-    parser.add_argument("--start_date", help="Set the start date",default=None)
-    parser.add_argument("--end_date", help="Set the end date",default="", required=False)
-    parser.add_argument("--data_dir", help="Set the data directory",default="")
-    parser.add_argument("--geopackage",help="Lcoal path to geopackage file",default="")
-    parser.add_argument("--geopackage_provided",help="User provided path to geopackage file",default="")
-    parser.add_argument("--resource_path", help="Set the resource directory",default="")
-    parser.add_argument("--forcings", help="Set the forcings file or directory",default="", required=False)
-    parser.add_argument("--forcing_source", type=str,help="Option for source of forcings",default="NWM_V3")
-    parser.add_argument("--subset_id_type", help="Set the subset ID type",default="", required=False)
-    parser.add_argument("--subset_id", help="Set the subset ID",default="", required=False)
-    parser.add_argument("--hydrofabric_version", help="Set the Hydrofabric version",default="", required=False)
-    parser.add_argument("--nprocs", type=int,help="Maximum number of processes to use",default=os.cpu_count(), required=False)
-    parser.add_argument("--host_platform", type=str,help="Type of host",default="", required=False)
-    parser.add_argument("--host_os", type=str,help="Operating system of host",default="", required=False)
-    parser.add_argument("--domain_name", type=str,help="Name of spatial domain",default="Not Specified", required=False)
-    parser.add_argument("--forcing_split_vpu", type=str,help="list of vpus",default="", required=False)
-    parser.add_argument("--united_conus", type=bool,help="boolean to process entire conus from local weights file",default=False, required=False)
-    parser.add_argument("--realization", type=str,help="local ngen realization file",required=True)
-    parser.add_argument("--realization_provided", type=str,help="The exact path the user provided to their realization file",required=True)
-    parser.add_argument("--troute_restart", type=str, help="t-route restart file", default=os.environ.get("TROUTE_RESTART", ""), required=False)
-    parser.add_argument("--troute_crosswalk", type=str, help="t-route crosswalk file", default=os.environ.get("TROUTE_CROSSWALK", ""), required=False)
-    parser.add_argument("--s3_bucket", type=str,help="s3 bucket to write to",default="", required=False)
-    parser.add_argument("--s3_prefix", type=str,help="s3 prefix to prepend to files", required=False)
-    parser.add_argument("--ngen_bmi_confs", type=str,help="Path for user provided ngen bmi configs", required=False)
+    parser.add_argument(
+        "--docker_mount",
+        help="Path to data_dir mount within docker container",
+        default="",
+        required=False,
+    )
+    parser.add_argument("--start_date", help="Set the start date", default=None)
+    parser.add_argument(
+        "--end_date", help="Set the end date", default="", required=False
+    )
+    parser.add_argument("--data_dir", help="Set the data directory", default="")
+    parser.add_argument(
+        "--geopackage", help="Lcoal path to geopackage file", default=""
+    )
+    parser.add_argument(
+        "--geopackage_provided",
+        help="User provided path to geopackage file",
+        default="",
+    )
+    parser.add_argument(
+        "--resource_path", help="Set the resource directory", default=""
+    )
+    parser.add_argument(
+        "--forcings",
+        help="Set the forcings file or directory",
+        default="",
+        required=False,
+    )
+    parser.add_argument(
+        "--forcing_source",
+        type=str,
+        help="Option for source of forcings",
+        default="NWM_V3",
+    )
+    parser.add_argument(
+        "--subset_id_type", help="Set the subset ID type", default="", required=False
+    )
+    parser.add_argument(
+        "--subset_id", help="Set the subset ID", default="", required=False
+    )
+    parser.add_argument(
+        "--hydrofabric_version",
+        help="Set the Hydrofabric version",
+        default="",
+        required=False,
+    )
+    parser.add_argument(
+        "--nprocs",
+        type=int,
+        help="Maximum number of processes to use",
+        default=os.cpu_count(),
+        required=False,
+    )
+    parser.add_argument(
+        "--host_platform", type=str, help="Type of host", default="", required=False
+    )
+    parser.add_argument(
+        "--host_os",
+        type=str,
+        help="Operating system of host",
+        default="",
+        required=False,
+    )
+    parser.add_argument(
+        "--domain_name",
+        type=str,
+        help="Name of spatial domain",
+        default="Not Specified",
+        required=False,
+    )
+    parser.add_argument(
+        "--forcing_split_vpu", type=str, help="list of vpus", default="", required=False
+    )
+    parser.add_argument(
+        "--united_conus",
+        type=bool,
+        help="boolean to process entire conus from local weights file",
+        default=False,
+        required=False,
+    )
+    parser.add_argument(
+        "--realization", type=str, help="local ngen realization file", required=True
+    )
+    parser.add_argument(
+        "--realization_provided",
+        type=str,
+        help="The exact path the user provided to their realization file",
+        required=True,
+    )
+    parser.add_argument(
+        "--troute_restart",
+        type=str,
+        help="t-route restart file",
+        default=os.environ.get("TROUTE_RESTART", ""),
+        required=False,
+    )
+    parser.add_argument(
+        "--troute_crosswalk",
+        type=str,
+        help="t-route crosswalk file",
+        default=os.environ.get("TROUTE_CROSSWALK", ""),
+        required=False,
+    )
+    parser.add_argument(
+        "--s3_bucket",
+        type=str,
+        help="s3 bucket to write to",
+        default="",
+        required=False,
+    )
+    parser.add_argument(
+        "--s3_prefix", type=str, help="s3 prefix to prepend to files", required=False
+    )
+    parser.add_argument(
+        "--ngen_bmi_confs",
+        type=str,
+        help="Path for user provided ngen bmi configs",
+        required=False,
+    )
 
     args = parser.parse_args()
 

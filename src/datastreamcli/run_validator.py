@@ -339,7 +339,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to the t-route restart file",
         required=False,
-        default=os.environ.get("TROUTE_RESTART", "")
+        default=os.environ.get("TROUTE_RESTART", ""),
     )
     parser.add_argument(
         "--troute_crosswalk",
@@ -347,7 +347,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to the t-route crosswalk file",
         required=False,
-        default=os.environ.get("TROUTE_CROSSWALK", "")
+        default=os.environ.get("TROUTE_CROSSWALK", ""),
     )
     args = parser.parse_args()
 
