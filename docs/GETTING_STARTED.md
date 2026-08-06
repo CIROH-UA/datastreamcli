@@ -76,7 +76,7 @@ The package is a complete NextGen run directory, so it also contains forcings, a
 
 To model a different domain, use your own geopackage or create one with [**NGIAB Data Preprocess**](https://github.com/CIROH-UA/NGIAB_data_preprocess).
 
-Complete v2.2 geopackages for each VPU are also published under `resources/v2.2_hydrofabric/geopackages/` in the [Research DataStream bucket](https://ciroh-ngen-community-datastream.ciroh.org) if you want to run a whole basin.
+Complete v2.2 geopackages for each VPU are also published under `resources/v2.2_hydrofabric/geopackages/` in the [Research DataStream bucket](https://datastream.ciroh.org) if you want to run a whole basin.
 
 ---
 
