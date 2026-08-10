@@ -730,7 +730,10 @@ log_time "NGEN_END"
 log_time "CONVERT_TROUTE_NC2PARQUET_START"
 NC2PARQUET_CONVERTER=$DOCKER_PY"nc2parquet.py"
 DOCKER_TROUTE_DIR=$DOCKER_MOUNT/outputs/troute/
-if [ "$DRYRUN" == "True" ]; then
+if [ "$EVAL" == "True" ]; then
+    # TEEHR reads the t-route netcdf outputs, so leave them in place
+    echo "EVAL is True - CONVERT_TROUTE_NC2PARQUET SKIPPED"
+elif [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - CONVERT_TROUTE_NC2PARQUET SKIPPED"
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
         -u $(id -u):$(id -g) \
@@ -808,7 +811,7 @@ if [ -n "$S3_BUCKET" ]; then
 #    aws s3 cp $NGENRUN_TAR "s3://$S3_BUCKET/${S3_PREFIX%/}/$TAR_NAME"
     aws s3 cp $DATA_DIR/merkdir.file "s3://$S3_BUCKET/${S3_PREFIX%/}/merkdir.file"
     aws s3 sync $DATASTREAM_META "s3://$S3_BUCKET/${S3_PREFIX%/}/datastream-metadata"
-    if [ ${NTROUTE} -gt 0 ]; then
+    if [ ${NTROUTE:-0} -gt 0 ]; then
         aws s3 sync $TROUTE_TMP "s3://$S3_BUCKET/${S3_PREFIX%/}/ngen-run/outputs/troute/"
         rm -rf $TROUTE_TMP
     fi
