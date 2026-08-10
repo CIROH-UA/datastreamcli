@@ -3,6 +3,7 @@ from ngen.config.realization import NgenRealization
 from ngen.config.validate import validate_paths
 import re
 import xarray as xr
+import yaml
 import geopandas as gpd
 gpd.options.io_engine = "pyogrio"
 import pandas as pd
@@ -212,6 +213,10 @@ def validate_data_dir(data_dir : str, troute_restart : str="", troute_crosswalk 
     if serialized_realization.routing:
         troute_path = os.path.join(data_dir,serialized_realization.routing.config)
         assert os.path.exists(troute_path), "t-route specified in config, but not found"
+        check_troute(
+            serialized_realization,
+            troute_path,
+        )
 
     if "config/troute.yaml" not in str(serialized_realization.global_config.forcing.path):
         # Forcing path is only troute.yaml for the routing-only run
@@ -249,6 +254,41 @@ def validate_data_dir(data_dir : str, troute_restart : str="", troute_crosswalk 
                 pass
 
     print(f'\nNGen run folder is valid\n',flush = True)
+
+def check_troute(
+    serialized_realization: NgenRealization,
+    troute_path: str,
+) -> None:
+    """
+    Checks that the t-route start_datetime matches
+    the NextGen realization start_time.
+    """
+
+    with open(troute_path, "r") as fp:
+        troute_conf = yaml.safe_load(fp)
+
+    troute_start_str = (
+        troute_conf["compute_parameters"]
+        ["restart_parameters"]
+        ["start_datetime"]
+    )
+
+    troute_start = datetime.strptime(
+        troute_start_str,
+        "%Y-%m-%d %H:%M:%S",
+    )
+
+    realization_start = serialized_realization.time.start_time
+
+    if realization_start.tzinfo is not None:
+        troute_start = troute_start.replace(
+            tzinfo=realization_start.tzinfo
+        )
+
+    assert realization_start == troute_start, (
+        f"Realization start time {realization_start} "
+        f"does not match t-route start_datetime {troute_start}"
+    )
 
 if __name__ == "__main__":
 
