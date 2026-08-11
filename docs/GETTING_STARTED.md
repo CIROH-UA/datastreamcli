@@ -17,7 +17,7 @@ This document is a hands-on introduction to `DataStreamCLI`. It builds up one co
 - [Example 4 — Preview a run without computing (`-y`, `-V`)](#example-4--preview-a-run-without-computing--y--v)
 - [Example 5 — Reuse files with a resource directory (`-r`)](#example-5--reuse-files-with-a-resource-directory--r)
 - [Example 6 — Bring your own inputs (`-F`, `-f`, `-N`)](#example-6--bring-your-own-inputs--f--f--n)
-- [Example 7 — A retrospective simulation, in depth (`-E`)](#example-7--a-retrospective-simulation-in-depth--e)
+- [Example 7 — A retrospective simulation, in depth (`-C`)](#example-7--a-retrospective-simulation-in-depth--c)
 - [Example 8 — Operational forecasts and `DAILY` mode](#example-8--operational-forecasts-and-daily-mode)
 - [Example 9 — Reproduce a NextGen Research DataStream (NRDS) simulation (`-c`)](#example-9--reproduce-a-nextgen-research-datastream-nrds-simulation--c)
 - [Example 10 — Run an LSTM ensemble (`-L`)](#example-10--run-an-lstm-ensemble--l)
@@ -36,7 +36,7 @@ This document is a hands-on introduction to `DataStreamCLI`. It builds up one co
 3. **Generates the NextGen model configuration files** — the per-catchment BMI config files implied by your realization file.
 4. **Validates** the assembled input package.
 5. **Runs NextGen** through [NextGen In A Box](https://github.com/CIROH-UA/NGIAB-CloudInfra) (NGIAB).
-6. **Handles outputs** — converts t-route output, versions everything (so a run is reproducible), and optionally uploads to S3 and runs the [TEEHR](https://github.com/RTIInternational/teehr) evaluation service.
+6. **Handles outputs** — converts t-route output, versions everything (so a run is reproducible), and optionally uploads to S3.
 
 Each step runs inside a Docker container, so most of what you install is `docker` itself. The design philosophy is **"batteries included, but flexible"**: DataStreamCLI builds every input for you by default, but you can hand it your own forcings, BMI configs, or hydrofabric at any step.
 
@@ -258,9 +258,9 @@ Each of these can also live inside a resource directory (`ngen-forcings/`, `nwm-
 
 ---
 
-## Example 7 — A retrospective simulation, in depth (`-E`)
+## Example 7 — A retrospective simulation, in depth (`-C`)
 
-Example 1 was already retrospective; here we treat it as a real study. Retrospective (reanalysis) forcings are the right tool for evaluating model performance against history, because the period is fixed and the forcings are a consistent, quality-controlled dataset. This run covers a full week and turns on automated evaluation.
+Example 1 was already retrospective; here we treat it as a real study. Retrospective (reanalysis) forcings are the right tool for evaluating model performance against history, because the period is fixed and the forcings are a consistent, quality-controlled dataset. This run covers a full week.
 
 ```bash
 ./scripts/datastream \
@@ -271,17 +271,16 @@ Example 1 was already retrospective; here we treat it as a real study. Retrospec
   -g $(pwd)/gage-10154200_subset.gpkg \
   -R $(pwd)/configs/ngen/realization_sloth_nom_cfe_pet_troute.json \
   -D PROVO_RIVER_WOODLAND \
-  -n 8 \
-  -E True
+  -n 8
 ```
 
 What's worth understanding:
 
 - **`-C NWM_RETRO_V3`** — the retrospective forcing source. Choose `NWM_RETRO_V3` for the v3 reanalysis or `NWM_RETRO_V2` for v2. Unlike the operational sources in [Example 8](#example-8--operational-forecasts-and-daily-mode), retrospective sources take your `-s`/`-e` window **literally** — there's no forecast cycle or ensemble suffix to specify.
 - **Time domain.** `-s 201906100100 -e 201906170000` is a 7-day window (168 hourly steps). Memory and runtime scale with **both** the number of catchments and the number of time steps, so a week costs meaningfully more than a day. Size `-n` and your host accordingly (see [USAGE.md](USAGE.md)).
-- **`-E True`** (`--EVAL`) — after NextGen finishes, run the [TEEHR](https://github.com/RTIInternational/teehr) evaluation service on the outputs, producing metrics that compare simulated streamflow against observations. This is what turns a retrospective run into something you can judge a configuration by. Our domain terminates at USGS gage 10154200, so there are observations to evaluate against.
+- **`-D PROVO_RIVER_WOODLAND`** — naming the domain (see [Example 3](#example-3--name-the-domain--d)) matters more here than in a throwaway run: the name is recorded in the run's metadata, so a study you come back to months later identifies itself.
 
-Outputs land in `data/provo_2019_retro/ngen-run/outputs/`, with TEEHR evaluation artifacts alongside. For a fully manual, step-by-step version of a retrospective study (calling forcingprocessor, config generation, and NGIAB yourself), see [BREAKDOWN.md](BREAKDOWN.md).
+Outputs land in `data/provo_2019_retro/ngen-run/outputs/`. For a fully manual, step-by-step version of a retrospective study (calling forcingprocessor, config generation, and NGIAB yourself), see [BREAKDOWN.md](BREAKDOWN.md).
 
 ---
 
@@ -435,7 +434,6 @@ DataStreamCLI orchestrates several Docker containers. You normally don't manage 
 | `DS_TAG` | `awiciroh/datastream` (config generation, validation, conversions) | `1.7.1` |
 | `FP_TAG` | `awiciroh/forcingprocessor` (forcings) | `2.2.1` |
 | `NGIAB_TAG` | `awiciroh/ciroh-ngen-image` (the NextGen engine, NGIAB) | `v1.8.0` |
-| `TEEHR_TAG` | `awiciroh/ngiab-teehr` (evaluation, used with `-E`) | `latest` |
 
 ```bash
 export DS_TAG=1.7.0
