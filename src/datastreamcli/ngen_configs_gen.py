@@ -266,7 +266,7 @@ def gen_lstm(
         lstm_config_jcat["basin_id"] = jcat
         lstm_config_jcat["basin_name"] = jcat
         lstm_config_jcat["elev_mean"] = (
-            attrs_row["mean.elevation"] / 100,
+            attrs_row["mean.elevation"] / 100
         )  # convert cm in hf to m
         lstm_config_jcat["lat"] = lat
         lstm_config_jcat["lon"] = lon
