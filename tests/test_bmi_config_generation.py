@@ -1,7 +1,13 @@
 import os
 import pytest
 from ruamel.yaml import YAML
-from datastreamcli.ngen_configs_gen import gen_noah_owp_confs_from_pkl, gen_petAORcfe, generate_troute_conf, gen_lstm, get_hf
+from datastreamcli.ngen_configs_gen import (
+    gen_noah_owp_confs_from_pkl,
+    gen_petAORcfe,
+    generate_troute_conf,
+    gen_lstm,
+    get_hf,
+)
 from datastreamcli.noahowp_pkl import multiprocess_gen_pkl
 import datetime as dt
 from pathlib import Path
@@ -15,7 +21,7 @@ CONFIG_DIR = PROJECT_ROOT / "configs"
 NGEN_CONFIG_DIR = CONFIG_DIR / "ngen"
 DATA_DIR = TEST_DIR / "data"
 
-LSTM_REALIZATION =  NGEN_CONFIG_DIR / "realization_rust_lstm.json"
+LSTM_REALIZATION = NGEN_CONFIG_DIR / "realization_rust_lstm.json"
 PKL_FILE = DATA_DIR / "noah-owp-modular-init.namelist.input.pkl"
 
 # Ensure DATA_DIR exists and is empty
@@ -25,31 +31,44 @@ DATA_DIR.mkdir(parents=True)
 
 CONF_DIR = DATA_DIR / "cat_config"
 NOAH_DIR = CONF_DIR / "NOAH-OWP-M"
-CFE_DIR  = CONF_DIR / "CFE"
-PET_DIR  = CONF_DIR / "PET"
-LSTM_DIR  = CONF_DIR / "LSTM"
+CFE_DIR = CONF_DIR / "CFE"
+PET_DIR = CONF_DIR / "PET"
+LSTM_DIR = CONF_DIR / "LSTM"
 
 GEOPACKAGE_NAME_v21 = "palisade.gpkg"
 GEOPACKAGE_NAME_v22 = "vpu-09_subset.gpkg"
 GEOPACKAGE_PATH_v21 = DATA_DIR / GEOPACKAGE_NAME_v21
 GEOPACKAGE_PATH_v22 = DATA_DIR / GEOPACKAGE_NAME_v22
 
-subprocess.run([
-    "curl", "-L", "-o", str(GEOPACKAGE_PATH_v21),
-    f"https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/{GEOPACKAGE_NAME_v21}"
-], check=True)
+subprocess.run(
+    [
+        "curl",
+        "-L",
+        "-o",
+        str(GEOPACKAGE_PATH_v21),
+        f"https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/{GEOPACKAGE_NAME_v21}",
+    ],
+    check=True,
+)
 
-subprocess.run([
-    "curl", "-L", "-o", str(GEOPACKAGE_PATH_v22),
-    f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/VPU/{GEOPACKAGE_NAME_v22}"
-], check=True)
+subprocess.run(
+    [
+        "curl",
+        "-L",
+        "-o",
+        str(GEOPACKAGE_PATH_v22),
+        f"https://communityhydrofabric.s3.us-east-1.amazonaws.com/hydrofabrics/community/VPU/{GEOPACKAGE_NAME_v22}",
+    ],
+    check=True,
+)
 
 
-START    = dt.datetime.strptime("202006200100", '%Y%m%d%H%M')
-END      = dt.datetime.strptime("202006200100", '%Y%m%d%H%M')
+START = dt.datetime.strptime("202006200100", "%Y%m%d%H%M")
+END = dt.datetime.strptime("202006200100", "%Y%m%d%H%M")
 
 hf_v21, layers_v21, attrs_v21 = get_hf(GEOPACKAGE_PATH_v21)
 hf_v22, layers_v22, attrs_v22 = get_hf(GEOPACKAGE_PATH_v22)
+
 
 @pytest.fixture(autouse=True)
 def clean_dir():
@@ -120,7 +139,7 @@ def test_pet_v22():
 def test_lstm_v22():
     serialized_realization = NgenRealization.parse_file(LSTM_REALIZATION)
     LSTM_DIR.mkdir(parents=True, exist_ok=True)
-    gen_lstm(hf_v22, attrs_v22, DATA_DIR,serialized_realization,[0,1,2])
+    gen_lstm(hf_v22, attrs_v22, DATA_DIR, serialized_realization, [0, 1, 2])
     lstm_example = LSTM_DIR / "cat-1496145.yml"
     assert lstm_example.exists()
 
@@ -131,6 +150,7 @@ def test_routing_v22():
     yml_example = DATA_DIR / "troute.yaml"
     assert yml_example.exists()
 
+
 def test_routing_cpu_count():
     # number of cpus used in t-route should be equal to total_cpus - 2, or 1 if
     # os can't determine how many cpus are in the instance
@@ -139,7 +159,7 @@ def test_routing_cpu_count():
     yml_example = DATA_DIR / "troute.yaml"
     yaml = YAML()
 
-    with open(yml_example, 'r', encoding="utf-8") as troute_config_file:
+    with open(yml_example, "r", encoding="utf-8") as troute_config_file:
         troute_config = yaml.load(troute_config_file)
 
     cpus = os.cpu_count()
@@ -148,7 +168,8 @@ def test_routing_cpu_count():
     else:
         expected_cpus = 1
 
-    assert troute_config['compute_parameters']['cpu_pool'] == expected_cpus
+    assert troute_config["compute_parameters"]["cpu_pool"] == expected_cpus
+
 
 def test_routing_restart():
     max_loop_size = (END - START + dt.timedelta(hours=1)).total_seconds() / 3600
@@ -159,12 +180,23 @@ def test_routing_restart():
         GEOPACKAGE_PATH_v22,
         restart_file="testrestart.nc",
         crosswalk_file="testcrosswalk.nc",
-        restart=True)
+        restart=True,
+    )
     yml_example = DATA_DIR / "troute.yaml"
     yaml = YAML()
 
-    with open(yml_example, 'r', encoding="utf-8") as troute_config_file:
+    with open(yml_example, "r", encoding="utf-8") as troute_config_file:
         troute_config = yaml.load(troute_config_file)
 
-    assert troute_config['compute_parameters']['restart_parameters']['wrf_hydro_channel_restart_file'] == "testrestart.nc"
-    assert troute_config['compute_parameters']['restart_parameters']['wrf_hydro_channel_ID_crosswalk_file'] == "testcrosswalk.nc"
+    assert (
+        troute_config["compute_parameters"]["restart_parameters"][
+            "wrf_hydro_channel_restart_file"
+        ]
+        == "testrestart.nc"
+    )
+    assert (
+        troute_config["compute_parameters"]["restart_parameters"][
+            "wrf_hydro_channel_ID_crosswalk_file"
+        ]
+        == "testcrosswalk.nc"
+    )
