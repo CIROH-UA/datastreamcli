@@ -23,7 +23,6 @@ or run with cli args
   -o, --S3_PREFIX           <File prefix within s3 bucket> 
   -n, --NPROCS              <Process limit> 
   -y, --DRYRUN              <True to skip calculations> 
-  -E, --EVAL                <True to run TEEHR evaluation service> 
   -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> 
 
   ```
@@ -50,7 +49,6 @@ or run with cli args
 | DRYRUN             | `-y` | Set to "True" to skip all compute steps. |
 | NPROCS              | `-n` | Maximum number of processes to use in any step of  `datastreamcli`. Defaults to `nprocs - 2` |  |
 | CONF_FILE            | `-c` | Store CLI args as env variables in a file. |  |
-| EVAL | `-E` | Set to "True" to run the TEEHR automated evaluation service on NextGen outputs. |  |
 | VERBOSE | `-V` | Set to "True" to output all of forcingprocessor and NGIAB outputs |  |
 | LSTM_ENS_MEMBERS |`-L` |  List of integers corresponding to the LSTM ens members bewlow, for example 025| |
 

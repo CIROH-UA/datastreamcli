@@ -116,7 +116,6 @@ usage() {
     echo "  -o, --S3_PREFIX           <File prefix within s3 bucket> "
     echo "  -n, --NPROCS              <Process limit> "
     echo "  -y, --DRYRUN              <True to skip calculations> "
-    echo "  -E, --EVAL                <True to run TEEHR evaluation service> "
     echo "  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> "
     exit 0
 }
@@ -143,7 +142,6 @@ S3_BUCKET=""
 S3_PREFIX=""
 NPROCS=4
 DRYRUN="False"
-DO_TEEHR="False"
 VERBOSE="False"
 PIPE=""
 if [[ $VERBOSE == "True" ]]; then
@@ -165,12 +163,10 @@ VERSIONS_INTEGRATIONS_FILE=$PACKAGE_DIR/versions_integrations.yml
 DS_TAG=${DS_TAG:-$(sed -n 's/^datastream: *"\([^"]*\)".*/\1/p' "$VERSIONS_FILE")}
 FP_TAG=${FP_TAG:-$(sed -n 's/^forcingprocessor: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
 NGIAB_TAG=${NGIAB_TAG:-$(sed -n 's/^ciroh-ngen-image: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
-TEEHR_TAG=${TEEHR_TAG:-$(sed -n 's/^ngiab-teehr: *"\([^"]*\)".*/\1/p' "$VERSIONS_INTEGRATIONS_FILE")}
 echo "Image Tags:"
 echo "  DS_TAG:     $DS_TAG"
 echo "  FP_TAG:     $FP_TAG"
 echo "  NGIAB_TAG:  $NGIAB_TAG"
-echo "  TEEHR_TAG:  $TEEHR_TAG"
 
 FORCING_SOURCE_OPTIONS=("NWM_RETRO_V2" "NWM_RETRO_V3" "NWM_OPERATIONAL_V3" "NOMADS_OPERATIONAL")
 if is_in_list "$FORCING_SOURCE" "${FORCING_SOURCE_OPTIONS[@]}"; then
@@ -211,7 +207,6 @@ while [ "$#" -gt 0 ]; do
         -o|--S3_PREFIX) S3_PREFIX="$2"; shift 2;;
         -n|--NPROCS) NPROCS="$2"; shift 2;;
         -y|--DRYRUN) DRYRUN="$2"; shift 2;;
-        -E|--EVAL) EVAL="$2"; shift 2;;
         -V|--VERBOSE) VERBOSE="$2"; shift 2;;
         -L|--LSTM_ENS_MEMBERS) LSTM_ENS_MEMBERS="$2"; shift 2;;
         *) usage;;
@@ -774,20 +769,12 @@ log_time "MERKLE_END"
 #   log_time "TAR_END"
 # fi
 
-if [ "$EVAL" == "True" ]; then
-    log_time "EVAL_START"
-    TEEHR_DOCKER=awiciroh/ngiab-teehr
-    log_n_run_steps docker run -v "$NGEN_RUN:/app/data" "$TEEHR_DOCKER:$TEEHR_TAG"
-    TEEHR_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$TEEHR_DOCKER:$TEEHR_TAG" --format "{{.ID}}") | tr -d '"')
-    log_time "EVAL_END"
-fi
 
 echo "sha256 hashes:"
 echo "DATASTREAM DOCKER       " $DS_HASH
 echo "FORCINGPROCESSOR DOCKER " $FP_HASH
 echo "NGIAB DOCKER            " $NGIAB_HASH
 echo "MERKDIR DOCKER          " $MERK_HASH
-echo "TEEHR DOCKER            " $TEEHR_HASH
 echo "STREAM SCRIPT           " $STREAM_HASH
 
 HASHES=$DATASTREAM_META/docker_hashes.txt
@@ -795,7 +782,6 @@ echo "DATASTREAM DOCKER: $DS_HASH" >> $HASHES
 echo "FORCINGPROCESSOR DOCKER: $FP_HASH" >> $HASHES
 echo "NGIAB DOCKER: $NGIAB_HASH" >> $HASHES
 echo "MERKDIR DOCKER: $MERK_HASH" >> $HASHES
-echo "TEEHR DOCKER: $TEEHR_HASH" >> $HASHES
 echo "STREAM SCRIPT: $STREAM_HASH" >> $HASHES
 
 log_time "DATASTREAM_END"

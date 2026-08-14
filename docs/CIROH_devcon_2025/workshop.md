@@ -232,7 +232,7 @@ If you would like to propose your parameters before this workflow is made public
 ## 2. DataStreamCLI Workflow Tutorial
 The software that manages the workflow and compute to generate these output data are publicly available in the repository and is referred to collectively as `DataStreamCLI`. In this section, we will walk through this on-server workflow behind the Research DataStream to gain an understanding of the use case for the underlying tooling and how it may apply to your own research tasks.
 
-DataStreamCLI is a standalone tool that automates the preprocessing input data for NextGen, executing the run through NextGen In a Box (NGIAB), and handling outputs. This software implements [standard directories](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md) that allow users to run NextGen in an efficient, relatively painless, and reproducible fashion while providing flexibility and integrations like hfsubset, NextGen In A Box, TEEHR, and the Tethys Visualizer.
+DataStreamCLI is a standalone tool that automates the preprocessing input data for NextGen, executing the run through NextGen In a Box (NGIAB), and handling outputs. This software implements [standard directories](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md) that allow users to run NextGen in an efficient, relatively painless, and reproducible fashion while providing flexibility and integrations like hfsubset, NextGen In A Box, and the Tethys Visualizer.
 
 ![datastream](../images/datastreamcli.jpg)
 
