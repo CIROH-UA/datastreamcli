@@ -18,32 +18,35 @@ CONF_NWM = METADATA_DIR / "conf_nwmurl.json"
 CONF_FP = METADATA_DIR / "conf_fp.json"
 CONF_DATASTREAM = METADATA_DIR / "conf_datastream.json"
 
+
 class Inputs:
-    def __init__(self,
-                 docker_mount="",
-                 start_date=None,
-                 end_date="",
-                 data_dir="",
-                 geopackage="",
-                 geopackage_provided="",
-                 resource_path="",
-                 forcings="",
-                 forcing_source="",
-                 subset_id_type="",
-                 subset_id="",
-                 hydrofabric_version="",
-                 nprocs=None,
-                 host_os="",
-                 united_conus="",
-                 domain_name="Not Specified",
-                 forcing_split_vpu="",
-                 realization="",
-                 realization_provided="",
-                 troute_restart = "",
-                 troute_crosswalk = "",
-                 s3_bucket="",
-                 s3_prefix="",
-                 ngen_bmi_confs=""):
+    def __init__(
+        self,
+        docker_mount="",
+        start_date=None,
+        end_date="",
+        data_dir="",
+        geopackage="",
+        geopackage_provided="",
+        resource_path="",
+        forcings="",
+        forcing_source="",
+        subset_id_type="",
+        subset_id="",
+        hydrofabric_version="",
+        nprocs=None,
+        host_os="",
+        united_conus="",
+        domain_name="Not Specified",
+        forcing_split_vpu="",
+        realization="",
+        realization_provided="",
+        troute_restart="",
+        troute_crosswalk="",
+        s3_bucket="",
+        s3_prefix="",
+        ngen_bmi_confs="",
+    ):
         self.docker_mount = docker_mount
         self.start_date = start_date
         self.end_date = end_date
@@ -63,44 +66,47 @@ class Inputs:
         self.forcing_split_vpu = forcing_split_vpu
         self.realization = realization
         self.realization_provided = realization_provided
-        self.troute_restart = troute_restart,
-        self.troute_crosswalk = troute_crosswalk,
+        self.troute_restart = troute_restart
+        self.troute_crosswalk = troute_crosswalk
         self.s3_bucket = s3_bucket
         self.s3_prefix = s3_prefix
         self.ngen_bmi_confs = ngen_bmi_confs
 
+
 inputs = Inputs(
-    docker_mount = "/mounted_dir",
-    start_date = "202406100000",
-    end_date = "202406102300",
-    data_dir = str(DATA_DIR),
-    geopackage = str(DATA_DIR / "palisade.gpkg"),
-    geopackage_provided = str(DATA_DIR / "palisade.gpkg"),
-    resource_path = "",
-    forcings = "",
-    forcing_source = "NWM_RETRO_V3",
-    subset_id_type = "",
-    subset_id = "",
-    hydrofabric_version = "",
-    nprocs = 2,
-    host_os = "Linux",
-    united_conus = False,
-    domain_name = "",
-    forcing_split_vpu = "",
-    realization = str(REALIZATION_ORIG),
-    realization_provided = str(REALIZATION_ORIG),
-    troute_restart = "",
-    troute_crosswalk = "",
+    docker_mount="/mounted_dir",
+    start_date="202406100000",
+    end_date="202406102300",
+    data_dir=str(DATA_DIR),
+    geopackage=str(DATA_DIR / "palisade.gpkg"),
+    geopackage_provided=str(DATA_DIR / "palisade.gpkg"),
+    resource_path="",
+    forcings="",
+    forcing_source="NWM_RETRO_V3",
+    subset_id_type="",
+    subset_id="",
+    hydrofabric_version="",
+    nprocs=2,
+    host_os="Linux",
+    united_conus=False,
+    domain_name="",
+    forcing_split_vpu="",
+    realization=str(REALIZATION_ORIG),
+    realization_provided=str(REALIZATION_ORIG),
+    troute_restart="",
+    troute_crosswalk="",
     s3_bucket="",
     s3_prefix="",
-    ngen_bmi_confs=""
+    ngen_bmi_confs="",
 )
+
 
 @pytest.fixture(autouse=True)
 def clean_dir():
     if DATA_DIR.exists():
         shutil.rmtree(DATA_DIR)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def check_paths():
     for path in [
@@ -113,193 +119,224 @@ def check_paths():
     ]:
         assert path.exists(), f"Path does not exist: {path}"
 
+
 def test_conf_basic():
     create_confs(inputs)
     check_paths()
 
-    with open(CONF_FP,'r') as fp:
+    with open(CONF_FP, "r") as fp:
         data = json.load(fp)
-    assert data['storage']['output_path'] == "/mounted_dir/ngen-run"
-    assert data['forcing']['gpkg_file'][0] == "/mounted_dir/datastream-resources/config/palisade.gpkg"
+    assert data["storage"]["output_path"] == "/mounted_dir/ngen-run"
+    assert (
+        data["forcing"]["gpkg_file"][0]
+        == "/mounted_dir/datastream-resources/config/palisade.gpkg"
+    )
+
 
 def test_conf_daily():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
     assert start.day == datetime.now(timezone.utc).day
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 7
+    assert data["urlbaseinput"] == 7
+
 
 def test_conf_daily_pick():
     inputs.start_date = "DAILY"
-    inputs.end_date   = "202006200000"
+    inputs.end_date = "202006200000"
     inputs.forcing_source = "NWM_RETRO_V3"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    assert start.day == datetime.strptime(inputs.end_date,"%Y%m%d%H%M%S").day
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    assert start.day == datetime.strptime(inputs.end_date, "%Y%m%d%H%M%S").day
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 4
+    assert data["urlbaseinput"] == 4
+
 
 def test_conf_daily_short_range_init00():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_SHORT_RANGE_00"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
     assert start.day == datetime.now(timezone.utc).day
     assert end.day == datetime.now(timezone.utc).day
     assert end.hour == 18
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 7
-    assert data['runinput']     == 1
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 1
+
 
 def test_conf_daily_short_range_init15():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_SHORT_RANGE_15"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
-    assert (start.day == (datetime.now(timezone.utc)).day) or (start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day)
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
+    assert (start.day == (datetime.now(timezone.utc)).day) or (
+        start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    )
     assert start.hour == 16
-    assert (end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day) or (end.day == (datetime.now(timezone.utc)).day)
+    assert (end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day) or (
+        end.day == (datetime.now(timezone.utc)).day
+    )
     assert end.hour == 9
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 7
-    assert data['runinput']     == 1
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 1
+
 
 def test_conf_daily_short_range_init23():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_SHORT_RANGE_23"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
-    assert start.day == (datetime.now(timezone.utc)).day or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
+    assert (
+        start.day == (datetime.now(timezone.utc)).day
+        or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    )
     assert start.hour == 0
-    assert end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day or end.day == (datetime.now(timezone.utc)).day
+    assert (
+        end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day
+        or end.day == (datetime.now(timezone.utc)).day
+    )
     assert end.hour == 17
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 7
-    assert data['runinput']     == 1
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 1
+
 
 def test_conf_daily_medium_range_init00_member0():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_MEDIUM_RANGE_00_0"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
     assert start.day == datetime.now(timezone.utc).day
     assert start.hour == 1
     assert end.day == (datetime.now(timezone.utc) + timedelta(days=10)).day
     assert end.hour == 0
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 7
-    assert data['runinput']     == 2
-    assert data['meminput']     == 0
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 2
+    assert data["meminput"] == 0
+
 
 def test_conf_daily_medium_range_init12_member3():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_MEDIUM_RANGE_12_3"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
-    assert start.day == (datetime.now(timezone.utc)).day or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
+    assert (
+        start.day == (datetime.now(timezone.utc)).day
+        or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    )
     assert start.hour == 13
-    assert end.day == (datetime.now(timezone.utc) + timedelta(days=10)).day or end.day == (datetime.now(timezone.utc) + timedelta(days=9)).day or end.day == (datetime.now(timezone.utc) + timedelta(days=8)).day
+    assert (
+        end.day == (datetime.now(timezone.utc) + timedelta(days=10)).day
+        or end.day == (datetime.now(timezone.utc) + timedelta(days=9)).day
+        or end.day == (datetime.now(timezone.utc) + timedelta(days=8)).day
+    )
     assert end.hour == 0
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 7
-    assert data['runinput']     == 2
-    assert data['meminput']     == 3
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 2
+    assert data["meminput"] == 3
+
 
 def test_conf_daily_noamds():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NOMADS_MEDIUM_RANGE_00_0"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
     assert start.day == datetime.now(timezone.utc).day
-    assert end.day == (datetime.now(timezone.utc)+timedelta(hours=240-1)).day
+    assert end.day == (datetime.now(timezone.utc) + timedelta(hours=240 - 1)).day
     assert end.hour == 0
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 1
-    assert data['runinput']     == 2
+    assert data["urlbaseinput"] == 1
+    assert data["runinput"] == 2
+
 
 def test_conf_daily_noamds_postprocessed():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NOMADS_POSTPROCESSED_MEDIUM_RANGE_00_0"
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
     assert start.day == datetime.now(timezone.utc).day
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 2
-    assert data['runinput']     == 2
+    assert data["urlbaseinput"] == 2
+    assert data["runinput"] == 2
+
 
 def test_conf_daily_assim_split_vpu_s3out():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM"
     inputs.forcing_split_vpu = "01,02,03W,16"
     inputs.s3_bucket = "ciroh-community-ngen-datastream"
@@ -307,29 +344,38 @@ def test_conf_daily_assim_split_vpu_s3out():
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
     assert start.hour == 22
-    assert start.day == (datetime.now(timezone.utc)).day or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
-    assert end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day or end.day == (datetime.now(timezone.utc)).day
+    assert (
+        start.day == (datetime.now(timezone.utc)).day
+        or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    )
+    assert (
+        end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day
+        or end.day == (datetime.now(timezone.utc)).day
+    )
     assert end.hour == 1
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput'] == 7
-    assert data['runinput']     == 5
-    assert len(data['lead_time'] ) == 3
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 5
+    assert len(data["lead_time"]) == 3
 
-    with open(CONF_FP,'r') as fp:
+    with open(CONF_FP, "r") as fp:
         data = json.load(fp)
-    assert len(data['forcing']['gpkg_file']) == 4
-    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest")
+    assert len(data["forcing"]["gpkg_file"]) == 4
+    assert data["storage"]["output_path"].startswith(
+        "s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest"
+    )
+
 
 def test_conf_daily_assim_extend_split_vpu_s3out():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_ANALYSIS_ASSIM_EXTEND_16"
     inputs.forcing_split_vpu = "01,02,03W,16"
     inputs.s3_bucket = "ciroh-community-ngen-datastream"
@@ -337,30 +383,41 @@ def test_conf_daily_assim_extend_split_vpu_s3out():
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
     assert start.hour == 13
-    assert start.day == (datetime.now(timezone.utc)).day or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day or start.day == (datetime.now(timezone.utc) - timedelta(days=2)).day
-    assert end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day or end.day == (datetime.now(timezone.utc)).day or end.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    assert (
+        start.day == (datetime.now(timezone.utc)).day
+        or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+        or start.day == (datetime.now(timezone.utc) - timedelta(days=2)).day
+    )
+    assert (
+        end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day
+        or end.day == (datetime.now(timezone.utc)).day
+        or end.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
+    )
     assert end.hour == 16
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['urlbaseinput']    == 7
-    assert data['runinput']        == 6
-    assert data['fcst_cycle'][0]   == 16
-    assert len(data['lead_time'] ) == 28
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 6
+    assert data["fcst_cycle"][0] == 16
+    assert len(data["lead_time"]) == 28
 
-    with open(CONF_FP,'r') as fp:
+    with open(CONF_FP, "r") as fp:
         data = json.load(fp)
-    assert len(data['forcing']['gpkg_file']) == 4
-    assert data['storage']['output_path'].startswith("s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest")
+    assert len(data["forcing"]["gpkg_file"]) == 4
+    assert data["storage"]["output_path"].startswith(
+        "s3://ciroh-community-ngen-datastream/test/cicd/datastream/pytest"
+    )
+
 
 def test_conf_forcings_provided():
     inputs.start_date = "202410300100"
-    inputs.end_date   = "202410300400"
+    inputs.end_date = "202410300400"
     inputs.forcing_source = ""
     inputs.forcings = "test_file.nc"
     inputs.forcing_split_vpu = "01,02,03W,16"
@@ -369,48 +426,54 @@ def test_conf_forcings_provided():
     create_confs(inputs)
     check_paths()
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    start = datetime.strptime(data['time']['start_time'],"%Y-%m-%d %H:%M:%S")
-    end = datetime.strptime(data['time']['end_time'],"%Y-%m-%d %H:%M:%S")
+    start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
+    end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
     assert start.hour == 1
     assert start.day == 30
     assert end.hour == 4
     assert end.day == 30
 
+
 def test_conf_daily_routingonly():
     inputs.start_date = "DAILY"
-    inputs.end_date   = ""
+    inputs.end_date = ""
     inputs.forcing_source = "NWM_V3_CHRTOUT_SHORT_RANGE_00"
     inputs.forcings = ""
     create_confs(inputs)
     check_paths()
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['varinput'] == 1
-    assert data['urlbaseinput'] == 7
+    assert data["varinput"] == 1
+    assert data["urlbaseinput"] == 7
 
-    with open(CONF_FP,'r') as fp:
+    with open(CONF_FP, "r") as fp:
         data = json.load(fp)
-    assert data['storage']['output_file_type'] == ["csv"]
-    assert data['forcing']['map_file'] == "s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"
+    assert data["storage"]["output_file_type"] == ["csv"]
+    assert (
+        data["forcing"]["map_file"]
+        == "s3://ciroh-community-ngen-datastream/mappings/nwm_to_ngen_map.json"
+    )
 
-    with open(REALIZATION_RUN,'r') as fp:
+    with open(REALIZATION_RUN, "r") as fp:
         data = json.load(fp)
-    assert data['global']['forcing']['path'] == './config/troute.yaml'
+    assert data["global"]["forcing"]["path"] == "./config/troute.yaml"
+
 
 def test_conf_retro_routingonly():
     inputs.start_date = "202406100000"
-    inputs.end_date   = "202406102300"
+    inputs.end_date = "202406102300"
     inputs.forcing_source = "NWM_RETRO_V3_CHRTOUT_SHORT_RANGE_00"
     create_confs(inputs)
     check_paths()
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['selected_object_type'] == [2]
-    assert data['selected_var_types'] == [1]
+    assert data["selected_object_type"] == [2]
+    assert data["selected_var_types"] == [1]
+
 
 def test_conf_routing_restart():
     inputs.start_date = "202406100000"
@@ -419,18 +482,26 @@ def test_conf_routing_restart():
     create_confs(inputs)
     check_paths()
 
-    with open(CONF_NWM,'r') as fp:
+    with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
-    assert data['varinput'] == 1
-    assert data['urlbaseinput'] == 7
-    assert data['runinput'] == 5
-    assert data['fcst_cycle'][0]   == 0
-    assert len(data['lead_time'] ) == 1
+    assert data["varinput"] == 1
+    assert data["urlbaseinput"] == 7
+    assert data["runinput"] == 5
+    assert data["fcst_cycle"][0] == 0
+    assert len(data["lead_time"]) == 1
 
-    with open(CONF_FP,'r') as fp:
+    with open(CONF_FP, "r") as fp:
         data = json.load(fp)
-    assert data['storage']['output_file_type'] == ["netcdf"]
-    assert data['forcing']['restart_map_file'] == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json"
-    assert data['forcing']['crosswalk_file'] == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc"
-    assert data['forcing']['routelink_file'] == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
-
+    assert data["storage"]["output_file_type"] == ["netcdf"]
+    assert (
+        data["forcing"]["restart_map_file"]
+        == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json"
+    )
+    assert (
+        data["forcing"]["crosswalk_file"]
+        == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc"
+    )
+    assert (
+        data["forcing"]["routelink_file"]
+        == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
+    )

@@ -1,12 +1,14 @@
 from pathlib import Path
 import re, copy, pickle, argparse, os
 import geopandas as gpd
+
 gpd.options.io_engine = "pyogrio"
 import concurrent.futures as cf
 from datastreamcli.ngen_configs_gen import fix_v2_2_units
 from pyogrio.errors import DataLayerError
 
-def gen_noah_owp_confs(gdf,hf_version):    
+
+def gen_noah_owp_confs(gdf, hf_version):
     """
     Create a json of noah owp config dicts
 
@@ -17,8 +19,11 @@ def gen_noah_owp_confs(gdf,hf_version):
     Returns:
         all_confs : a dict of noah owp configs (json objects)
     """
-    template = Path(__file__).parent.parent.parent/"configs/ngen/noah-owp-modular-init.namelist.input"
-    with open(template,'r') as fp:
+    template = (
+        Path(__file__).parent.parent.parent
+        / "configs/ngen/noah-owp-modular-init.namelist.input"
+    )
+    with open(template, "r") as fp:
         conf_template = fp.readlines()
 
     all_confs = {}
@@ -30,23 +35,31 @@ def gen_noah_owp_confs(gdf,hf_version):
             slope = row._37
             azimuth = row._38
             jcatch_conf = copy.deepcopy(conf_template)
-            for j,jline in enumerate(jcatch_conf):
-                pattern = r'^\s{2}lat\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):
-                    jcatch_conf[j] = re.sub(pattern,  f"  lat             = {lat}      ", jline)
-                pattern =  r'^\s{2}lon\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):                
-                    jcatch_conf[j] =  re.sub(pattern, f"  lon             = {lon}      ", jline)
-                pattern =  r'^\s{2}terrain_slope\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):                
-                    jcatch_conf[j] = re.sub(pattern,  f"  terrain_slope   = {slope}      ", jline)  
-                pattern =  r'^\s{2}azimuth\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):                
-                    jcatch_conf[j] = re.sub(pattern,  f"  azimuth         = {azimuth}      ", jline) 
+            for j, jline in enumerate(jcatch_conf):
+                pattern = r"^\s{2}lat\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  lat             = {lat}      ", jline
+                    )
+                pattern = r"^\s{2}lon\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  lon             = {lon}      ", jline
+                    )
+                pattern = r"^\s{2}terrain_slope\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  terrain_slope   = {slope}      ", jline
+                    )
+                pattern = r"^\s{2}azimuth\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  azimuth         = {azimuth}      ", jline
+                    )
 
             all_confs[jcatch] = jcatch_conf
     else:
-        catchment_list = sorted(list(gdf['divide_id']))        
+        catchment_list = sorted(list(gdf["divide_id"]))
         for jcatch in catchment_list:
             jcatch_conf = copy.deepcopy(conf_template)
             jcatch_attrs = gdf.loc[gdf["divide_id"] == jcatch]
@@ -54,27 +67,33 @@ def gen_noah_owp_confs(gdf,hf_version):
             lon = jcatch_attrs["X"].iloc[0]
             slope = jcatch_attrs["slope_mean"].iloc[0]
             azimuth = jcatch_attrs["aspect_c_mean"].iloc[0]
-            for j,jline in enumerate(jcatch_conf):
-                pattern = r'^\s{2}lat\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):
-                    jcatch_conf[j] = re.sub(pattern,  f"  lat             = {lat}      ", jline)
-                pattern =  r'^\s{2}lon\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):                
-                    jcatch_conf[j] =  re.sub(pattern, f"  lon             = {lon}      ", jline)
-                pattern =  r'^\s{2}terrain_slope\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):                
-                    jcatch_conf[j] = re.sub(pattern,  f"  terrain_slope   = {slope}      ", jline)  
-                pattern =  r'^\s{2}azimuth\s*=\s*([\d.]+)\s*'
-                if re.search(pattern,jline):                
-                    jcatch_conf[j] = re.sub(pattern,  f"  azimuth         = {azimuth}      ", jline)         
+            for j, jline in enumerate(jcatch_conf):
+                pattern = r"^\s{2}lat\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  lat             = {lat}      ", jline
+                    )
+                pattern = r"^\s{2}lon\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  lon             = {lon}      ", jline
+                    )
+                pattern = r"^\s{2}terrain_slope\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  terrain_slope   = {slope}      ", jline
+                    )
+                pattern = r"^\s{2}azimuth\s*=\s*([\d.]+)\s*"
+                if re.search(pattern, jline):
+                    jcatch_conf[j] = re.sub(
+                        pattern, f"  azimuth         = {azimuth}      ", jline
+                    )
 
             all_confs[jcatch] = jcatch_conf
     return all_confs
 
-def multiprocess_gen_pkl(gpkg_path : str,
-                         outdir : str,
-                         hf_version : str
-                         ):
+
+def multiprocess_gen_pkl(gpkg_path: str, outdir: str, hf_version: str):
     """
     Multiprocessing layer for gen_noah_owp_confs()
 
@@ -85,77 +104,77 @@ def multiprocess_gen_pkl(gpkg_path : str,
 
     Returns
         None
-    
+
     """
-    print(f'Generating NoahOWP pkl',flush=True)
+    print(f"Generating NoahOWP pkl", flush=True)
 
     if hf_version == "v2.2":
-        gdf = gpd.read_file(gpkg_path,layer = 'divide-attributes').sort_values(by='divide_id')
+        gdf = gpd.read_file(gpkg_path, layer="divide-attributes").sort_values(
+            by="divide_id"
+        )
     elif hf_version == "v2.1":
-        gdf = gpd.read_file(gpkg_path,layer = 'model-attributes').sort_values(by='divide_id')
+        gdf = gpd.read_file(gpkg_path, layer="model-attributes").sort_values(
+            by="divide_id"
+        )
     else:
         raise Exception("This function supports v2.1 and v2.2 hydrofabrics")
 
-    catchment_list = sorted(list(gdf['divide_id']))
+    catchment_list = sorted(list(gdf["divide_id"]))
 
-    nprocs = max(os.cpu_count() - 1,1)
+    nprocs = max(os.cpu_count() - 1, 1)
     ncatch = len(catchment_list)
     gdf_list = []
     nper = ncatch // nprocs
-    nleft = ncatch - (nper * nprocs)   
+    nleft = ncatch - (nper * nprocs)
     i = 0
     k = nper
     for j in range(nprocs):
-        if j < nleft: k += 1
+        if j < nleft:
+            k += 1
         gdf_list.append(gdf[i:k])
-        i=k
+        i = k
         k = nper + i
-        
+
     all_proc_confs = {}
     with cf.ProcessPoolExecutor(max_workers=nprocs) as pool:
         for results in pool.map(
-        gen_noah_owp_confs,
-        gdf_list,
-        [hf_version for x in range(nprocs)]
+            gen_noah_owp_confs, gdf_list, [hf_version for x in range(nprocs)]
         ):
             all_proc_confs.update(results)
 
-    if not os.path.exists(outdir): 
+    if not os.path.exists(outdir):
         os.system(f"mkdir -p {outdir}")
-    with open(Path(outdir,"noah-owp-modular-init.namelist.input.pkl"),'wb') as fp:
-        pickle.dump(all_proc_confs, fp, protocol=pickle.HIGHEST_PROTOCOL)        
+    with open(Path(outdir, "noah-owp-modular-init.namelist.input.pkl"), "wb") as fp:
+        pickle.dump(all_proc_confs, fp, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--hf_file",
-        dest="hf_file", 
-        type=str,
-        help="Path to the .gpkg", 
-        required=False
+        "--hf_file", dest="hf_file", type=str, help="Path to the .gpkg", required=False
     )
     parser.add_argument(
         "--outdir",
-        dest="outdir", 
+        dest="outdir",
         type=str,
-        help="Directory to write file out to", 
-        required=False
-    )    
+        help="Directory to write file out to",
+        required=False,
+    )
 
     args = parser.parse_args()
 
-    if '.txt' in args.hf_file:
-        with open(args.hf_file,'r') as fp:
-            data=fp.readlines()
-            hf_file = data[0] 
+    if ".txt" in args.hf_file:
+        with open(args.hf_file, "r") as fp:
+            data = fp.readlines()
+            hf_file = data[0]
     else:
         hf_file = args.hf_file
 
     outdir = args.outdir
     hf_version = "v2.1"
-    if "divide-attributes" in list(gpd.list_layers(hf_file).name): hf_version = "v2.2"
-    multiprocess_gen_pkl(hf_file,outdir,hf_version)   
+    if "divide-attributes" in list(gpd.list_layers(hf_file).name):
+        hf_version = "v2.2"
+    multiprocess_gen_pkl(hf_file, outdir, hf_version)
     # gdf     = gpd.read_file(hf_file,layer = 'divide-attributes')
-    # catchment_list = sorted(list(gdf['divide_id']))         
+    # catchment_list = sorted(list(gdf['divide_id']))
     # gen_noah_owp_confs(catchment_list,gdf)
