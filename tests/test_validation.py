@@ -4,6 +4,7 @@ import tarfile
 from datastreamcli.run_validator import validate_data_dir
 import shutil
 from pathlib import Path
+from ruamel.yaml import YAML
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
@@ -149,7 +150,29 @@ def test_missing_troute_crosswalk():
         validate_data_dir(TEST_DATA_DIR, troute_crosswalk="testcrosswalk.nc")
         assert False
     except Exception as inst:
-        assert (
-            inst.__str__()
-            == "Did not find t-route crosswalk file testcrosswalk.nc in ngen-run/restart!!!"
+        assert inst.__str__() == "Did not find t-route crosswalk file testcrosswalk.nc in ngen-run/restart!!!"
+
+def test_troute_start_datetime_mismatch():
+    troute_file = Path(TEST_DATA_DIR, "config/ngen.yaml")
+
+    yaml = YAML()
+
+    with open(troute_file, "r") as f:
+        troute_conf = yaml.load(f)
+
+    troute_conf["compute_parameters"]["restart_parameters"]["start_datetime"] = (
+        "2025-02-28 02:00:00"
+    )
+
+    with open(troute_file, "w") as f:
+        yaml.dump(troute_conf, f)
+
+    try:
+        validate_data_dir(TEST_DATA_DIR)
+        assert False
+    except Exception as inst:
+        assert inst.__str__() == (
+            "Realization start time 2025-02-28 01:00:00+00:00 "
+            "does not match t-route start_datetime "
+            "2025-02-28 02:00:00+00:00"
         )
