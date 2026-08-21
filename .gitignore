@@ -6,3 +6,4 @@ src/datastreamcli/datastreamcli.egg-info/
 src/datastreamcli.egg-info/
 tests/__pycache__/
 tests/data/
+*.DS_Store

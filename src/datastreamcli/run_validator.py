@@ -143,7 +143,7 @@ def validate_catchment_files(
                     forcings_end = datetime.strptime(
                         df["time"].iloc[-1], "%Y-%m-%d %H:%M:%S"
                     )
-                    check_forcings(forcings_start, forcings_end, len(df["time"]))
+                    check_forcings(serialized_realization, forcings_start, forcings_end, len(df["time"]))
 
 
 def validate_data_dir(

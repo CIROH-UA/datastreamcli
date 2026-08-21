@@ -313,8 +313,7 @@ def write_to_csv(benchmark, catchments, dfs, confs, fp_dfs):
                 combined_df["duration_minutes"][jstep][idx_combo[j]] * cost_per_hr / 60
             )
         jdict["Cost/hr"] = f"${cost_per_hr}"
-        jdict["Domain Name"] = confs[jrun]["globals"]["domain_name"]
-        jdict["Domain Name"] = f"nextgen_{jrun}"
+        jdict["Domain Name"] = confs[jrun]["globals"]["domain_name"] + f" nextgen_{jrun}"
         jdict["Catchments"] = catchments[j]
         jdict["Timesteps"] = nts
         jdict["Realization"] = "CFE, PET, SLOTH, NOM"
