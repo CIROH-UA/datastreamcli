@@ -17,20 +17,25 @@ TEST_DIR = DATA_DIR / "test_dir"
 TEST_DATA_DIR = TEST_DIR / "ngen-run"
 
 
+@pytest.fixture(scope="session")
+def downloaded_tar():
+    if not ORIGINAL_TAR_PATH.exists():
+        ORIGINAL_TAR_PATH.parent.mkdir(parents=True, exist_ok=True)
+        response = requests.get(DATA_PACKAGE, stream=True, timeout=10)
+        response.raise_for_status()
+        with open(ORIGINAL_TAR_PATH, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+    return ORIGINAL_TAR_PATH
+
 @pytest.fixture(autouse=True)
-def ready_test_folder():
+def ready_test_folder(downloaded_tar):
     if TEST_DIR.exists():
         shutil.rmtree(TEST_DIR)
     TEST_DIR.mkdir(parents=True, exist_ok=True)
 
-    response = requests.get(DATA_PACKAGE, stream=True, timeout=10)
-    response.raise_for_status()
-    with open(ORIGINAL_TAR_PATH, "wb") as f:
-        for chunk in response.iter_content():
-            f.write(chunk)
-
-    with tarfile.open(ORIGINAL_TAR_PATH, "r:gz") as tar:
-        tar.extractall(path=TEST_DIR)
+    with tarfile.open(downloaded_tar, "r:gz") as tar:
+        tar.extractall(path=TEST_DIR, filter="data")
 
 
 def test_missing_geopackage():
@@ -111,7 +116,7 @@ def test_forcings_time_axis():
     response = requests.get(url, stream=True, timeout=10)
     response.raise_for_status()
     with open(new_forcings, "wb") as f:
-        for chunk in response.iter_content():
+        for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
 
     try:
