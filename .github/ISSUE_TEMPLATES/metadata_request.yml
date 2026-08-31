@@ -1,0 +1,44 @@
+name: Request Execution Metadata
+description: Tell us what provenance information you need in NRDS outputs
+title: "[Metadata] "
+labels: ["community contribution", "metadata"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every NextGen Research DataStream (NRDS) execution writes a metadata bundle: the execution specification, container image hashes, the input file inventory, and command history. That schema reflects what the development team judged useful, which is a guess about community needs.
+
+        **If you consume NRDS outputs and something you need isn't captured, this is the place to say so.** Three fields, no code required. Schema additions are cheap now and expensive to retrofit once years of output carry the old shape.
+
+  - type: textarea
+    id: needed
+    attributes:
+      label: What metadata do you need?
+      description: Be as specific as you can. A field name and where it should live is ideal, but a plain description of the information is enough.
+      placeholder: |
+        The version and source URL of the forcing product used for each execution. The container tells me the source, and I would like the specific product version alongside it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What does it let you do?
+      description: How this affects your work, whether that is reproducing a run, filtering an archive, citing outputs, or tracking provenance across versions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How are you working around its absence today?
+      description: Helps gauge urgency and confirms the information isn't already available somewhere you haven't found.
+    validations:
+      required: false
+
+  - type: input
+    id: contact
+    attributes:
+      label: Contributor and affiliation
+    validations:
+      required: false
