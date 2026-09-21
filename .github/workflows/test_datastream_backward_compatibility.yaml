@@ -4,56 +4,124 @@ on:
   workflow_dispatch:
     inputs:
       ds_tag:
-        description: "Custom DS_TAG (leave blank to test all deployed combinations)"
-        required: false
-        default: ""
-      fp_tag:
-        description: "Custom FP_TAG"
+        description: "Custom DS_TAG (leave blank to test the pinned compatibility anchors plus the current release)"
         required: false
         default: ""
       ngiab_tag:
         description: "Custom NGIAB_TAG"
         required: false
         default: ""
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/datastream'
+      - 'src/datastreamcli/**'
+      - '!src/datastreamcli/README.md'
+      - 'versions.yml'
+      - '.github/workflows/test_datastream_backward_compatibility.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/datastream'
+      - 'src/datastreamcli/**'
+      - '!src/datastreamcli/README.md'
+      - 'versions.yml'
+      - '.github/workflows/test_datastream_backward_compatibility.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  # Choose the matrix: the custom combo from the dispatch inputs, otherwise every
-  # container combination deployed in the NRDS. Maintainers: update the list below.
   setup:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
+      build_tag: ${{ steps.set.outputs.build_tag }}
+      deps_tag: ${{ steps.set.outputs.deps_tag }}
     steps:
+      - uses: actions/checkout@v4
+
       - id: set
         env:
           DS_IN: ${{ inputs.ds_tag }}
-          FP_IN: ${{ inputs.fp_tag }}
           NG_IN: ${{ inputs.ngiab_tag }}
         run: |
+          set -euo pipefail
+
+          build_tag=""
           if [ -n "$DS_IN" ]; then
-            matrix="{\"include\":[{\"ds\":\"$DS_IN\",\"fp\":\"$FP_IN\",\"ngiab\":\"$NG_IN\"}]}"
+            include="{\"ds\":\"$DS_IN\",\"ngiab\":\"$NG_IN\",\"troute\":\"unknown\"}"
           else
-            matrix='{"include":[
-              {"ds":"1.3.0","fp":"2.0.0","ngiab":"v1.6.0"},
-              {"ds":"1.4.0","fp":"2.0.0","ngiab":"v1.6.0"},
-              {"ds":"1.5.0","fp":"2.0.1","ngiab":"v1.7.0"},
-              {"ds":"1.6.0","fp":"2.1.0","ngiab":"v1.7.0"},
-              {"ds":"1.7.0","fp":"2.2.0","ngiab":"v1.7.0"},
-              {"ds":"1.7.1","fp":"2.2.1","ngiab":"v1.8.0"}]}'
-            matrix=$(echo "$matrix" | tr -d '\n ')
+            # Pinned compatibility anchors bracketing the >= 1.7.0 t-route CLI
+            include='{"ds":"1.6.0","ngiab":"v1.7.0","troute":"unsupported"}'
+            include="$include,"'{"ds":"1.7.0","ngiab":"v1.7.0","troute":"supported"}'
+
+            ds=$(sed -n 's/^datastream: *"\([^"]*\)".*/\1/p' versions.yml)
+            ng=$(sed -n 's/^ciroh-ngen-image: *"\([^"]*\)".*/\1/p' versions_integrations.yml)
+            [ -n "$ds" ] && [ -n "$ng" ] || { echo "Could not read current versions" >&2; exit 1; }
+
+            case "$ds" in
+              1.6.0|1.7.0)
+                echo "Current release $ds is already covered by the pinned anchors" ;;
+              *)
+                include="$include,{\"ds\":\"$ds\",\"ngiab\":\"$ng\",\"troute\":\"supported\"}"
+                if ! docker manifest inspect "awiciroh/datastream:$ds" > /dev/null 2>&1; then
+                  echo "awiciroh/datastream:$ds is not on Docker Hub yet; building it from this checkout"
+                  build_tag="$ds"
+                fi ;;
+            esac
           fi
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+          matrix="{\"include\":[$include]}"
+          echo "Testing combinations: $matrix"
+          {
+            echo "matrix=$matrix"
+            echo "build_tag=$build_tag"
+            echo "deps_tag=$(sed -n 's/^datastream-deps: *"\([^"]*\)".*/\1/p' versions.yml)"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: setup
+    if: needs.setup.outputs.build_tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build unpublished datastream image
+        env:
+          BUILD_TAG: ${{ needs.setup.outputs.build_tag }}
+          DEPS_TAG: ${{ needs.setup.outputs.deps_tag }}
+        run: |
+          set -euo pipefail
+          docker build -f docker/Dockerfile.datastream \
+            --build-arg TAG_NAME="$DEPS_TAG" \
+            -t "awiciroh/datastream:$BUILD_TAG" .
+          docker save "awiciroh/datastream:$BUILD_TAG" | gzip > /tmp/datastream-unpublished.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: datastream-unpublished
+          path: /tmp/datastream-unpublished.tar.gz
+          retention-days: 1
 
   test:
-    needs: setup
+    needs: [setup, build]
+    if: always() && needs.setup.result == 'success' && needs.build.result != 'failure' && needs.build.result != 'cancelled'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    env:
+      DS_TAG: ${{ matrix.ds }}
+      NGIAB_TAG: ${{ matrix.ngiab }}
+      AWI_DIR: ${{ github.workspace }}/data/awi_test_data
+      GPKG: cat-2863657_subset.gpkg
     steps:
       - uses: actions/checkout@v4
 
@@ -68,30 +136,65 @@ jobs:
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
           docker system prune -af || true
 
-      - name: Test deployed combination
-        env:
-          DS_TAG: ${{ matrix.ds }}
-          FP_TAG: ${{ matrix.fp }}
-          NGIAB_TAG: ${{ matrix.ngiab }}
-        run: |
-          WS="${{ github.workspace }}"
-          DATA_DIR="$WS/data/ds_bwc_test"
-          HTTPS_BUCKET="https://ciroh-community-ngen-datastream.s3.amazonaws.com"
-          GPKG_VPU="nextgen_VPU_09.gpkg"
-          REALIZATION_VPU="realization_VPU_09.json"
-          GPKG_VPU_HTTPS="$HTTPS_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/$GPKG_VPU"
-          REALIZATION_HTTPS="$HTTPS_BUCKET/realizations/$REALIZATION_VPU"
+      - name: Download unpublished datastream image
+        if: matrix.ds == needs.setup.outputs.build_tag
+        uses: actions/download-artifact@v4
+        with:
+          name: datastream-unpublished
+          path: /tmp/artifacts
 
-          echo "=== DS=$DS_TAG FP=$FP_TAG NGIAB=$NGIAB_TAG ==="
+      - name: Load unpublished datastream image
+        if: matrix.ds == needs.setup.outputs.build_tag
+        run: |
+          set -euo pipefail
+          gunzip -c /tmp/artifacts/datastream-unpublished.tar.gz | docker load
+          docker image inspect "awiciroh/datastream:$DS_TAG" > /dev/null
+
+      - name: Fetch test data
+        run: |
+          set -euo pipefail
+          AWI_TARBALL="https://ciroh-ua-ngen-data.s3.us-east-2.amazonaws.com/AWI-007/AWI_16_2863657_007.tar.gz"
+          rm -rf "$AWI_DIR"
+          mkdir -p "$AWI_DIR"
+          curl -fsSL "$AWI_TARBALL" | tar xz -C "$AWI_DIR"
+          AWI="$AWI_DIR/AWI_16_2863657_007"
+          [ -f "$AWI/config/$GPKG" ] || { echo "Tarball layout changed: $AWI/config/$GPKG missing"; exit 1; }
+          echo "AWI=$AWI" >> "$GITHUB_ENV"
+
+      - name: Assert t-route restarts are rejected on pre-1.7.0 containers
+        if: matrix.troute == 'unsupported'
+        run: |
+          set -uo pipefail
+          out=$(./scripts/datastream -s 201001010000 -e 201001020000 -C NWM_RETRO_V3 \
+            -F "$AWI/forcings/by_catchment/forcings.nc" \
+            -g "$AWI/config/$GPKG" \
+            -R "https://ciroh-community-ngen-datastream.s3.amazonaws.com/realizations/realization_VPU_09.json" \
+            -t "https://example.invalid/restart.nc" \
+            -w "https://example.invalid/crosswalk.csv" \
+            -d "${{ github.workspace }}/data/ds_gate_test" 2>&1) && rc=0 || rc=$?
+          echo "$out"
+          [ "$rc" -ne 0 ] || { echo "Expected DS_TAG=$DS_TAG to reject -t/-w, but the run succeeded"; exit 1; }
+          echo "$out" | grep -q "t-route restarts require datastream >= 1.7.0" \
+            || { echo "Run failed, but not at the version gate"; exit 1; }
+
+      - name: Test deployed combination
+        run: |
+          set -euo pipefail
+          DATA_DIR="${{ github.workspace }}/data/ds_bwc_test"
+
+          echo "=== DS=$DS_TAG NGIAB=$NGIAB_TAG ==="
           rm -rf "$DATA_DIR"
-          ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 \
-            -d "$DATA_DIR" -g "$GPKG_VPU_HTTPS" -R "$REALIZATION_HTTPS"
+          ./scripts/datastream -s 201001010000 -e 201001020000 -C NWM_RETRO_V3 \
+            -F "$AWI/forcings/by_catchment/forcings.nc" \
+            -g "$AWI/config/$GPKG" \
+            -R "https://ciroh-community-ngen-datastream.s3.amazonaws.com/realizations/realization_VPU_09.json" \
+            -d "$DATA_DIR"
 
           NGENRUN="$DATA_DIR/ngen-run"
-          for f in "$NGENRUN/config/realization.json" "$NGENRUN/config/$GPKG_VPU"; do
+          for f in "$NGENRUN/config/realization.json" "$NGENRUN/config/$GPKG"; do
             [ -f "$f" ] || { echo "Missing $f"; exit 1; }
           done
           [ "$(find "$NGENRUN/config/cat_config" -mindepth 1 -maxdepth 1 -type d | wc -l)" -gt 0 ] || { echo "No cat_config subdirs"; exit 1; }
           [ -n "$(find "$NGENRUN/forcings" -type f)" ] || { echo "No forcings"; exit 1; }
           [ -n "$(find "$NGENRUN/outputs/ngen" -type f)" ] || { echo "No ngen outputs"; exit 1; }
-          echo "=== PASSED DS=$DS_TAG FP=$FP_TAG NGIAB=$NGIAB_TAG ==="
+          echo "=== PASSED DS=$DS_TAG NGIAB=$NGIAB_TAG ==="
