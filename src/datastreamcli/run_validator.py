@@ -176,22 +176,24 @@ def validate_data_dir(
                     raise Exception(
                         "This run directory contains more than a single geopackage file, remove all but one."
                     )
-            if troute_restart != "":
+            if troute_restart:
                 if jfile_path.find(troute_restart) >= 0:
                     if troute_restart_file is None:
                         troute_restart_file = jfile_path
-            if troute_crosswalk_file != "":
+
+            if troute_crosswalk:
                 if jfile_path.find(troute_crosswalk) >= 0:
                     if troute_crosswalk_file is None:
                         troute_crosswalk_file = jfile_path
     if realization_file is None:
         raise Exception(f"Did not find realization file in ngen-run/config!!!")
 
-    if troute_restart != "" and troute_restart_file is None:
+    if troute_restart and troute_restart_file is None:
         raise Exception(
             f"Did not find t-route restart file {troute_restart} in ngen-run/restart!!!"
         )
-    if troute_crosswalk != "" and troute_crosswalk_file is None:
+
+    if troute_crosswalk and troute_crosswalk_file is None:
         raise Exception(
             f"Did not find t-route crosswalk file {troute_crosswalk} in ngen-run/restart!!!"
         )
