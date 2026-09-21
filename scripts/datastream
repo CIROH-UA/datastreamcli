@@ -92,14 +92,24 @@ log_n_run_steps() {
 
 # Populate TROUTE_ARGS for a datastream container invocation.
 # usage: set_troute_args <restart_flag> <restart_val> <crosswalk_flag> <crosswalk_val>
-# Emits nothing for containers predating the t-route CLI args, or when no
-# restart file is in play. A crosswalk without a restart is cleared during
-# argument validation, so the restart value alone decides.
+# Emits nothing for containers predating the t-route CLI args (#103), which
+# abort on unknown args. Otherwise emits both flags even when the values are
+# empty: datastream 1.7.0 declares them with no argparse default, so an omitted
+# flag arrives as None and run_validator.py dies in .find(None).
 set_troute_args() {
     TROUTE_ARGS=()
     [ "$DS_TROUTE" = 1 ] || return 0
-    [ -n "$2" ] || return 0
     TROUTE_ARGS=("$1" "$2" "$3" "$4")
+}
+
+# As set_troute_args, but drops the flags entirely when no restart is in play.
+# ngen_configs_gen.py gates on `is not None`, so an empty value would switch on
+# restart handling with no restart file to point at. A crosswalk without a
+# restart is cleared during argument validation, so the restart value decides.
+set_troute_args_optional() {
+    TROUTE_ARGS=()
+    [ -n "$2" ] || return 0
+    set_troute_args "$@"
 }
 
 usage() {
@@ -570,7 +580,7 @@ fi
 
 echo "Generating NGEN configs"
 NGEN_CONFGEN=$DOCKER_PY"ngen_configs_gen.py"
-set_troute_args --troute_restart_file "${RESTART_BASE:+$DOCKER_MOUNT/restart/$RESTART_BASE}" --troute_crosswalk_file "${CROSSWALK_BASE:+$DOCKER_MOUNT/restart/$CROSSWALK_BASE}"
+set_troute_args_optional --troute_restart_file "${RESTART_BASE:+$DOCKER_MOUNT/restart/$RESTART_BASE}" --troute_crosswalk_file "${CROSSWALK_BASE:+$DOCKER_MOUNT/restart/$CROSSWALK_BASE}"
 if [ "$DRYRUN" == "True" ] || [ "$SKIP_BMI_CONFIG_GEN" == "True" ]; then
     echo "DRYRUN - NGEN BMI CONFIGURATION FILE CREATION SKIPPED"
     echo "COMMAND: docker run --rm -v "$NGEN_RUN":"$DOCKER_MOUNT" \
