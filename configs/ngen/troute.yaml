@@ -46,6 +46,7 @@ network_topology_parameters:
         ncc: "nCC"
         s0: "So"
         bw: "BtmWdth"
+        # WaterbodyID and rl_NHDWaterbodyComID are the same field. Generation writes the name this fabric has.
         waterbody: "WaterbodyID"
         gages: "gage"
         tw: "TopWdth"

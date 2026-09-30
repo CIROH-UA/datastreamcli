@@ -115,6 +115,43 @@ def gen_noah_owp_confs_from_pkl(
             fp.writelines(jcatch_str)
 
 
+WATERBODY_COLUMNS = ("WaterbodyID", "rl_NHDWaterbodyComID")
+
+
+def waterbody_column_name(*paths: str) -> str:
+    """
+    WaterbodyID and rl_NHDWaterbodyComID are the same field.
+    Hydrofabric 2.2 uses the first name. The Palisade 2.1 geopackage uses the second.
+    """
+    for path in paths:
+        if not path or not os.path.isfile(path):
+            continue
+        present = _gpkg_column_names(path)
+        for name in WATERBODY_COLUMNS:
+            if name in present:
+                return name
+    return WATERBODY_COLUMNS[0]
+
+
+def _gpkg_column_names(path: str) -> set:
+    present = set()
+    try:
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return present
+    try:
+        tables = connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        for (table,) in tables:
+            safe = str(table).replace('"', '""')
+            for info in connection.execute(f'PRAGMA table_info("{safe}")'):
+                present.add(info[1])
+    except sqlite3.Error:
+        return set()
+    finally:
+        connection.close()
+    return present
+
+
 def generate_troute_conf(
     out_dir: str,
     start: datetime,
@@ -124,6 +161,7 @@ def generate_troute_conf(
     crosswalk_file: str = "",
     routing_only: bool = False,
     restart: bool = False,
+    hydrofabric: str = "",
 ) -> None:
     """
     Generate troute config file from template by matching the
@@ -149,6 +187,7 @@ def generate_troute_conf(
     nts = max_loop_size * qts_subdivisions
 
     cpus = os.cpu_count()
+    waterbody_column = waterbody_column_name(hydrofabric, geo_file_path)
 
     troute_conf_str = conf_template
     for j, jline in enumerate(conf_template):
@@ -171,6 +210,10 @@ def generate_troute_conf(
         pattern = r"(geo_file_path:).*"
         if re.search(pattern, jline):
             troute_conf_str[j] = re.sub(pattern, f"\\1 {geo_file_path}", jline)
+
+        pattern = r'^(\s*waterbody:\s*)".*"\s*$'
+        if re.search(pattern, jline):
+            troute_conf_str[j] = re.sub(pattern, f'\\1"{waterbody_column}"', jline)
 
         pattern = r"^\s*cpu_pool\s*:\s*\d+"
         if re.search(pattern, jline):
@@ -559,6 +602,7 @@ if __name__ == "__main__":
                 troute_crosswalk_file,
                 ROUTING_ONLY,
                 RESTART,
+                hydrofabric=args.hf_file,
             )
 
     print(f"Done!", flush=True)
