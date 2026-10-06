@@ -254,7 +254,10 @@ def gen_lstm(
         y_coord = attrs_row["centroid_y"]
         lon, lat = transformer.transform(x_coord, y_coord)
         # convert the mean.slope from degrees into meters per km
-        # this was originally calculated using cm per km similar to the mean.elevation values derived from the same 30m DEM
+        # The original value in the hydrofabric was derived from arctan(rise/run), where the "rise"
+        # value (elevation) was assumed to be in [m]. We believe this elevation value was actually
+        # in [cm]. This informs the calculation that follows. Derivation in
+        # https://github.com/CIROH-UA/datastreamcli/pull/131#discussion_r4198362669
         attrs_row["mean_slope_mpkm"] = (
             np.tan(np.radians(attrs_row["mean.slope"])) * 10
         )
