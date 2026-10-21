@@ -27,12 +27,10 @@ def gen_noah_owp_confs(gdf, hf_version):
 
     all_confs = {}
     if hf_version == "v2.2":
-        for row in gdf.itertuples():
-            jcatch = row.divide_id
-            lon = row.centroid_x
-            lat = row.centroid_y
-            slope = row._37
-            azimuth = row._38
+        cols = ["divide_id", "centroid_x", "centroid_y", "mean.slope", "circ_mean.aspect"]
+        for jcatch, lon, lat, slope, azimuth in gdf[cols].itertuples(
+            index=False, name=None
+        ):
             jcatch_conf = copy.deepcopy(conf_template)
             for j, jline in enumerate(jcatch_conf):
                 pattern = r"^\s{2}lat\s*=\s*(-?[\d.]+)\s*"
