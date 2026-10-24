@@ -196,9 +196,6 @@ DRYRUN="False"
 DO_TEEHR="False"
 VERBOSE="False"
 PIPE=""
-if [[ $VERBOSE == "True" ]]; then
-    PIPE="> /dev/stdout 2>&1"
-fi
 
 PKL_FILE=""
 DATASTREAM_WEIGHTS=""
@@ -267,6 +264,10 @@ while [ "$#" -gt 0 ]; do
         *) usage;;
     esac
 done
+
+if [[ $VERBOSE == "True" ]]; then
+    PIPE="> /dev/stdout 2>&1"
+fi
 
 echo "Running datastream with max ${NPROCS} processes"
 
@@ -816,8 +817,12 @@ if [ "$DRYRUN" == "True" ]; then
     echo "DRYRUN - MERKDIR EXECUTION SKIPPED"
     echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT"
 else
-    log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT
-    MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
+    if ! log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT; then
+        echo "Merkle hashing stopped because its progress counter passed the announced byte total. The simulation outputs are already written."
+        MERK_HASH=""
+    else
+        MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
+    fi
 fi
 log_time "MERKLE_END"
 
