@@ -237,13 +237,13 @@ Now that we have performed each component of the datastream individually, let's 
 Without a t-route restart or a discarded warmup period, your routed simulations will always start at 0 at the first timestep. To generate restart files, `datastreamcli` uses a process with [nwmurl](https://github.com/CIROH-UA/nwmurl) and [forcingprocessor](https://github.com/CIROH-UA/forcingprocessor/tree/main)
 that is similar to the forcing generation. T-route restarts are derived from the NWM's hourly analysis-assimilation run. Additionally, generating restarts requires a mapping file between the NWM domain and the NextGen hydrofabric.
 
-Here is an example config file for `nwmurl`. This will generate one URL for June 10, 2019 00z.
+Here is an example config file for `nwmurl`. This will generate one URL for June 10, 2025 00z.
 
 ```json
 {
   "forcing_type": "operational_archive",
-  "start_date": "201906100000",
-  "end_date": "201906100000",
+  "start_date": "202506100000",
+  "end_date": "202506100000",
   "runinput": 5,
   "varinput": 1,
   "geoinput": 1,
@@ -258,10 +258,18 @@ Here is an example config file for `nwmurl`. This will generate one URL for June
 }
 ```
 
-Save this file to `./palisade_2019/datastream-metadata/conf_nwmurl_restart.json`. To generate the URL, use
+Save this file to `./restart-example/datastream-metadata/conf_nwmurl_restart.json`. To generate the URL, use
 
 ```python
-python ./forcingprocessor/src/forcingprocessor/nwm_filenames_generator.py ./palisade_2019/datastream-metadata/conf_nwmurl_restart.json
+python ./forcingprocessor/src/forcingprocessor/nwm_filenames_generator.py ./restart-example/datastream-metadata/conf_nwmurl_restart.json
+```
+
+Next, download our reference files into `restart-example/datastream-metadata`.
+
+```text
+    "restart_map_file": "https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json",
+    "crosswalk_file": "https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc",
+    "routelink_file": "https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
 ```
 
 This is the `forcingprocessor` configuration file that we would use to generate our restarts.
@@ -269,17 +277,17 @@ This is the `forcingprocessor` configuration file that we would use to generate 
 ```json
 {
   "forcing": {
-    "nwm_file": "./palisade_2019/datastream-metadata/filenamelist.txt",
+    "nwm_file": "./restart-example/datastream-metadata/filenamelist.txt",
     "gpkg_file": [
-      "./palisade_2019/ngen-run/config/"
+      "./restart-example/ngen-run/config/"
     ],
     "map_file": null,
-    "restart_map_file": "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json",
-    "crosswalk_file": "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc",
-    "routelink_file": "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
+    "restart_map_file": "./restart-example/datastream-metadata/hf2.2_ref_hf_catchment_map.json",
+    "crosswalk_file": "./restart-example/datastream-metadata/crosswalk.nc",
+    "routelink_file": "./restart-example/datastream-metadata/RouteLink_CONUS.nc"
   },
   "storage": {
-    "output_path": "./palisade_2019/ngen-run/restart",
+    "output_path": "./restart-example/ngen-run/restart",
     "output_file_type": [
       "netcdf"
     ]
@@ -292,7 +300,7 @@ This is the `forcingprocessor` configuration file that we would use to generate 
 }
 ```
 
-Save this file as `./palisade_2019/datastream-metadata/conf_fp_restart.json`.
+Save this file as `./restart-example/datastream-metadata/conf_fp_restart.json`.
 
 Like in the example above, execute `forcingprocessor`.
 
@@ -300,6 +308,6 @@ Like in the example above, execute `forcingprocessor`.
 python ./forcingprocessor/src/forcingprocessor/processor.py ./palisade_2019/datastream-metadata/conf_fp_restart.json
 ```
 
-This will write out the restart file to `./palisade_2019/ngen-run/restart/`
+This will write out the restart file to `./restart-example/ngen-run/restart/`
 
 If the restart file and its [crosswalk (file that tells t-route which initial state belongs to which flowpath)](https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc) already exist, they can be used in a `datastreamcli` command. `-t` takes an argument that is the path to the restart file, and `-w` takes an argument that is the path to the restart file.
