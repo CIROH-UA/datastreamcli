@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/test_datastream_options.yaml'
       - 'scripts/datastream'
+      - 'src/datastreamcli/run_validator.py'
       - 'versions.yml'
       - 'docker/Dockerfile.datastream-deps'
   pull_request:
@@ -14,6 +15,7 @@ on:
     paths:
       - '.github/workflows/test_datastream_options.yaml'
       - 'scripts/datastream'
+      - 'src/datastreamcli/run_validator.py'
       - 'versions.yml'
       - 'docker/Dockerfile.datastream-deps'
 
@@ -180,6 +182,15 @@ jobs:
           echo "=== Test 1: Base test ==="
           rm -rf "$WS/data/datastream_test"
           ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d "$WS/data/datastream_test" -g "$WS/$GPKG_TEST" -R "$WS/configs/ngen/$REALIZATION_MODELS"
+
+          # Test 1a: Validation without t-route restart/crosswalk
+          echo "=== Test 1a: Validation without t-route restart/crosswalk ==="
+
+          docker run --rm \
+            -v "$NGENRUN:/mounted_dir" \
+            awiciroh/datastream:latest \
+            python3 /datastreamcli/src/datastreamcli/run_validator.py \
+            --data_dir /mounted_dir
 
           # Test 2: CONF_FILE
           echo "=== Test 2: CONF_FILE test ==="

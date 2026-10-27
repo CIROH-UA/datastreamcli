@@ -121,6 +121,23 @@ def test_noah_owp_m_v22():
     noah_config_example = NOAH_DIR / "noah-owp-modular-init-cat-1496145.namelist.input"
     assert noah_config_example.exists()
 
+    namelist_values = {}
+    with open(noah_config_example, "r") as fp:
+        for line in fp:
+            key, sep, value = line.partition("=")
+            if sep:
+                namelist_values[key.strip()] = value.split("!")[0].strip()
+
+    attrs = attrs_v22.loc[attrs_v22["divide_id"] == "cat-1496145"].iloc[0]
+    assert float(namelist_values["lat"]) == pytest.approx(attrs["centroid_y"])
+    assert float(namelist_values["lon"]) == pytest.approx(attrs["centroid_x"])
+    assert float(namelist_values["terrain_slope"]) == pytest.approx(
+        attrs["mean.slope"]
+    )
+    assert float(namelist_values["azimuth"]) == pytest.approx(
+        attrs["circ_mean.aspect"]
+    )
+
 
 def test_cfe_v22():
     CFE_DIR.mkdir(parents=True, exist_ok=True)

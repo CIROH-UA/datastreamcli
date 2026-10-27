@@ -4,8 +4,7 @@ import geopandas as gpd
 
 gpd.options.io_engine = "pyogrio"
 import concurrent.futures as cf
-from datastreamcli.ngen_configs_gen import fix_v2_2_units
-from pyogrio.errors import DataLayerError
+from datastreamcli.ngen_configs_gen import get_hf
 
 
 def gen_noah_owp_confs(gdf, hf_version):
@@ -13,7 +12,7 @@ def gen_noah_owp_confs(gdf, hf_version):
     Create a json of noah owp config dicts
 
     Parameters:
-        gdf : geopandas data frame of divides
+        gdf : geopandas data frame of divide attributes, from get_hf()
         hf_version : hydrofabric version
 
     Returns:
@@ -28,20 +27,18 @@ def gen_noah_owp_confs(gdf, hf_version):
 
     all_confs = {}
     if hf_version == "v2.2":
-        for row in gdf.itertuples():
-            jcatch = row.divide_id
-            lon = row.centroid_x
-            lat = row.centroid_y
-            slope = row._37
-            azimuth = row._38
+        cols = ["divide_id", "centroid_x", "centroid_y", "mean.slope", "circ_mean.aspect"]
+        for jcatch, lon, lat, slope, azimuth in gdf[cols].itertuples(
+            index=False, name=None
+        ):
             jcatch_conf = copy.deepcopy(conf_template)
             for j, jline in enumerate(jcatch_conf):
-                pattern = r"^\s{2}lat\s*=\s*([\d.]+)\s*"
+                pattern = r"^\s{2}lat\s*=\s*(-?[\d.]+)\s*"
                 if re.search(pattern, jline):
                     jcatch_conf[j] = re.sub(
                         pattern, f"  lat             = {lat}      ", jline
                     )
-                pattern = r"^\s{2}lon\s*=\s*([\d.]+)\s*"
+                pattern = r"^\s{2}lon\s*=\s*(-?[\d.]+)\s*"
                 if re.search(pattern, jline):
                     jcatch_conf[j] = re.sub(
                         pattern, f"  lon             = {lon}      ", jline
@@ -68,12 +65,12 @@ def gen_noah_owp_confs(gdf, hf_version):
             slope = jcatch_attrs["slope_mean"].iloc[0]
             azimuth = jcatch_attrs["aspect_c_mean"].iloc[0]
             for j, jline in enumerate(jcatch_conf):
-                pattern = r"^\s{2}lat\s*=\s*([\d.]+)\s*"
+                pattern = r"^\s{2}lat\s*=\s*(-?[\d.]+)\s*"
                 if re.search(pattern, jline):
                     jcatch_conf[j] = re.sub(
                         pattern, f"  lat             = {lat}      ", jline
                     )
-                pattern = r"^\s{2}lon\s*=\s*([\d.]+)\s*"
+                pattern = r"^\s{2}lon\s*=\s*(-?[\d.]+)\s*"
                 if re.search(pattern, jline):
                     jcatch_conf[j] = re.sub(
                         pattern, f"  lon             = {lon}      ", jline
@@ -108,16 +105,10 @@ def multiprocess_gen_pkl(gpkg_path: str, outdir: str, hf_version: str):
     """
     print(f"Generating NoahOWP pkl", flush=True)
 
-    if hf_version == "v2.2":
-        gdf = gpd.read_file(gpkg_path, layer="divide-attributes").sort_values(
-            by="divide_id"
-        )
-    elif hf_version == "v2.1":
-        gdf = gpd.read_file(gpkg_path, layer="model-attributes").sort_values(
-            by="divide_id"
-        )
-    else:
+    if hf_version not in ["v2.1", "v2.2"]:
         raise Exception("This function supports v2.1 and v2.2 hydrofabrics")
+    _, _, gdf = get_hf(gpkg_path)
+    gdf = gdf.sort_values(by="divide_id")
 
     catchment_list = sorted(list(gdf["divide_id"]))
 
