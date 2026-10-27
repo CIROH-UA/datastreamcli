@@ -59,7 +59,7 @@ def get_hf(hf_file: str) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, pd.DataFra
         layers :  all layers within the hydrofabric file
         attrs : divide attributes (found under different layers)
             v2.1 -> model-attributes
-            v2.2 -> divide-attributes
+            v2.2 -> divide-attributes, with units fixed by fix_v2_2_units()
     """
 
     hf: gpd.GeoDataFrame = gpd.read_file(hf_file, layer="divides")
@@ -68,6 +68,7 @@ def get_hf(hf_file: str) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, pd.DataFra
         attrs: pd.DataFrame = gpd.read_file(hf_file, layer="model-attributes")
     elif "divide-attributes" in list(layers.name):
         attrs: pd.DataFrame = gpd.read_file(hf_file, layer="divide-attributes")
+        attrs = fix_v2_2_units(attrs, hf_file)
     else:
         raise Exception(f"Can't find attributes!")
 
@@ -214,7 +215,7 @@ def gen_lstm(
     Generate LSTM BMI configs from hydrofabric and NextGen realizaiton files
 
     hf (gpd.GeoDataFrame) : divides layer of hydrofabric,
-    attrs (gpd.GeoDataFrame) : attributes of the divides,
+    attrs (gpd.GeoDataFrame) : attributes of the divides, from get_hf(),
     out (str): path to write configs out to,
     real (NgenRealization): NextGen realization,
     lstm_ensembles (list): list of indices to pick lstm training files (ensembles)
@@ -234,13 +235,7 @@ def gen_lstm(
     lstm_config["time_step"] = DoubleQuotedScalarString(f"{interval} hour")
     cats = attrs["divide_id"]
     ncats = len(cats)
-    from pyproj import Transformer
-    import yaml
-
     count = 0
-    source_crs = "EPSG:5070"
-    target_crs = "EPSG:4326"
-    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
     for x, y in zip(
         hf.sort_values(by="divide_id").iterrows(),
         attrs.sort_values(by="divide_id").iterrows(),
@@ -250,26 +245,12 @@ def gen_lstm(
         k, attrs_row = y
         lstm_config_jcat = copy.copy(lstm_config)
         jcat = attrs_row["divide_id"]
-        x_coord = attrs_row["centroid_x"]
-        y_coord = attrs_row["centroid_y"]
-        lon, lat = transformer.transform(x_coord, y_coord)
-        # variable transformations taken from
-        # https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/36b8f0a8dd77462aae3d33c9e93385103637cf98/modules/data_processing/create_realization.py#L149C5-L172C14
-        # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
-        # flip 0 and 90 degree values
-        attrs_row["flipped_mean_slope"] = abs(attrs_row["mean.slope"] - 90)
-        # Convert degrees to meters per kmmeter
-        attrs_row["mean_slope_mpkm"] = (
-            np.tan(np.radians(attrs_row["flipped_mean_slope"])) * 1000
-        )
         lstm_config_jcat["area_sqkm"] = hf_row["areasqkm"]
         lstm_config_jcat["basin_id"] = jcat
         lstm_config_jcat["basin_name"] = jcat
-        lstm_config_jcat["elev_mean"] = (
-            attrs_row["mean.elevation"] / 100
-        )  # convert cm in hf to m
-        lstm_config_jcat["lat"] = lat
-        lstm_config_jcat["lon"] = lon
+        lstm_config_jcat["elev_mean"] = attrs_row["mean.elevation"]
+        lstm_config_jcat["lat"] = attrs_row["centroid_y"]
+        lstm_config_jcat["lon"] = attrs_row["centroid_x"]
         lstm_config_jcat["slope_mean"] = attrs_row["mean_slope_mpkm"]
         filename = Path(lstm_config_dir, jcat + ".yml")
         yaml = ruamel.yaml.YAML()
@@ -300,17 +281,7 @@ def gen_petAORcfe(hf_file: str, out: str, include: List[str]) -> None:
     if "CFE" in include:
         models.append(Cfe)
     for j, jmodel in enumerate(include):
-        hf: gpd.GeoDataFrame = gpd.read_file(hf_file, layer="divides")
-        layers = gpd.list_layers(hf_file)
-        if "model-attributes" in list(layers.name):
-            hf_lnk_data: pd.DataFrame = gpd.read_file(hf_file, layer="model-attributes")
-        elif "divide-attributes" in list(layers.name):
-            hf_lnk_data: pd.DataFrame = gpd.read_file(
-                hf_file, layer="divide-attributes"
-            )
-            hf_lnk_data = fix_v2_2_units(hf_lnk_data, hf_file)
-        else:
-            raise Exception(f"Can't find attributes!")
+        hf, layers, hf_lnk_data = get_hf(hf_file)
         hook_provider = DefaultHookProvider(hf=hf, hf_lnk_data=hf_lnk_data)
         jmodel_out = Path(out, "cat_config", jmodel)
         os.system(f"mkdir -p {jmodel_out}")
@@ -366,14 +337,12 @@ def fix_v2_2_units(df: pd.DataFrame, gpkg: str) -> gpd.GeoDataFrame:
     lon, lat = transformer.transform(df["centroid_x"].values, df["centroid_y"].values)
     df["centroid_x"] = lon
     df["centroid_y"] = lat
-
-    # no idea how to modify ngen-cal to do this, but lstm needs meters per km
-    # convert the mean.slope from degrees 0-90 where 90 is flat and 0 is vertical to m/km
-    # flip 0 and 90 degree values
-    df["flipped_mean_slope"] = abs(df["mean.slope"] - 90)
-    # Convert degrees to meters per kilometer (m/km)
-    df["mean_slope_mpkm"] = np.tan(np.radians(df["flipped_mean_slope"])) * 1000
-    df.drop(columns=["flipped_mean_slope"], inplace=True)
+    # convert the mean.slope from degrees into meters per km
+    # The original value in the hydrofabric was derived from arctan(rise/run), where the "rise"
+    # value (elevation) was assumed to be in [m]. We believe this elevation value was actually
+    # in [cm]. This informs the calculation that follows. Derivation in
+    # https://github.com/CIROH-UA/datastreamcli/pull/131#discussion_r4198362669
+    df["mean_slope_mpkm"] = np.tan(np.radians(df["mean.slope"])) * 10
     return df
 
 

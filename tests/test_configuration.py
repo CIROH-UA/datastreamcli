@@ -225,16 +225,13 @@ def test_conf_daily_short_range_init23():
         data = json.load(fp)
     start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
     end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
-    assert (
-        start.day == (datetime.now(timezone.utc)).day
-        or start.day == (datetime.now(timezone.utc) - timedelta(days=1)).day
-    )
-    assert start.hour == 0
-    assert (
-        end.day == (datetime.now(timezone.utc) + timedelta(days=1)).day
-        or end.day == (datetime.now(timezone.utc)).day
-    )
-    assert end.hour == 17
+    now = datetime.now(timezone.utc)
+    cycle_day = now if now.hour >= 23 else now - timedelta(days=1)
+    expected_start = cycle_day.replace(
+        hour=23, minute=0, second=0, microsecond=0, tzinfo=None
+    ) + timedelta(hours=1)
+    assert start == expected_start
+    assert end == expected_start + timedelta(hours=17)
 
     with open(CONF_NWM, "r") as fp:
         data = json.load(fp)
@@ -307,7 +304,7 @@ def test_conf_daily_noamds():
     start = datetime.strptime(data["time"]["start_time"], "%Y-%m-%d %H:%M:%S")
     end = datetime.strptime(data["time"]["end_time"], "%Y-%m-%d %H:%M:%S")
     assert start.day == datetime.now(timezone.utc).day
-    assert end.day == (datetime.now(timezone.utc) + timedelta(hours=240 - 1)).day
+    assert end.day == (datetime.now(timezone.utc).replace(hour=1) + timedelta(hours=240 - 1)).day
     assert end.hour == 0
 
     with open(CONF_NWM, "r") as fp:
