@@ -1,30 +1,32 @@
-Below is the output of `./scripts/datastream -h`. A more in depth of each option is given in the table below. 
+Below is the output of `./scripts/datastream -h`. A more in depth of each option is given in the table below.
 
 ```
 Usage: ./scripts/datastream [options]
 Either provide a datastream configuration file
-  -c, --CONF_FILE           <Path to datastream configuration file> 
+  -c, --CONF_FILE           <Path to datastream configuration file>
 or run with cli args
-  -s, --START_DATE          <YYYYMMDDHHMM or "DAILY"> 
-  -e, --END_DATE            <YYYYMMDDHHMM> 
-  -C, --FORCING_SOURCE      <Forcing source option> 
-  -d, --DATA_DIR            <Path to write to> 
-  -R, --REALIZATION         <Path to realization file> 
-  -g, --GEOPACKAGE          <Path to geopackage file> 
-  -I, --SUBSET_ID           <Hydrofabric id to subset>  
-  -i, --SUBSET_ID_TYPE      <Hydrofabric id type>  
-  -v, --HYDROFABRIC_VERSION <Hydrofabric version> 
-  -D, --DOMAIN_NAME         <Name for spatial domain> 
-  -r, --RESOURCE_DIR        <Path to resource directory> 
-  -f, --NWM_FORCINGS_DIR    <Path to nwm forcings directory> 
-  -N, --NGEN_BMI_CONFS      <Path to ngen BMI config directory> 
-  -F, --NGEN_FORCINGS       <Path to ngen forcings directory, tarball, or netcdf> 
-  -S, --S3_BUCKET           <s3 bucket to write output to>  
-  -o, --S3_PREFIX           <File prefix within s3 bucket> 
-  -n, --NPROCS              <Process limit> 
-  -y, --DRYRUN              <True to skip calculations> 
-  -E, --EVAL                <True to run TEEHR evaluation service> 
-  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345> 
+  -s, --START_DATE          <YYYYMMDDHHMM or "DAILY">
+  -e, --END_DATE            <YYYYMMDDHHMM>
+  -C, --FORCING_SOURCE      <Forcing source option>
+  -d, --DATA_DIR            <Path to write to>
+  -R, --REALIZATION         <Path to realization file>
+  -g, --GEOPACKAGE          <Path to geopackage file>
+  -I, --SUBSET_ID           <Hydrofabric id to subset>
+  -i, --SUBSET_ID_TYPE      <Hydrofabric id type>
+  -v, --HYDROFABRIC_VERSION <Hydrofabric version>
+  -D, --DOMAIN_NAME         <Name for spatial domain>
+  -r, --RESOURCE_DIR        <Path to resource directory>
+  -f, --NWM_FORCINGS_DIR    <Path to nwm forcings directory>
+  -N, --NGEN_BMI_CONFS      <Path to ngen BMI config directory>
+  -F, --NGEN_FORCINGS       <Path to ngen forcings directory, tarball, or netcdf>
+  -t, --TROUTE_RESTART      <Path to t-route restart file>
+  -w, --TROUTE_CROSSWALK    <Path to t-route restart crosswalk file>
+  -S, --S3_BUCKET           <s3 bucket to write output to>
+  -o, --S3_PREFIX           <File prefix within s3 bucket>
+  -n, --NPROCS              <Process limit>
+  -y, --DRYRUN              <True to skip calculations>
+  -E, --EVAL                <True to run TEEHR evaluation service>
+  -L, --LSTM_ENS_MEMBERS    <LSTM ensemble members. 012345>
 
   ```
 
@@ -39,12 +41,14 @@ or run with cli args
 | GEOPACKAGE          | `-g` | Path to hydrofabric, can be s3URI, URL, or local file. Generate file with [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) or use SUBSET args. | Required here or file exists in `RESOURCE_DIR/config` |
 | SUBSET_ID_TYPE      | `-i` | id type corresponding to "id" [See hfsubset for options](https://github.com/LynkerIntel/hfsubset?tab=readme-ov-file#cli-option) | Required here if user is not providing GEOPACKAGE and GEOPACKAGE_ATTR. |
 | SUBSET_ID           | `-I` | catchment id to subset [See hfsubset for options](https://github.com/LynkerIntel/hfsubset?tab=readme-ov-file#cli-option) | Required here if user is not providing GEOPACKAGE and GEOPACKAGE_ATTR.  |
-| HYDROFABRIC_VERSION | `-v` |$\geq$ v20.1 [See hfsubset for options](https://github.com/LynkerIntel/hfsubset?tab=readme-ov-file#cli-option)  | Required here if user is not providing GEOPACKAGE and GEOPACKAGE_ATTR. | 
+| HYDROFABRIC_VERSION | `-v` |$\geq$ v20.1 [See hfsubset for options](https://github.com/LynkerIntel/hfsubset?tab=readme-ov-file#cli-option)  | Required here if user is not providing GEOPACKAGE and GEOPACKAGE_ATTR. |
 | DOMAIN_NAME         | `-D` | Name for spatial domain in run, stripped from gpkg if not supplied |  |
 | RESOURCE_DIR       | `-r` |Path to directory that contains the datastream resources. More explanation [here](#resource_dir-datastream-resources). |  |
 | NWM_FORCINGS_DIR | `-f` |Path to local directory containing nwm files. Alternatively, these file could be stored in RESOURCE_DIR as nwm-forcings. |  |
 | NGEN_BMI_CONFS | `-N` |Path to local directory containing NextGen BMI configuration files. Alternatively, these files could be stored in RESOURCE_DIR under `config/`.  See here for [directory structure](#configuration-directory-ngen-runconfig). |  |
 | NGEN_FORCINGS  | `-F` | Path to local ngen forcings directory holding ngen forcing csv's or parquet's. Also accepts tarball or netcdf. Alternatively, this file(s) could  be stored in RESOURCE_DIR at `ngen-forcings/`. |  |
+| TROUTE_RESTART | `-t` | Path to local t-route restart file. Requires `-w` for use. |  |
+| TROUTE_CROSSWALK | `-w` | Path to local t-route restart crosswalk file, linking t-route inputs to specific flowpaths. Required for use with `-t`. |  |
 | S3_BUCKET           | `-S` | AWS S3 Bucket to write output to |  |
 | S3_PREFIX           | `-o` | Path within S3 bucket to write to |
 | DRYRUN             | `-y` | Set to "True" to skip all compute steps. |
@@ -55,7 +59,7 @@ or run with cli args
 | LSTM_ENS_MEMBERS |`-L` |  List of integers corresponding to the LSTM ens members bewlow, for example 025| |
 
 #### LSTM Enesmble Member Mapping
-```    
+```
 0:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_7/config.yml",
 1:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_8/config.yml",
 2:"/ngen/ngen/extern/lstm/trained_neuralhydrology_models/nh_AORC_hourly_25yr_1210_112435_9/config.yml",
@@ -68,7 +72,7 @@ or run with cli args
 DataStreamCLI is designed to pick up files or folder whether they are local, public, or in AWS s3 object storage.
 
 DataStreamCLI can accept local or non-local paths. The following are all allowed.
-``` 
+```
 For file like paths (i.e. providing explicit geopackage path)
 1. A local absolute (or relative) path : /home/user/data/nextgen_VPU_09.gpkg
 2. A URL : https://ciroh-community-ngen-datastream.s3.us-east-1.amazonaws.com/resources/v2.2_hydrofabric/datastream-resources/VPU_09/config/nextgen_VPU_09.gpkg
@@ -82,10 +86,10 @@ For folder like paths (i.e. providing a resource directory)
 Note here that DataStreamCLI will treat a s3 URI prefix like a directory.
 
 ### Environment variables
-DataStreamCLI can find run options in the form of environment variables. These can be set in the `CONF_FILE`. An example file here from the NextGen Research DataStream. 
+DataStreamCLI can find run options in the form of environment variables. These can be set in the `CONF_FILE`. An example file here from the NextGen Research DataStream.
 
 In addition to the run options documented in the table above, the following environment variables can also be set.
-| Environment Variable  | Description         | 
+| Environment Variable  | Description         |
 |---------------------|--------------------|
 | NGIAB_TAG | Sets the NextGen In A Box Docker container tag |
 | DS_TAG | Sets the datastream Docker container tag |
