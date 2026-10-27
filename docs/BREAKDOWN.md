@@ -5,14 +5,18 @@ This document serves as a guide to run `datastreamcli` step-by-step, which essen
 Imagine we want to study the variation in NextGen configurations of retrospective streamflow forecasts for the Colorado River for the day of June 10th, 2019. We will use the steps below to prepare an input data package for NextGen, execute NextGen through NextGen in a Box, and then plot the results.
 
 ## Steps
-* [Prepare Directories](#prepare-directories)
-* [Spatial Domain](#spatial-domain)
-* [Forcings / Time Domain](#forcings--time-domain)
-* [NextGen Configuration](#nextgen-configuration)
-* [NextGen BMI Configuration File Generation](#nextgen-bmi-configuration-file-generation)
-* [Validation](#validation)
-* [NextGen Execution](#nextgen-execution)
-* [Equivalent Command](#equivalent-command)
+- [`datastreamcli` Breakdown](#datastreamcli-breakdown)
+  - [Use Case](#use-case)
+  - [Steps](#steps)
+  - [Prepare Directories](#prepare-directories)
+  - [Spatial Domain](#spatial-domain)
+  - [Forcings / Time Domain](#forcings--time-domain)
+  - [NextGen Configuration](#nextgen-configuration)
+  - [NextGen BMI Configuration File Generation](#nextgen-bmi-configuration-file-generation)
+  - [Validation](#validation)
+  - [NextGen Execution](#nextgen-execution)
+  - [Equivalent Command](#equivalent-command)
+  - [Appendix: T-route Restart File Generation](#appendix-t-route-restart-file-generation)
 
 Before proceeding, please review the [usage](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/USAGE.md) document and the [standard directions](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md) with special attention to the [ngen-run](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/STANDARD_DIRECTORIES.md#ngen-run) standard run directory portion.
 
@@ -56,7 +60,7 @@ Some things to note about this command:
 
 See [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) for more options.
 
-Use the [Lynker Spatial Hydrolocation Viewer](https://www.lynker-spatial.com/hydrolocations.html) to find the point of interest (`poi`) you want to use to subset. See hfsubset documentation to see how to subset with Gage Id and other options.  
+Use the [Lynker Spatial Hydrolocation Viewer](https://www.lynker-spatial.com/hydrolocations.html) to find the point of interest (`poi`) you want to use to subset. See hfsubset documentation to see how to subset with Gage Id and other options.
 
 ![datastreamcli](images/lynker-spatial-hyview.png)
 
@@ -66,15 +70,15 @@ Use the [NGIA geopackage viewer](https://ngageoint.github.io/geopackage-viewer-j
 
 [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) is integrated into `datastreamcli`, which means the user can simply provide these three cli args to `datastreamcli` to offload the [hfsubset](https://github.com/lynker-spatial/hfsubsetCLI) call to `datastreamcli`
 ```
-  -I, --SUBSET_ID           <Hydrofabric id to subset>  
-  -i, --SUBSET_ID_TYPE      <Hydrofabric id type>  
+  -I, --SUBSET_ID           <Hydrofabric id to subset>
+  -i, --SUBSET_ID_TYPE      <Hydrofabric id type>
   -v, --HYDROFABRIC_VERSION <Hydrofabric version>
   ```
 
 ## Forcings / Time Domain
 Defining the time over which the simulation will run is essentially captured in the forcings (precipitation, wind speed, etc.). There are many sources of forcings that can be used in NextGen. While it is certainly possible to use forcings from a variety of sources (NWM, AORC, etc.) `datastreamcli` integrates [nwmurl](https://github.com/CIROH-UA/nwmurl), which will provide National Water Model forcings filenames based on the time period the user provides. To generate these forcings independently, follow the steps below:
 
-First, we use [nwmurl](https://github.com/CIROH-UA/nwmurl) to generate a list of nwm forcing filenames that [forcingprocessor](https://github.com/CIROH-UA/forcingprocessor/tree/main) reads from. We define exactly which forcings files we want with the options in conf_nwmurl.json. 
+First, we use [nwmurl](https://github.com/CIROH-UA/nwmurl) to generate a list of nwm forcing filenames that [forcingprocessor](https://github.com/CIROH-UA/forcingprocessor/tree/main) reads from. We define exactly which forcings files we want with the options in conf_nwmurl.json.
 
 There are two types of this conf_nwmurl.json. One for operational forcings which looks like this:
 ```
@@ -86,7 +90,7 @@ There are two types of this conf_nwmurl.json. One for operational forcings which
     "lead_time"    : [],
     "varinput"     : 5,
     "geoinput"     : 1,
-    "runinput"     : 2,    
+    "runinput"     : 2,
     "urlbaseinput" : 7,
     "meminput"     : 0
 }
@@ -145,7 +149,7 @@ Now that we have the forcing filenames in a text file, we can set up `forcingpro
         "storage_type"      : "local",
         "output_path"       : "./palisade_2019/ngen-run/forcings",
         "output_file_type" : ["csv"]
-    },    
+    },
 
     "run" : {
         "verbose"       : true,
@@ -156,7 +160,7 @@ Now that we have the forcing filenames in a text file, we can set up `forcingpro
     "plot":{
         "ngen_vars"  : [
             "TMP_2maboveground"
-        ] 
+        ]
     }
 }
 ```
@@ -196,11 +200,11 @@ python ./datastreamcli/src/datastreamcli/ngen_configs_gen.py \
 Inspect `./palisade_2019/ngen-run/config` to see what BMI model configuration files were created.
 
 ## Validation
-We have now completed the required steps to generate the input data package for a NextGen simulation. As you can tell by now, there are many steps and thus many places to make a mistake. The `run-validator.py` script provides a quick way to check that the input data package contains the required files and that they are consistent to one another. See [here](https://github.com/CIROH-UA/datastreamcli/tree/main/src/datastreamcli/#run_validatorpy) for an explanation of the validation. 
+We have now completed the required steps to generate the input data package for a NextGen simulation. As you can tell by now, there are many steps and thus many places to make a mistake. The `run-validator.py` script provides a quick way to check that the input data package contains the required files and that they are consistent to one another. See [here](https://github.com/CIROH-UA/datastreamcli/tree/main/src/datastreamcli/#run_validatorpy) for an explanation of the validation.
 
 Execute the validator on the `ngen-run` package we have created.
 ```
-python ./datastreamcli/src/datastreamcli/run_validator.py --data_dir ./palisade_2019/ngen-run 
+python ./datastreamcli/src/datastreamcli/run_validator.py --data_dir ./palisade_2019/ngen-run
 ```
 
 If the run package is valid, it will complete without error. If you find the error messaging not clearly communicating the fault with the input package, start an issue in the repo to have the messaging improved.
@@ -228,4 +232,82 @@ Now that we have performed each component of the datastream individually, let's 
     -d $(pwd)/palisade_2019
 ```
 
+## Appendix: T-route Restart File Generation
 
+Without a t-route restart or a discarded warmup period, your routed simulations will always start at 0 at the first timestep. To generate restart files, `datastreamcli` uses a process with [nwmurl](https://github.com/CIROH-UA/nwmurl) and [forcingprocessor](https://github.com/CIROH-UA/forcingprocessor/tree/main)
+that is similar to the forcing generation. T-route restarts are derived from the NWM's hourly analysis-assimilation run. Additionally, generating restarts requires a mapping file between the NWM domain and the NextGen hydrofabric.
+
+Here is an example config file for `nwmurl`. This will generate one URL for June 10, 2025 00z.
+
+```json
+{
+  "forcing_type": "operational_archive",
+  "start_date": "202506100000",
+  "end_date": "202506100000",
+  "runinput": 5,
+  "varinput": 1,
+  "geoinput": 1,
+  "meminput": 0,
+  "urlbaseinput": 7,
+  "fcst_cycle": [
+    0
+  ],
+  "lead_time": [
+    0
+  ]
+}
+```
+
+Save this file to `./restart-example/datastream-metadata/conf_nwmurl_restart.json`. To generate the URL, use
+
+```python
+python ./forcingprocessor/src/forcingprocessor/nwm_filenames_generator.py ./restart-example/datastream-metadata/conf_nwmurl_restart.json
+```
+
+Next, download our reference files into `restart-example/datastream-metadata`.
+
+```text
+    "restart_map_file": "https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/hf2.2_ref_hf_catchment_map.json",
+    "crosswalk_file": "https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc",
+    "routelink_file": "https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
+```
+
+This is the `forcingprocessor` configuration file that we would use to generate our restarts.
+
+```json
+{
+  "forcing": {
+    "nwm_file": "./restart-example/datastream-metadata/filenamelist.txt",
+    "gpkg_file": [
+      "./restart-example/ngen-run/config/"
+    ],
+    "map_file": null,
+    "restart_map_file": "./restart-example/datastream-metadata/hf2.2_ref_hf_catchment_map.json",
+    "crosswalk_file": "./restart-example/datastream-metadata/crosswalk.nc",
+    "routelink_file": "./restart-example/datastream-metadata/RouteLink_CONUS.nc"
+  },
+  "storage": {
+    "output_path": "./restart-example/ngen-run/restart",
+    "output_file_type": [
+      "netcdf"
+    ]
+  },
+  "run": {
+    "verbose": true,
+    "collect_stats": true,
+    "nprocs": 8
+  }
+}
+```
+
+Save this file as `./restart-example/datastream-metadata/conf_fp_restart.json`.
+
+Like in the example above, execute `forcingprocessor`.
+
+```python
+python ./forcingprocessor/src/forcingprocessor/processor.py ./palisade_2019/datastream-metadata/conf_fp_restart.json
+```
+
+This will write out the restart file to `./restart-example/ngen-run/restart/`
+
+If the restart file and its [crosswalk (file that tells t-route which initial state belongs to which flowpath)](https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.2_hydrofabric/troute_restart/crosswalk.nc) already exist, they can be used in a `datastreamcli` command. `-t` takes an argument that is the path to the restart file, and `-w` takes an argument that is the path to the restart file.
