@@ -247,6 +247,26 @@ jobs:
           rm -rf "$WS/data/datastream_test"
           ./scripts/datastream -s DAILY --FORCING_SOURCE NWM_V3_CHRTOUT_SHORT_RANGE_00 -d "$WS/data/datastream_test" -r "$S3_BUCKET/resources/v2.2_hydrofabric/datastream-resources/VPU_03W" -R "$WS/configs/ngen/realization_sloth_troute.json"
 
+          # Test 10: SAVE_NGENRUN tars ngen-run and uploads it to S3
+          echo "=== Test 10: SAVE_NGENRUN ==="
+          rm -rf "$WS/data/datastream_test"
+          SAVE_NGENRUN_PREFIX="test/cicd/datastream/save_ngenrun/${{ github.run_id }}"
+          SAVE_NGENRUN=True ./scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d "$WS/data/datastream_test" -g "$WS/$GPKG_TEST" -R "$WS/configs/ngen/$REALIZATION_MODELS" -S ciroh-community-ngen-datastream -o "$SAVE_NGENRUN_PREFIX"
+          NGENRUN_TAR="$WS/data/datastream_test/ngen-run.tar.gz"
+          if [ ! -f "$NGENRUN_TAR" ]; then
+            echo "Missing ngen-run tarball: $NGENRUN_TAR"
+            exit 1
+          fi
+          if ! tar -tzf "$NGENRUN_TAR" | grep -q "^ngen-run/config/realization.json$"; then
+            echo "ngen-run tarball does not contain ngen-run/config/realization.json"
+            exit 1
+          fi
+          if ! aws s3 ls "$S3_BUCKET/$SAVE_NGENRUN_PREFIX/ngen-run.tar.gz"; then
+            echo "ngen-run tarball not found in $S3_BUCKET/$SAVE_NGENRUN_PREFIX"
+            exit 1
+          fi
+          aws s3 rm --recursive "$S3_BUCKET/$SAVE_NGENRUN_PREFIX/"
+
           echo "=== All tests passed ==="
           SCRIPT
 
