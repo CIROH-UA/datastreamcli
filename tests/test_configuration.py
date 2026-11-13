@@ -502,3 +502,38 @@ def test_conf_routing_restart():
         data["forcing"]["routelink_file"]
         == "s3://ciroh-community-ngen-datastream/resources/v2.2_hydrofabric/troute_restart/RouteLink_CONUS.nc"
     )
+
+
+def test_conf_medium_range_trimmed_window():
+    inputs.start_date = "202610230100"
+    inputs.end_date = "202610250000"
+    inputs.forcing_source = "NWM_V3_MEDIUM_RANGE_12_0"
+    inputs.forcings = ""
+    create_confs(inputs)
+    check_paths()
+
+    with open(REALIZATION_RUN, "r") as fp:
+        data = json.load(fp)
+    assert data["time"]["start_time"] == "2026-10-23 13:00:00"
+    assert data["time"]["end_time"] == "2026-10-25 00:00:00"
+
+    with open(CONF_NWM, "r") as fp:
+        data = json.load(fp)
+    assert data["lead_time"][0] == 1
+    assert data["lead_time"][-1] == 36
+    assert len(data["lead_time"]) == 36
+
+
+def test_conf_medium_range_same_day_full_product():
+    inputs.start_date = "202610230100"
+    inputs.end_date = "202610230100"
+    inputs.forcing_source = "NWM_V3_MEDIUM_RANGE_12_0"
+    inputs.forcings = ""
+    create_confs(inputs)
+    check_paths()
+
+    with open(CONF_NWM, "r") as fp:
+        data = json.load(fp)
+    assert len(data["lead_time"]) == 240
+    assert data["lead_time"][0] == 1
+    assert data["lead_time"][-1] == 240
