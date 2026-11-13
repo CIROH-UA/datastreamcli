@@ -597,8 +597,15 @@ log_time "DATASTREAMCONFGEN_START"
 DOCKER_TAG="awiciroh/datastream:$DS_TAG"
 echo "Generating DataStreamCLI metadata"
 CONFIGURER=$DOCKER_PY"configure_datastream.py"
+# Image copies hardcode 240 medium-range hours. Mount this clone so a later -e
+# trims lead_time and the realization end to the requested window.
+LOCAL_CONFIGURER="$PACKAGE_DIR/src/datastreamcli/configure_datastream.py"
+CONFIGURER_MOUNT=()
+if [ -f "$LOCAL_CONFIGURER" ]; then
+    CONFIGURER_MOUNT=(-v "$LOCAL_CONFIGURER":"$CONFIGURER":ro)
+fi
 set_troute_args --troute_restart "$TROUTE_RESTART" --troute_crosswalk "$TROUTE_CROSSWALK"
-log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) \
+log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" "${CONFIGURER_MOUNT[@]}" -u $(id -u):$(id -g) \
     $DOCKER_TAG \
     python3 $CONFIGURER "${TROUTE_ARGS[@]}" \
     --docker_mount $DOCKER_MOUNT --start_date "$START_DATE" --end_date "$END_DATE" --data_dir "$DATA_DIR" --forcings "$NGEN_FORCINGS" --forcing_source "$FORCING_SOURCE" --resource_path "$RESOURCE_DIR" --geopackage "$GEOPACKAGE_RESOURCES" --subset_id_type "$SUBSET_ID_TYPE" --subset_id "$SUBSET_ID" --hydrofabric_version "$HYDROFABRIC_VERSION" --nprocs "$NPROCS" --domain_name "$DOMAIN_NAME" --host_os "$HOST_OS" --realization "${DOCKER_MOUNT}/ngen-run/config/realization.json" --realization_provided "$REALIZATION" --ngen_bmi_confs "$NGEN_BMI_CONFS" --geopackage_provided "$GEOPACKAGE"
@@ -871,7 +878,8 @@ log_time "MERKLE_END"
 if [ "$EVAL" == "True" ]; then
     log_time "EVAL_START"
     TEEHR_DOCKER=awiciroh/ngiab-teehr
-    log_n_run_steps docker run -v "$NGEN_RUN:/app/data" "$TEEHR_DOCKER:$TEEHR_TAG"
+    mkdir -p "${NGEN_RUN%/}/teehr"
+    log_n_run_steps docker run --user "$(id -u):$(id -g)" --rm -v "$NGEN_RUN:/app/data" "$TEEHR_DOCKER:$TEEHR_TAG" --data_folder_stem "$(basename "${DATA_DIR%/}")" --teehr_evaluation_dir /app/data/teehr
     TEEHR_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls "$TEEHR_DOCKER:$TEEHR_TAG" --format "{{.ID}}") | tr -d '"')
     log_time "EVAL_END"
 fi
