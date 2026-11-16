@@ -95,3 +95,4 @@ In addition to the run options documented in the table above, the following envi
 | DS_TAG | Sets the datastream Docker container tag |
 | FP_TAG | Sets the forcing processor Docker container tag |
 | SKIP_VALIDATION | Set to "True" to bypass DataStreamCLI's built-in input directory validation. |
+| SAVE_NGENRUN | Set to "True" to tar the `ngen-run` directory and upload `ngen-run.tar.gz` to S3 (requires `S3_BUCKET`). Defaults to "False". |
