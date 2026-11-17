@@ -129,6 +129,26 @@ def write_json(conf, out_dir, name):
     return conf_path
 
 
+def _operational_window(start_dt, end_dt, fcst_cycle, max_hrs):
+    """Realization starts at issue 01:00 plus the cycle hour (NWM f001).
+
+    Same-day -s/-e, including DAILY, still takes the full product. A later -e
+    keeps only lead hours through that end, capped at the product length.
+    """
+    start_real = start_dt + timedelta(hours=fcst_cycle)
+    if end_dt <= start_dt:
+        num_hrs = max_hrs
+    else:
+        span = int((end_dt - start_real).total_seconds() // 3600) + 1
+        num_hrs = max(1, min(max_hrs, span))
+    end_real = start_real + timedelta(hours=num_hrs - 1)
+    return (
+        start_real.strftime("%Y-%m-%d %H:%M:%S"),
+        end_real.strftime("%Y-%m-%d %H:%M:%S"),
+        num_hrs,
+    )
+
+
 def create_conf_nwm(args):
     start = args.start_date
     end = args.end_date
@@ -212,16 +232,8 @@ def create_conf_nwm(args):
             # SHORT_RANGE_FCST
             # SHORT_RANGE_00
             fcst_cycle = int(args.forcing_source[-2:])
-            # Adjust hours
-            start_str_real = datetime.strftime(
-                datetime.strptime(start_str_real, "%Y-%m-%d %H:%M:%S")
-                + timedelta(hours=fcst_cycle),
-                "%Y-%m-%d %H:%M:%S",
-            )
-            end_str_real = datetime.strftime(
-                datetime.strptime(end_str_real, "%Y-%m-%d %H:%M:%S")
-                + timedelta(hours=fcst_cycle + num_hrs - 1),
-                "%Y-%m-%d %H:%M:%S",
+            start_str_real, end_str_real, num_hrs = _operational_window(
+                start_dt, end_dt, fcst_cycle, num_hrs
             )
         elif "MEDIUM_RANGE" in args.forcing_source:
             runinput = 2
@@ -233,15 +245,8 @@ def create_conf_nwm(args):
             cut_off = 0
             if ens_member > 1 and ens_member < 8:
                 cut_off = 36
-            start_str_real = datetime.strftime(
-                datetime.strptime(start_str_real, "%Y-%m-%d %H:%M:%S")
-                + timedelta(hours=fcst_cycle),
-                "%Y-%m-%d %H:%M:%S",
-            )
-            end_str_real = datetime.strftime(
-                datetime.strptime(end_str_real, "%Y-%m-%d %H:%M:%S")
-                + timedelta(hours=fcst_cycle + num_hrs - 1 - cut_off),
-                "%Y-%m-%d %H:%M:%S",
+            start_str_real, end_str_real, num_hrs = _operational_window(
+                start_dt, end_dt, fcst_cycle, num_hrs - cut_off
             )
         elif "ANALYSIS_ASSIM" in args.forcing_source:
             if "EXTEND" in args.forcing_source:
