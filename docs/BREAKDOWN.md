@@ -180,19 +180,11 @@ NextGen configuration is determined by the realization file. See the [NextGen re
 ## NextGen BMI Configuration File Generation
 Each model defined in the realization file will require the creation of configuration files, often for each catchment defined in the geopackage. `ngen_configs_gen.py` will generate all of the required BMI configuration files based on which models are found in the realization file. See [this document](https://github.com/CIROH-UA/datastreamcli/blob/main/docs/NGEN_MODULES.md) for which models are currently integrated into `datastreamcli`. If you define a model in the realization file that is not integrated, you will need to manually create the necessary BMI configuration files.
 
-If Noah-OWP-Modular is defined in the realization file, compute the noah-owp pickle file. This is admittedly hacky and will be depreciated soon.
-```
-python ./datastreamcli/src/datastreamcli/noahowp_pkl.py \
-    --hf_file ./palisade_2019/ngen-run/config/palisade.gpkg \
-    --outdir ./palisade_2019/datastream-metadata
-```
-
 To generate the NextGen BMI configuration models:
 ```
 python ./datastreamcli/src/datastreamcli/ngen_configs_gen.py \
     --hf_file ./palisade_2019/ngen-run/config/palisade.gpkg \
     --outdir ./palisade_2019/ngen-run/config \
-    --pkl_file ./palisade_2019/datastream-metadata/noah-owp-modular-init.namelist.input.pkl \
     --realization ./palisade_2019/ngen-run/config/realization.json
     --ignore ""
 ```
