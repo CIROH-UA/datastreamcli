@@ -468,7 +468,8 @@ if __name__ == "__main__":
     ignore = []
     for jmodel in model_names:
         config_path = Path(args.outdir, "cat_config", dir_dict[jmodel])
-        if config_path.exists():
+        # NoahOWP namelists hold run dates, so always regenerate them
+        if config_path.exists() and jmodel != "NoahOWP":
             ignore.append(jmodel)
     routing_path = Path(args.outdir, "troute.yaml")
     if routing_path.exists():
@@ -477,12 +478,9 @@ if __name__ == "__main__":
     hf, layers, attrs = get_hf(args.hf_file)
 
     if "NoahOWP" in model_names:
-        if "NoahOWP" in ignore:
-            print(f"ignoring NoahOWP")
-        else:
-            print(f"Generating NoahOWP configs from template", flush=True)
-            noah_dir = Path(args.outdir, "cat_config", "NOAH-OWP-M")
-            gen_noah_owp_confs(attrs, noah_dir, start, end)
+        print(f"Generating NoahOWP configs from template", flush=True)
+        noah_dir = Path(args.outdir, "cat_config", "NOAH-OWP-M")
+        gen_noah_owp_confs(attrs, noah_dir, start, end)
 
     if "CFE" in model_names:
         if "CFE" in ignore:
