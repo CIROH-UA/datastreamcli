@@ -98,6 +98,12 @@ jobs:
           DEPS_TAG: ${{ needs.setup.outputs.deps_tag }}
         run: |
           set -euo pipefail
+          # Build deps locally when versions.yml points at an unpublished tag
+          if ! docker manifest inspect "awiciroh/datastream-deps:$DEPS_TAG" > /dev/null 2>&1; then
+            echo "awiciroh/datastream-deps:$DEPS_TAG is not on Docker Hub yet; building it from this checkout"
+            docker build -f docker/Dockerfile.datastream-deps \
+              -t "awiciroh/datastream-deps:$DEPS_TAG" docker
+          fi
           docker build -f docker/Dockerfile.datastream \
             --build-arg TAG_NAME="$DEPS_TAG" \
             -t "awiciroh/datastream:$BUILD_TAG" .
