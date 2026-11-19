@@ -4,9 +4,9 @@
     "runuser -l ec2-user -c 'cd /home/ec2-user && git clone -b ${BRANCH_NAME} https://github.com/CIROH-UA/datastreamcli.git'",
     "runuser -l ec2-user -c 'ARCH=aarch64 TAG=latest-arm64 docker compose -f /home/ec2-user/datastreamcli/docker/docker-compose.yml build datastream-deps' >> /home/ec2-user/datastreamcli/docker_build_log.txt 2>&1",
     "runuser -l ec2-user -c 'TAG=latest-arm64 docker compose -f /home/ec2-user/datastreamcli/docker/docker-compose.yml build datastream' >> /home/ec2-user/datastreamcli/docker_build_log.txt 2>&1",
-    "runuser -l ec2-user -c 'export DS_TAG=${DS_TAG} && export FP_TAG=${FP_TAG} && /home/ec2-user/datastreamcli/scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d /home/ec2-user/datastreamcli/data/datastream_test -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg -R /home/ec2-user/datastreamcli/configs/ngen/realization_sloth_nom_cfe_pet.json --S3_BUCKET ciroh-community-ngen-datastream --S3_PREFIX test/cicd/datastream --FORCING_SOURCE NWM_RETRO_V3 2>&1 | tee -a /home/ec2-user/datastreamcli/datastream_test_output.txt /home/ec2-user/datastreamcli/docker_build_log.txt'",
-    "runuser -l ec2-user -c 'aws s3 cp /home/ec2-user/datastreamcli/docker_build_log.txt s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_build_log.txt'",
-    "runuser -l ec2-user -c 'aws s3 cp /home/ec2-user/datastreamcli/datastream_test_output.txt s3://ciroh-community-ngen-datastream/test/cicd/datastream/datastream_test_output.txt'"
+    "runuser -l ec2-user -c 'export DS_TAG=${DS_TAG} && export FP_TAG=${FP_TAG} && /home/ec2-user/datastreamcli/scripts/datastream -s 202006200100 -e 202006200200 -C NWM_RETRO_V3 -d /home/ec2-user/datastreamcli/data/datastream_test -g https://ciroh-community-ngen-datastream.s3.amazonaws.com/resources/v2.1_hydrofabric/geopackages/test_data/palisade.gpkg -R /home/ec2-user/datastreamcli/configs/ngen/realization_sloth_nom_cfe_pet.json --S3_BUCKET ciroh-community-ngen-datastream --S3_PREFIX ${S3_PREFIX} --FORCING_SOURCE NWM_RETRO_V3 2>&1 | tee -a /home/ec2-user/datastreamcli/datastream_test_output.txt /home/ec2-user/datastreamcli/docker_build_log.txt'",
+    "runuser -l ec2-user -c 'aws s3 cp /home/ec2-user/datastreamcli/docker_build_log.txt s3://ciroh-community-ngen-datastream/${S3_PREFIX}/docker_build_log.txt'",
+    "runuser -l ec2-user -c 'aws s3 cp /home/ec2-user/datastreamcli/datastream_test_output.txt s3://ciroh-community-ngen-datastream/${S3_PREFIX}/datastream_test_output.txt'"
   ],
   "run_options":{
     "ii_terminate_instance" : true,
@@ -22,7 +22,7 @@
   "KeyName"            : "actions_key_arm",
   "SecurityGroupIds"   : ["sg-0fcbe0c6d6faa0117"],
   "IamInstanceProfile": {
-    "Name": "default_ec2_profile"
+    "Name": "${EC2_PROFILE}"
   },
   "TagSpecifications"   :[
     {
@@ -35,6 +35,10 @@
             {
                 "Key"   : "Project",
                 "Value" : "ci_ds_integration_test_arm"
+            },
+            {
+                "Key"   : "RunId",
+                "Value" : "${RUN_ID}"
             }
         ]
     }
