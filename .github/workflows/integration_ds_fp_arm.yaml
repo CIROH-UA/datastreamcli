@@ -43,9 +43,22 @@ permissions:
   contents: read
   security-events: write
 
+# Supersede older runs of the same PR/branch. Runs from different PRs may still
+# overlap, which is safe because every run creates its own uniquely named AWS
+# resources (see RUN_TAG below) instead of adopting shared "default_*" ones.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:    
   build-test-docker-arm:
     runs-on: ubuntu-latest
+    env:
+      # Unique per run and per re-run attempt. Prefixes every AWS resource name,
+      # the EC2 RunId tag and the S3 output prefix for this run.
+      RUN_TAG: ci_dsfp_arm_${{ github.run_id }}_${{ github.run_attempt }}
+      S3_BUCKET: ciroh-community-ngen-datastream
+      S3_PREFIX: test/cicd/datastream/integration_arm/ci_dsfp_arm_${{ github.run_id }}_${{ github.run_attempt }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -78,6 +91,9 @@ jobs:
           sed -i "s|\${BRANCH_NAME}|$BRANCH_NAME|g" .github/executions/fp_ds_test_execution_arm.json
           sed -i "s|\${DS_TAG}|$DS_TAG|g" .github/executions/fp_ds_test_execution_arm.json
           sed -i "s|\${FP_TAG}|$FP_TAG|g" .github/executions/fp_ds_test_execution_arm.json
+          sed -i "s|\${S3_PREFIX}|$S3_PREFIX|g" .github/executions/fp_ds_test_execution_arm.json
+          sed -i "s|\${EC2_PROFILE}|${RUN_TAG}_ec2_profile|g" .github/executions/fp_ds_test_execution_arm.json
+          sed -i "s|\${RUN_ID}|$RUN_TAG|g" .github/executions/fp_ds_test_execution_arm.json
 
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
@@ -104,17 +120,44 @@ jobs:
       - name: Build AWS Infra
         working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
         run: |
+          # Per-run resource names. Do NOT run import_resources.sh here: adopting
+          # existing resources by name is what let overlapping runs take over (and
+          # then destroy) each other's infrastructure.
+          cat > variables.tfvars <<EOF
+          region                    = "us-east-1"
+          sm_name                   = "${RUN_TAG}_sm"
+          sm_role_name              = "${RUN_TAG}_sm_role"
+          starter_lambda_name       = "${RUN_TAG}_start_ec2"
+          commander_lambda_name     = "${RUN_TAG}_ec2_commander"
+          poller_lambda_name        = "${RUN_TAG}_ec2_command_poller"
+          checker_lambda_name       = "${RUN_TAG}_s3_object_checker"
+          stopper_lambda_name       = "${RUN_TAG}_ec2_stopper"
+          lambda_policy_name        = "${RUN_TAG}_lambda_policy"
+          lambda_role_name          = "${RUN_TAG}_lambda_role"
+          lambda_invoke_policy_name = "${RUN_TAG}_lambda_invoke_policy"
+          ec2_role                  = "${RUN_TAG}_ec2_role"
+          ec2_policy_name           = "${RUN_TAG}_ec2_policy"
+          profile_name              = "${RUN_TAG}_ec2_profile"
+          resource_prefix           = "${RUN_TAG}"
+          EOF
+          cat variables.tfvars
           terraform init
           terraform validate
-          ../../../shell/import_resources.sh variables.tfvars
           terraform apply -var-file=variables.tfvars -auto-approve
           sleep 60
 
       - name: Set permissions
         working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
         run : |
-          aws secretsmanager put-resource-policy --secret-id docker_awiciroh_creds --resource-policy file://$GITHUB_WORKSPACE/.github/executions/secret-policy.json --block-public-policy --region us-east-1
-          if ! aws ec2 describe-key-pairs --key-names "actions_key_arm" --query 'KeyPairs[0].KeyName' --output text 2>/dev/null; then aws ec2 create-key-pair --key-name "actions_key_arm" --query 'KeyName' --output text && echo "Key pair 'actions_key_arm' created in AWS"; else echo "Key pair 'actions_key_arm' already exists"; fi
+          # No secret policy here: this test never logs in to Docker Hub, and
+          # rewriting the shared policy would race with build_push_ds.yaml.
+          # Shared, never deleted. Tolerate a concurrent run creating it first.
+          if ! aws ec2 describe-key-pairs --key-names "actions_key_arm" --query 'KeyPairs[0].KeyName' --output text 2>/dev/null; then
+            aws ec2 create-key-pair --key-name "actions_key_arm" --query 'KeyName' --output text \
+              || aws ec2 describe-key-pairs --key-names "actions_key_arm" --query 'KeyPairs[0].KeyName' --output text
+          else
+            echo "Key pair 'actions_key_arm' already exists"
+          fi
           sleep 60
 
 
@@ -183,10 +226,10 @@ jobs:
         if: always()
         run: |
           # Download general build log
-          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          aws s3 cp s3://$S3_BUCKET/$S3_PREFIX/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
           
           # Download datastream test output
-          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
+          aws s3 cp s3://$S3_BUCKET/$S3_PREFIX/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
           
           if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
             echo "## Docker Build Log" >> $GITHUB_STEP_SUMMARY
@@ -209,9 +252,48 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      # Stop this run's EC2 work before deleting the Lambdas that would normally
+      # stop it; otherwise a cancelled/failed run leaves its instance running.
+      - name: Stop this run's execution and instances
+        if: always()
+        run: |
+          execution_arn="${{ steps.stepfunction_execution.outputs.execution_arn }}"
+          if [ -z "$execution_arn" ] && [ -f "$GITHUB_WORKSPACE/execution_arn.txt" ]; then
+            execution_arn=$(cat $GITHUB_WORKSPACE/execution_arn.txt)
+          fi
+          if [ -n "$execution_arn" ]; then
+            status=$(aws stepfunctions describe-execution --execution-arn "$execution_arn" --query 'status' --output text || echo UNKNOWN)
+            if [ "$status" == "RUNNING" ]; then
+              aws stepfunctions stop-execution --execution-arn "$execution_arn" --cause "GitHub run teardown" || true
+            fi
+          fi
+
+          # Only instances tagged with this run's RunId are touched.
+          ids=$(aws ec2 describe-instances \
+            --filters "Name=tag:RunId,Values=$RUN_TAG" "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          if [ -n "$ids" ]; then
+            echo "Terminating instances for $RUN_TAG: $ids"
+            aws ec2 terminate-instances --instance-ids $ids
+            aws ec2 wait instance-terminated --instance-ids $ids
+          else
+            echo "No instances found for $RUN_TAG"
+          fi
+
       - name: Tear down infra
         if: always()
         working-directory: ngen-datastream/infra/aws/terraform/modules/orchestration
         run : |
-          terraform destroy -var-file=variables.tfvars -auto-approve
-          sleep 60
+          # State holds only resources this run created, so this cannot touch
+          # another run's infrastructure.
+          if [ -f terraform.tfstate ]; then
+            terraform destroy -var-file=variables.tfvars -auto-approve
+          else
+            echo "No Terraform state for $RUN_TAG; nothing to destroy"
+          fi
+
+      - name: Remove this run's S3 outputs
+        if: always()
+        run: |
+          aws s3 rm "s3://$S3_BUCKET/$S3_PREFIX/" --recursive \
+            || echo "::warning::Could not remove s3://$S3_BUCKET/$S3_PREFIX/"
