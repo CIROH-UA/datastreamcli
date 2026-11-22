@@ -48,9 +48,7 @@ get_file() {
         if [ $NUM_LINES -eq 0 ]; then
             echo "Nothing found for $IN_STRING"
         elif [ $NUM_LINES -eq 1 ]; then
-            log_n_run_steps aws s3 cp "$IN_STRING" "$(pwd)/$IN_STRING_BASE"
-            log_n_run_steps get_file "$(pwd)/$IN_STRING_BASE" $OUT_STRING
-            rm "$(pwd)/$IN_STRING_BASE"
+            log_n_run_steps aws s3 cp "$IN_STRING" "$OUT_STRING"
         else
             log_n_run_steps aws s3 sync $IN_STRING $OUT_STRING
         fi
