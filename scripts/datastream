@@ -78,7 +78,8 @@ is_in_list() {
 log_time() {
     local LABEL="$1"
     echo "$LABEL: $(date -u +'%Y%m%d%H%M%S')" >> $DATASTREAM_PROFILING
-    if [[ ${#S3_OUT} -ge 1 ]]; then
+    # Each _END rides along with the next _START upload; S3_MOVE_END is the final label.
+    if [[ ${#S3_OUT} -ge 1 ]] && [[ "$LABEL" != *_END || "$LABEL" == "S3_MOVE_END" ]]; then
         aws s3 cp $DATASTREAM_PROFILING $S3_OUT/profile.txt
     fi
 }
