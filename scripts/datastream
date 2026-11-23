@@ -358,163 +358,106 @@ else
     S3_OUT=""
 fi
 
+if [[ "$NGEN_FORCINGS" == *"DAILY"* ]]; then
+    NGEN_FORCINGS="${NGEN_FORCINGS//DAILY/$run_date}"
+    echo "Updated NGEN_FORCINGS: $NGEN_FORCINGS"
+fi
+if [[ "$TROUTE_RESTART" == *"DAILY"* ]]; then
+    TROUTE_RESTART="${TROUTE_RESTART//DAILY/$run_date}"
+    echo "Updated TROUTE_RESTART: $TROUTE_RESTART"
+fi
+if [ -n "$TROUTE_RESTART" ] && [ -z "$TROUTE_CROSSWALK" ]; then
+    echo "WARNING: t-route restarts require -w/--TROUTE_CROSSWALK, ignoring -t/--TROUTE_RESTART"
+    TROUTE_RESTART=""
+fi
+
 log_time "GET_RESOURCES_START"
+mkdir -p $DATASTREAM_RESOURCES_NGENCONF
 if [ ! -z $RESOURCE_DIR ]; then
     echo "running in lite mode"
     get_file "$RESOURCE_DIR" $DATASTREAM_RESOURCES
 else
     echo "running in standard mode"
-    mkdir -p $DATASTREAM_RESOURCES_NGENCONF
 fi
 
-if [ ! -z $RESOURCE_DIR ]; then
+# Fetch each cli input once into datastream-resources, in parallel.
+# Runs after the resource directory copy so cli inputs take precedence.
+FETCH_PIDS=()
+fetch_input() {
+    mkdir -p "$2"
+    get_file "$1" "${2%/}/$(basename "$1")" &
+    FETCH_PIDS+=($!)
+}
+if [ -n "$REALIZATION" ]; then
+    fetch_input "$REALIZATION" "$DATASTREAM_RESOURCES_NGENCONF"
+fi
+if [ -n "$GEOPACKAGE" ] && [ -z "$SUBSET_ID" ]; then
+    fetch_input "$GEOPACKAGE" "$DATASTREAM_RESOURCES_NGENCONF"
+fi
+if [ -n "$NGEN_BMI_CONFS" ]; then
+    fetch_input "$NGEN_BMI_CONFS" "$DATASTREAM_RESOURCES_NGENCONF"
+fi
+if [ -n "$NGEN_FORCINGS" ]; then
+    fetch_input "$NGEN_FORCINGS" "$DATASTREAM_RESOURCES_NGENFORCINGS"
+fi
+if [ -n "$TROUTE_RESTART" ]; then
+    fetch_input "$TROUTE_RESTART" "$DATASTREAM_RESOURCES_RESTART"
+    fetch_input "$TROUTE_CROSSWALK" "$DATASTREAM_RESOURCES_RESTART"
+fi
+for pid in "${FETCH_PIDS[@]}"; do
+    wait "$pid"
+done
 
-    # Assuming the resource directory is provided, make sure required files exist
-    # This allows allows for files to be provided at the cli while using a resource directory
-
-    # If BMI configs are explicitly provided, get those
-    if [ ! -z $NGEN_BMI_CONFS ]; then
-        BMI_CONFS_BASE_NAME="$(basename $NGEN_BMI_CONFS)"
-        BMI_CONFS_RESOURCES="$DATASTREAM_RESOURCES/$BMI_CONFS_BASE_NAME"
-        get_file "$NGEN_BMI_CONFS" "$BMI_CONFS_RESOURCES"
-    fi
-
-    if [ -z $REALIZATION ]; then
-        REALIZATION_RESOURCES=$(find "$DATASTREAM_RESOURCES_NGENCONF" -type f -name "*realization*.json")
-        if [ ! -e $REALIZATION_RESOURCES ]; then
-            echo "realization arg is required if not providing within the resource directory"
-            exit 1
-        else
-            REAL_BASE=$(basename $REALIZATION_RESOURCES)
-        fi
-    else
-        REAL_BASE=$(basename $REALIZATION)
-        REALIZATION_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF$REAL_BASE"
-        get_file "$REALIZATION" $REALIZATION_RESOURCES
-    fi
-
-    if [ -z $GEOPACKAGE ]; then
-        GEOPACKAGE_RESOURCES=$(find "$DATASTREAM_RESOURCES_NGENCONF" -type f -name "*.gpkg")
-        NGEO=$(find "$DATASTREAM_RESOURCES_NGENCONF" -type f -name "*.gpkg" | wc -l)
-        if [ ${NGEO} -gt 1 ]; then
-            echo "At most one geopackage is allowed in "$DATASTREAM_RESOURCES_NGENCONF
-            exit 1
-        fi
-        if [ ${NGEO} -gt 0 ]; then
-            echo "Using" $GEOPACKAGE_RESOURCES
-            GEO_BASE=$(basename $GEOPACKAGE_RESOURCES)
-        else
-            echo "geopackage missing from resources"
-            exit 1
-        fi
-    else
-        GEO_BASE=$(basename $GEOPACKAGE)
-        GEOPACKAGE_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF/$GEO_BASE"
-        get_file $GEOPACKAGE $GEOPACKAGE_RESOURCES
-        NGEO=1
-    fi
-
-    if [ -z $NWM_FORCINGS_DIR ]; then
-        NWM_FORCINGS_DIR=$(find $DATASTREAM_RESOURCES -type d -name "nwm-forcings")
-        NNWM_FORCINGS_DIR=$(find $DATASTREAM_RESOURCES -type d -name "nwm-forcings" | wc -l)
-        if [ ${NNWM_FORCINGS_DIR} -gt 0 ]; then
-            NWM_FORCINGS=$(find "$DATASTREAM_RESOURCES_NWMFORCINGS" -type f -name "*.nc")
-        fi
-    fi
-
-    if [ -z $NGEN_FORCINGS ]; then
-        NNGEN_FORCINGS_DIR=$(find $DATASTREAM_RESOURCES -type d -name "ngen-forcings" | wc -l)
-        if [ ${NNGEN_FORCINGS_DIR} -gt 0 ]; then
-            NGEN_FORCINGS=$(find $DATASTREAM_RESOURCES_NGENFORCINGS -type f -name "*forcing*")
-            echo "Using resource directory forcings "$NGEN_FORCINGS
-            get_file "$NGEN_FORCINGS" "$NGENRUN_FORCINGS"
-        fi
-    else
-        echo "Using" $NGEN_FORCINGS
-        if [[ "$NGEN_FORCINGS" == *"DAILY"* ]]; then
-            NGEN_FORCINGS="${NGEN_FORCINGS//DAILY/$run_date}"
-            echo "Updated NGEN_FORCINGS: $NGEN_FORCINGS"
-        else
-            echo "The NGEN_FORCINGS does not contain 'DAILY'."
-        fi
-        get_file "$NGEN_FORCINGS" "$NGENRUN_FORCINGS"
-    fi
-
-    PARTITION_RESOURCES=$(find "$DATASTREAM_RESOURCES" -type f -name "*partitions*.json")
-    if [ -e "$PARTITION_RESOURCES" ]; then
-        PARTITION_NGENRUN=$NGEN_RUN/$(basename $PARTITION_RESOURCES)
-        echo "Found $PARTITION_RESOURCES, copying to $PARTITION_NGENRUN"
-        cp $PARTITION_RESOURCES $PARTITION_NGENRUN
-    fi
-
+# Resolve each input to its datastream-resources path: cli arg first, then the resource directory.
+if [ -n "$REALIZATION" ]; then
+    REALIZATION_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF$(basename $REALIZATION)"
 else
-    echo "RESOURCE_DIR not provided, using cli args"
-
-    if [ ! -z $REALIZATION ]; then
-        REAL_BASE=$(basename $REALIZATION)
-        REALIZATION_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF$REAL_BASE"
-        get_file "$REALIZATION" $REALIZATION_RESOURCES
-    else
-        echo "realization arg is required"
+    REALIZATION_RESOURCES=$(find "$DATASTREAM_RESOURCES_NGENCONF" -type f -name "*realization*.json")
+    if [ "$(echo "$REALIZATION_RESOURCES" | grep -c .)" -ne 1 ]; then
+        echo "realization arg is required if not providing exactly one within the resource directory"
         exit 1
     fi
+fi
 
-    if [ ! -z $NGEN_BMI_CONFS ]; then
-        BMI_CONFS_BASE_NAME="$(basename $NGEN_BMI_CONFS)"
-        BMI_CONFS_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF/$BMI_CONFS_BASE_NAME"
-        get_file "$NGEN_BMI_CONFS" "$BMI_CONFS_RESOURCES"
+if [ -n "$SUBSET_ID" ]; then
+    echo "aquiring geospatial data from hfsubset"
+elif [ -n "$GEOPACKAGE" ]; then
+    GEO_BASE=$(basename $GEOPACKAGE)
+    GEOPACKAGE_RESOURCES="${DATASTREAM_RESOURCES_NGENCONF%/}/$GEO_BASE"
+else
+    GEOPACKAGE_RESOURCES=$(find "$DATASTREAM_RESOURCES_NGENCONF" -type f -name "*.gpkg")
+    if [ "$(echo "$GEOPACKAGE_RESOURCES" | grep -c .)" -ne 1 ]; then
+        echo "geopackage arg is required if not providing exactly one within the resource directory"
+        exit 1
     fi
+    echo "Using" $GEOPACKAGE_RESOURCES
+    GEO_BASE=$(basename $GEOPACKAGE_RESOURCES)
+fi
 
-    if [ ! -z "$NGEN_FORCINGS" ]; then
-        echo "Using" $NGEN_FORCINGS
-        if [[ "$NGEN_FORCINGS" == *"DAILY"* ]]; then
-            NGEN_FORCINGS="${NGEN_FORCINGS//DAILY/$run_date}"
-            echo "Updated NGEN_FORCINGS: $NGEN_FORCINGS"
-        else
-            echo "The NGEN_FORCINGS does not contain 'DAILY'."
-        fi
-        FORCING_BASE=$(basename $NGEN_FORCINGS)
-        get_file "$NGEN_FORCINGS" "$NGENRUN_FORCINGS"/$FORCING_BASE
-    fi
+if [ -n "$NGEN_FORCINGS" ]; then
+    echo "Using" $NGEN_FORCINGS
+    FORCINGS_RESOURCES="$DATASTREAM_RESOURCES_NGENFORCINGS$(basename $NGEN_FORCINGS)"
+elif [ -d "$DATASTREAM_RESOURCES_NGENFORCINGS" ]; then
+    NGEN_FORCINGS=$(find $DATASTREAM_RESOURCES_NGENFORCINGS -type f -name "*forcing*")
+    FORCINGS_RESOURCES=$NGEN_FORCINGS
+    echo "Using resource directory forcings "$NGEN_FORCINGS
+fi
 
-    if [ ! -z $NWM_FORCINGS_DIR ]; then
-        NWM_FORCINGS=$(find "$NWM_FORCINGS_DIR" -type f -name "*.nc")
-    fi
+if [ -n "$NWM_FORCINGS_DIR" ]; then
+    NWM_FORCINGS=$(find "$NWM_FORCINGS_DIR" -type f -name "*.nc")
+elif [ -d "$DATASTREAM_RESOURCES_NWMFORCINGS" ]; then
+    NWM_FORCINGS_DIR=$DATASTREAM_RESOURCES_NWMFORCINGS
+    NWM_FORCINGS=$(find "$DATASTREAM_RESOURCES_NWMFORCINGS" -type f -name "*.nc")
+fi
 
-    if [ ! -z "$TROUTE_RESTART" ]; then
-        if [ -z "$TROUTE_CROSSWALK" ]; then
-            RESTART_BASE=""
-            CROSSWALK_BASE=""
-            echo "Using troute restarts requires a crosswalk file"
-        else
-            if [[ "$TROUTE_RESTART" == *"DAILY"* ]]; then
-                TROUTE_RESTART="${TROUTE_RESTART//DAILY/$run_date}"
-                echo "Updated TROUTE_RESTART: $TROUTE_RESTART"
-            fi
-            echo "Using" "$TROUTE_RESTART"
-            RESTART_BASE=$(basename "$TROUTE_RESTART")
-            get_file "$TROUTE_RESTART" "$NGENRUN_RESTART"/"$RESTART_BASE"
-            CROSSWALK_BASE=$(basename "$TROUTE_CROSSWALK")
-            get_file "$TROUTE_CROSSWALK" "$NGENRUN_RESTART"/"$CROSSWALK_BASE"
-        fi
-    else
-        RESTART_BASE=""
-        CROSSWALK_BASE=""
-        echo "Not using t-route restarts"
-    fi
-
-    if [ ! -z $SUBSET_ID ]; then
-        echo "aquiring geospatial data from hfsubset"
-    else
-        if [ ! -z $GEOPACKAGE ]; then
-            GEO_BASE=$(basename $GEOPACKAGE)
-            GEOPACKAGE_RESOURCES="$DATASTREAM_RESOURCES_NGENCONF/$GEO_BASE"
-            get_file "$GEOPACKAGE" $GEOPACKAGE_RESOURCES
-        else
-            echo "geopackage arg is required"
-            exit 1
-        fi
-    fi
+if [ -n "$TROUTE_RESTART" ]; then
+    echo "Using" "$TROUTE_RESTART"
+    RESTART_BASE=$(basename "$TROUTE_RESTART")
+    CROSSWALK_BASE=$(basename "$TROUTE_CROSSWALK")
+else
+    RESTART_BASE=""
+    CROSSWALK_BASE=""
+    echo "Not using t-route restarts"
 fi
 
 if [ ! -z $SUBSET_ID ]; then
@@ -528,6 +471,7 @@ if [ ! -z $SUBSET_ID ]; then
     log_time "SUBSET_END"
 fi
 
+# Stage resolved inputs from datastream-resources into ngen-run.
 NGEN_BMI_CONFS_RESOURCES=$DATASTREAM_RESOURCES_NGENCONF/ngen-bmi-configs.tar.gz
 if [ -f $NGEN_BMI_CONFS_RESOURCES ]; then
     echo "Using "$NGEN_BMI_CONFS_RESOURCES "for BMI configs"
@@ -538,6 +482,18 @@ REALIZATION_NGENRUN=$NGENRUN_CONFIG/"realization.json"
 cp $REALIZATION_RESOURCES $REALIZATION_NGENRUN
 GEOPACKAGE_NGENRUN=$NGENRUN_CONFIG/$GEO_BASE
 cp $GEOPACKAGE_RESOURCES $GEOPACKAGE_NGENRUN
+if [ -n "$FORCINGS_RESOURCES" ]; then
+    cp -r $FORCINGS_RESOURCES "$NGENRUN_FORCINGS"/
+fi
+if [ -n "$TROUTE_RESTART" ]; then
+    cp "$DATASTREAM_RESOURCES_RESTART$RESTART_BASE" "$DATASTREAM_RESOURCES_RESTART$CROSSWALK_BASE" "$NGENRUN_RESTART"/
+fi
+PARTITION_RESOURCES=$(find "$DATASTREAM_RESOURCES" -type f -name "*partitions*.json")
+if [ -e "$PARTITION_RESOURCES" ]; then
+    PARTITION_NGENRUN=$NGEN_RUN/$(basename $PARTITION_RESOURCES)
+    echo "Found $PARTITION_RESOURCES, copying to $PARTITION_NGENRUN"
+    cp $PARTITION_RESOURCES $PARTITION_NGENRUN
+fi
 if [ -z "$DOMAIN_NAME" ]; then
     DOMAIN_NAME=${GEO_BASE%".gpkg"}
 fi
@@ -601,14 +557,7 @@ fi
 log_time "NGENCONFGEN_END"
 
 if [ ! -z $NGEN_FORCINGS ]; then
-    log_time "GET_FORCINGS_START"
-    echo "Using $NGEN_FORCINGS"
     FORCINGS_BASE=$(basename $NGEN_FORCINGS)
-    if [ ! -e $DATASTREAM_RESOURCES_NGENFORCINGS ]; then
-        mkdir -p $DATASTREAM_RESOURCES_NGENFORCINGS
-        get_file "$NGEN_FORCINGS" "$DATASTREAM_RESOURCES_NGENFORCINGS"/$FORCINGS_BASE
-    fi
-    log_time "GET_FORCINGS_END"
 else
     log_time "FORCINGPROCESSOR_START"
     echo "Creating nwm filenames file"
@@ -680,26 +629,6 @@ else
 
         mv "$NGENRUN_METADATA/forcings_metadata" $DATASTREAM_META
     fi
-fi
-
-if [ ! -z "$TROUTE_RESTART" ]; then
-    if [[ "$TROUTE_RESTART" == *"DAILY"* ]]; then
-        TROUTE_RESTART="${TROUTE_RESTART//DAILY/$run_date}"
-        echo "Updated TROUTE_RESTART: $TROUTE_RESTART"
-    fi
-    log_time "GET_RESTART_START"
-    echo "Using $TROUTE_RESTART"
-    RESTART_BASE=$(basename "$TROUTE_RESTART")
-    CROSSWALK_BASE=$(basename "$TROUTE_CROSSWALK")
-    if [ ! -e "$DATASTREAM_RESOURCES_RESTART" ]; then
-        mkdir -p "$DATASTREAM_RESOURCES_RESTART"
-        get_file "$TROUTE_RESTART" "$DATASTREAM_RESOURCES_RESTART"/"$RESTART_BASE"
-        get_file "$TROUTE_CROSSWALK" "$DATASTREAM_RESOURCES_RESTART"/"$CROSSWALK_BASE"
-    fi
-    log_time "GET_RESTART_END"
-else
-    RESTART_BASE=""
-    CROSSWALK_BASE=""
 fi
 
 if [[ "$FORCING_SOURCE" == *"MEDIUM_RANGE"* && "$FORCING_SOURCE" != *"CHRTOUT"* ]]; then
