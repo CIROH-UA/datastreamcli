@@ -48,9 +48,7 @@ get_file() {
         if [ $NUM_LINES -eq 0 ]; then
             echo "Nothing found for $IN_STRING"
         elif [ $NUM_LINES -eq 1 ]; then
-            log_n_run_steps aws s3 cp "$IN_STRING" "$(pwd)/$IN_STRING_BASE"
-            log_n_run_steps get_file "$(pwd)/$IN_STRING_BASE" $OUT_STRING
-            rm "$(pwd)/$IN_STRING_BASE"
+            log_n_run_steps aws s3 cp "$IN_STRING" "$OUT_STRING"
         else
             log_n_run_steps aws s3 sync $IN_STRING $OUT_STRING
         fi
@@ -80,7 +78,8 @@ is_in_list() {
 log_time() {
     local LABEL="$1"
     echo "$LABEL: $(date -u +'%Y%m%d%H%M%S')" >> $DATASTREAM_PROFILING
-    if [[ ${#S3_OUT} -ge 1 ]]; then
+    # Each _END rides along with the next _START upload; S3_MOVE_END is the final label.
+    if [[ ${#S3_OUT} -ge 1 ]] && [[ "$LABEL" != *_END || "$LABEL" == "S3_MOVE_END" ]]; then
         aws s3 cp $DATASTREAM_PROFILING $S3_OUT/profile.txt
     fi
 }
@@ -708,7 +707,18 @@ else
         --nc_file $DOCKER_TROUTE_DIR \
         --out_dir $DOCKER_TROUTE_DIR
     find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.nc" -delete
+fi
+log_time "CONVERT_TROUTE_NC2PARQUET_END"
 
+log_time "MERKLE_START"
+if [ "$DRYRUN" == "True" ]; then
+    echo "DRYRUN - MERKDIR EXECUTION SKIPPED"
+    echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT/ngen-run"
+else
+    log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT/ngen-run
+    MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
+
+    # Moved after merkle so troute outputs are hashed but kept out of the ngen-run tarball.
     if [ -n "$S3_BUCKET" ]; then
         NTROUTE=$(find "$NGENRUN_OUTPUT_TROUTE" -type f -name "*.parquet" | wc -l)
         if [ ${NTROUTE} -gt 0 ]; then
@@ -717,16 +727,6 @@ else
             mv $NGENRUN_OUTPUT_TROUTE/*.parquet $TROUTE_TMP
         fi
     fi
-fi
-log_time "CONVERT_TROUTE_NC2PARQUET_END"
-
-log_time "MERKLE_START"
-if [ "$DRYRUN" == "True" ]; then
-    echo "DRYRUN - MERKDIR EXECUTION SKIPPED"
-    echo "COMMAND: docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT"
-else
-    log_n_run_steps docker run --rm -v "$DATA_DIR":"$DOCKER_MOUNT" -u $(id -u):$(id -g) zwills/merkdir /merkdir/merkdir gen -o $DOCKER_MOUNT/merkdir.file $DOCKER_MOUNT
-    MERK_HASH=$(docker inspect --format='{{json .Id}}' $(docker image ls zwills/merkdir:latest --format "{{.ID}}") | tr -d '"')
 fi
 log_time "MERKLE_END"
 
