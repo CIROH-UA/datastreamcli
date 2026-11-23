@@ -35,12 +35,15 @@ network_topology_parameters:
     columns:
         key: "id"
         downstream: "toid"
+        # Length_m and length_m are the same field. Generation writes the name this fabric has.
         dx: "Length_m"
         n: "n"
         ncc: "nCC"
         s0: "So"
         bw: "BtmWdth"
+        # WaterbodyID and rl_NHDWaterbodyComID are the same field. Generation writes the name this fabric has.
         waterbody: "WaterbodyID"
+        # gage, gages, and rl_gages are the same field. Generation writes the name this fabric has.
         gages: "gage"
         tw: "TopWdth"
         twcc: "TopWdthCC"

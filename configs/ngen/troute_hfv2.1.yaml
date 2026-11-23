@@ -47,6 +47,7 @@ network_topology_parameters:
       s0: So
       tw: TopWdth
       twcc: TopWdthCC
+      # WaterbodyID and rl_NHDWaterbodyComID are the same field. Generation writes the name this fabric has.
       waterbody: "WaterbodyID"
     geo_file_path: ./config/nextgen_09.gpkg
   waterbody_parameters:
