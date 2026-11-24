@@ -2,28 +2,17 @@
 Scripts to create ngen bmi module configuration files and validate ngen-run packages.
 
 ## `ngen_configs_gen.py`
-Note: see [noahowp_pkl](#noahowp_pklpy) before running this script. Currently, the datastream creates the noahowp config files from a template config within the repository. 
+Currently, the datastream creates the noahowp config files from a template config within the repository. 
 The t-route config is also created from a template within this repository. Soon these will be generated with pydantic models within [ngen-cal](https://github.com/NOAA-OWP/ngen-cal)
 ```
 usage: ngen_configs_gen.py [-h] [--hf_file HF_FILE] [--outdir OUTDIR]
-                           [--pkl_file PKL_FILE] [--realization REALIZATION] 
+                           [--realization REALIZATION] 
 options:
   -h, --help                 show this help message and exit
   --hf_file HF_FILE          Path to the .gpkg
   --outdir OUTDIR            Path to write ngen configs
-  --pkl_file PKL_FILE        Path to the noahowp pkl
   --realization REALIZATION  Path to the ngen realization
   --lstm_ensembles           List of integers corresponding to lstm ensemble members
-```
-
-## `noahowp_pkl.py`
-Generate .pkl file read by `ngen_configs_gen.py`, from which noahowp configs will be generated for each catchment present in the attributes file.
-```
-usage: noahowp_pkl.py [-h] [--hf_lnk_file HF_LNK_FILE] [--outdir OUTDIR]
-options:
-  -h, --help                show this help message and exit
-  --hf_lnk_file HF_LNK_FILE Path to the .gpkg attributes
-  --outdir OUTDIR           Path to write ngen configs
 ```
 
 ## `configure-datastream.py`

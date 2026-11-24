@@ -2,13 +2,12 @@ import os
 import pytest
 from ruamel.yaml import YAML
 from datastreamcli.ngen_configs_gen import (
-    gen_noah_owp_confs_from_pkl,
+    gen_noah_owp_confs,
     gen_petAORcfe,
     generate_troute_conf,
     gen_lstm,
     get_hf,
 )
-from datastreamcli.noahowp_pkl import multiprocess_gen_pkl
 import datetime as dt
 from pathlib import Path
 import shutil
@@ -22,7 +21,6 @@ NGEN_CONFIG_DIR = CONFIG_DIR / "ngen"
 DATA_DIR = TEST_DIR / "data"
 
 LSTM_REALIZATION = NGEN_CONFIG_DIR / "realization_rust_lstm.json"
-PKL_FILE = DATA_DIR / "noah-owp-modular-init.namelist.input.pkl"
 
 # Ensure DATA_DIR exists and is empty
 if DATA_DIR.exists():
@@ -77,14 +75,9 @@ def clean_dir():
     CONF_DIR.mkdir(parents=True)
 
 
-def test_pkl_v21():
-    multiprocess_gen_pkl(GEOPACKAGE_PATH_v21, DATA_DIR, "v2.1")
-    assert PKL_FILE.exists()
-
-
 def test_noah_owp_m_v21():
     NOAH_DIR.mkdir(parents=True, exist_ok=True)
-    gen_noah_owp_confs_from_pkl(PKL_FILE, NOAH_DIR, START, END)
+    gen_noah_owp_confs(attrs_v21, NOAH_DIR, START, END)
     noah_config_example = NOAH_DIR / "noah-owp-modular-init-cat-2586011.namelist.input"
     assert noah_config_example.exists()
 
@@ -110,14 +103,9 @@ def test_routing_v21():
     assert yml_example.exists()
 
 
-def test_pkl_v22():
-    multiprocess_gen_pkl(GEOPACKAGE_PATH_v22, DATA_DIR, "v2.2")
-    assert PKL_FILE.exists()
-
-
 def test_noah_owp_m_v22():
     NOAH_DIR.mkdir(parents=True, exist_ok=True)
-    gen_noah_owp_confs_from_pkl(PKL_FILE, NOAH_DIR, START, END)
+    gen_noah_owp_confs(attrs_v22, NOAH_DIR, START, END)
     noah_config_example = NOAH_DIR / "noah-owp-modular-init-cat-1496145.namelist.input"
     assert noah_config_example.exists()
 
@@ -128,6 +116,8 @@ def test_noah_owp_m_v22():
             if sep:
                 namelist_values[key.strip()] = value.split("!")[0].strip()
 
+    assert namelist_values["startdate"] == f'"{START.strftime("%Y%m%d%H%M")}"'
+    assert namelist_values["enddate"] == f'"{END.strftime("%Y%m%d%H%M")}"'
     attrs = attrs_v22.loc[attrs_v22["divide_id"] == "cat-1496145"].iloc[0]
     assert float(namelist_values["lat"]) == pytest.approx(attrs["centroid_y"])
     assert float(namelist_values["lon"]) == pytest.approx(attrs["centroid_x"])
