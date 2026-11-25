@@ -22,7 +22,7 @@
   "KeyName"            : "actions_key_arm",
   "SecurityGroupIds"   : ["sg-0fcbe0c6d6faa0117"],
   "IamInstanceProfile": {
-    "Name": "default_ec2_profile"
+    "Name": "nrds_prod_ec2_profile"
   },
   "TagSpecifications"   :[
     {
