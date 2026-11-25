@@ -223,6 +223,9 @@ jobs:
   build-test-push-docker-arm:
     needs: [detect-changes, build-test-push-docker-x86]
     runs-on: ubuntu-latest
+    env:
+      # Per-run prefix so overlapping runs don't read each other's outputs
+      S3_PREFIX: test/cicd/datastream/${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -252,6 +255,7 @@ jobs:
           fi
 
           sed -i "s|\${BRANCH_NAME}|$BRANCH_NAME|g" .github/executions/ds_push_execution_arm.json
+          sed -i "s|\${S3_PREFIX}|$S3_PREFIX|g" .github/executions/ds_push_execution_arm.json
           if [ "${{ needs.detect-changes.outputs.build_deps }}" != "true" ]; then
             sed -i "/docker-compose\.yml build datastream-deps/d" .github/executions/ds_push_execution_arm.json
           fi
@@ -368,7 +372,7 @@ jobs:
       - name: Download build logs from S3
         if: always()
         run: |
-          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/$S3_PREFIX/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
           if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
             cat $GITHUB_WORKSPACE/docker_build_log.txt >> $GITHUB_STEP_SUMMARY
           fi
@@ -376,7 +380,7 @@ jobs:
       - name: Download login logs from S3
         if: always()
         run: |
-          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_login_log.txt $GITHUB_WORKSPACE/docker_login_log.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/$S3_PREFIX/docker_login_log.txt $GITHUB_WORKSPACE/docker_login_log.txt || true
           if [ -f $GITHUB_WORKSPACE/docker_login_log.txt ]; then
             cat $GITHUB_WORKSPACE/docker_login_log.txt >> $GITHUB_STEP_SUMMARY
           fi
@@ -398,7 +402,11 @@ jobs:
           path: docker_login_log.txt
           if-no-files-found: ignore
           retention-days: 30
-          
+
+      - name: Remove run outputs from S3
+        if: always() && steps.prep_config.outputs.skip_arm_build != 'true'
+        run: |
+          aws s3 rm --recursive "s3://ciroh-community-ngen-datastream/${S3_PREFIX:?}/"
 
   create-manifest:
     name: Create and Push Manifest

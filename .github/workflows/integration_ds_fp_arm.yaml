@@ -46,6 +46,9 @@ permissions:
 jobs:
   build-test-docker-arm:
     runs-on: ubuntu-latest
+    env:
+      # Per-run prefix so overlapping runs don't read each other's outputs
+      S3_PREFIX: test/cicd/datastream/${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,6 +86,7 @@ jobs:
           sed -i "s|\${BRANCH_NAME}|$BRANCH_NAME|g" .github/executions/fp_ds_test_execution_arm.json
           sed -i "s|\${DS_TAG}|$DS_TAG|g" .github/executions/fp_ds_test_execution_arm.json
           sed -i "s|\${FP_TAG}|$FP_TAG|g" .github/executions/fp_ds_test_execution_arm.json
+          sed -i "s|\${S3_PREFIX}|$S3_PREFIX|g" .github/executions/fp_ds_test_execution_arm.json
 
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             DIFF=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
@@ -166,10 +170,10 @@ jobs:
         if: always()
         run: |
           # Download general build log
-          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/$S3_PREFIX/docker_build_log.txt $GITHUB_WORKSPACE/docker_build_log.txt || true
           
           # Download datastream test output
-          aws s3 cp s3://ciroh-community-ngen-datastream/test/cicd/datastream/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
+          aws s3 cp s3://ciroh-community-ngen-datastream/$S3_PREFIX/datastream_test_output.txt $GITHUB_WORKSPACE/datastream_test_output.txt || true
           
           if [ -f $GITHUB_WORKSPACE/docker_build_log.txt ]; then
             echo "## Docker Build Log" >> $GITHUB_STEP_SUMMARY
@@ -191,3 +195,8 @@ jobs:
             datastream_test_output.txt
           if-no-files-found: ignore
           retention-days: 30
+
+      - name: Remove run outputs from S3
+        if: always()
+        run: |
+          aws s3 rm --recursive "s3://ciroh-community-ngen-datastream/${S3_PREFIX:?}/"
