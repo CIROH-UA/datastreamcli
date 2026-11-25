@@ -113,18 +113,12 @@ jobs:
           echo "Execution ARN: $execution_arn"
           echo "execution_arn=$execution_arn" >> $GITHUB_OUTPUT
           echo "$execution_arn" > $GITHUB_WORKSPACE/execution_arn.txt
-          
-          status="RUNNING"
-          while [ "$status" != "SUCCEEDED" ]; do 
-            status=$(aws stepfunctions describe-execution --execution-arn "$execution_arn" --region us-east-1 --query 'status' --output text)
-            echo "Current status: $status"
-            if [ "$status" == "FAILED" ]; then 
-              echo "State machine execution failed!"
-              exit 1
-            fi
-            sleep 5
-          done
-          echo "State machine execution succeeded!"
+
+      # The execution ends SUCCEEDED after cleanup even if the job failed, so check its output
+      - name: Wait for execution result
+        uses: CIROH-UA/ngen-datastream/.github/actions/nrds-execution-result@main
+        with:
+          execution-arn: ${{ steps.stepfunction_execution.outputs.execution_arn }}
 
       - name: Download Step Function execution logs
         if: always()  # Run even if previous step fails
